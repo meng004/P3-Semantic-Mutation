@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "attempt": 1,
+      "command": [
+        "gh",
+        "api",
+        "-X",
+        "GET",
+        "search/issues",
+        "-f",
+        "q=repo:pymc-devs/pymc is:issue is:closed created:<=2026-08-01 \"wrong result\"",
+        "-f",
+        "sort=created",
+        "-f",
+        "order=desc",
+        "-F",
+        "per_page=20"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "search:pymc-devs/pymc:wrong result",
+      "stderr_tail": "",
+      "stdout_sha256": "eaceb56c0d0e85a4fbe511fcda6d5b884138a4d2d88b6834188afd9d49999c9c",
+      "timestamp_utc": "2026-08-02T02:47:10Z"
+    },
+    {
+      "attempt": 1,
+      "command": [
+        "gh",
+        "api",
+        "-X",
+        "GET",
+        "search/issues",
+        "-f",
+        "q=repo:pymc-devs/pymc is:issue is:closed created:<=2026-08-01 \"wrong result\"",
+        "-f",
+        "sort=created",
+        "-f",
+        "order=desc",
+        "-F",
+        "per_page=20"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "search:pymc-devs/pymc:wrong result",
+      "stderr_tail": "",
+      "stdout_sha256": "eaceb56c0d0e85a4fbe511fcda6d5b884138a4d2d88b6834188afd9d49999c9c",
+      "timestamp_utc": "2026-08-02T03:19:55Z"
+    },
+    {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/external_slice/mine_supplemental_r1.py",
+        "search",
+        "--scope",
+        "data/external_slice/supplemental_r1/SCOPE.json",
+        "--snapshot",
+        "/tmp/r3_official_search_snapshot.json",
+        "--queue",
+        "/tmp/r3_official_search_queue.json",
+        "--command-log",
+        "/workspace/data/external_slice/supplemental_r1/COMMAND_LOG.json"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 2,
+      "expected_raw_exit": 2,
+      "label": "official_search_wrapper_r3",
+      "note": "Official frozen-rule search wrapper. Exit 2 is SEARCH_HARD_FAIL. Per-query gh api calls appended above by the miner are the only command-auditable search provenance retained after withdrawing the unproven 66-query diagnostic claim.",
+      "stderr_tail": "ERROR: SEARCH_HARD_FAIL: PR returned for frozen issue-only query repo=pymc-devs/pymc phrase='wrong result' url=https://github.com/pymc-devs/pymc/pull/7491\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": "",
+      "timestamp_utc": "2026-08-02T03:19:55Z"
+    }
+  ],
+  "r3_note": "R3 appended official wrapper at 2026-08-02T03:19:55Z; no 66-query aggregate claim.",
+  "schema_version": 1
+}

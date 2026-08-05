@@ -1,0 +1,72 @@
+{
+  "baseline_commit": "0e208929ec4b6fc6ef8e49f6312c489be7ed4f8a",
+  "created_cutoff": "2026-08-01",
+  "forbidden_actions": [
+    "A2 build or trigger execution",
+    "reproducer creation",
+    "MR or mutation/kill inspection",
+    "category or analysis alias assignment",
+    "prediction or detection-result access",
+    "modification of existing admission, readiness, freeze, annotation, prediction, reproduction, or run artifacts"
+  ],
+  "input_sha256": {
+    "data/external_slice/admission_sheet.csv": "77f729b1297ef24d4223d5277b093c93ad84711dfbbe69a1927398d49d387a0a",
+    "data/external_slice/admission_sheet.cursor_candidate.csv": "4b0296c3656219e77a03acf1e9a727f574651bbaf1650ae07f31f2c47294adb8",
+    "data/external_slice/readiness_batch1.json": "9e56eef3d8e6fe4d908cf9c4d097835cb44303ee59ca2e1f10a3e35ea3df4a50",
+    "data/external_slice/readiness_batch2.json": "7d922fca1cf87b6070c29173ad98003db5c70db182cad16755b77d35a06b1150",
+    "docs/review_20260728/external_admission_runbook.md": "a3ced473d0d4ab91c39480bb59e7032c05bd15f68e57ee277da71582b3256f05",
+    "research/prereg_v2/external_slice_protocol.md": "186b9734077035f63a1819569ecf45e645545862d045cb5ee899a7dd8f2841ca"
+  },
+  "max_results_per_phrase": 20,
+  "max_reviewed_per_repo": 20,
+  "phrases": [
+    "wrong result",
+    "incorrect value",
+    "numerical regression",
+    "precision loss",
+    "convergence failure",
+    "conservation violation",
+    "biased estimate",
+    "wrong sign",
+    "off by a factor",
+    "accuracy regression",
+    "numerical instability"
+  ],
+  "repositories": [
+    {
+      "id_prefix": "EXT-pymc-",
+      "repo": "pymc-devs/pymc",
+      "restriction": "numerical kernels only"
+    },
+    {
+      "id_prefix": "EXT-gpytorch-",
+      "repo": "cornellius-gp/gpytorch",
+      "restriction": "numerical kernels only"
+    },
+    {
+      "id_prefix": "EXT-chaospy-",
+      "repo": "jonathf/chaospy",
+      "restriction": "numerical kernels only"
+    },
+    {
+      "id_prefix": "EXT-salib-",
+      "repo": "SALib/SALib",
+      "restriction": "numerical kernels only"
+    },
+    {
+      "id_prefix": "EXT-pytorch-",
+      "repo": "pytorch/pytorch",
+      "restriction": "linalg, optim, or special-function numerical components only"
+    },
+    {
+      "id_prefix": "EXT-jax-",
+      "repo": "jax-ml/jax",
+      "restriction": "linalg, optim, or special-function numerical components only"
+    }
+  ],
+  "schema_version": 1,
+  "search_order": "desc",
+  "search_sort": "created",
+  "target_pending_per_repo": 5,
+  "task": "SUPPLEMENTAL_MINING_R1"
+}

@@ -1,0 +1,32 @@
+{
+  "exit_status": 1,
+  "expected_property": "two-sample proportions_ztest works with value=None (null diff 0) AND one-sample requires an explicit value",
+  "input": {
+    "count": [
+      5,
+      12
+    ],
+    "nobs": [
+      83,
+      99
+    ],
+    "value": null
+  },
+  "neutral_id": "EXT-statsmodels-03",
+  "observed_output": {
+    "one_sample_err": "TypeError(\"unsupported operand type(s) for -: 'float' and 'NoneType'\")",
+    "one_sample_requires_value": true,
+    "two_pval": null,
+    "two_sample_err": "TypeError(\"unsupported operand type(s) for -: 'float' and 'NoneType'\")",
+    "two_sample_ok": false,
+    "two_stat": null
+  },
+  "package_version": {
+    "numpy": "1.19.5",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.9.18",
+    "statsmodels": "0.8.0.dev0+Unknown"
+  },
+  "property_holds": false,
+  "seed": 2
+}

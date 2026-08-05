@@ -1,0 +1,23 @@
+{
+  "exit_status": 0,
+  "expected_property": "finite complex zero for zero base with Re(z)>0",
+  "input": {
+    "expr": "(0)**np.array([1-1j])"
+  },
+  "neutral_id": "EXT-numpy-01",
+  "observed_output": {
+    "finite": true,
+    "near_zero": true,
+    "value": [
+      0.0,
+      0.0
+    ]
+  },
+  "package_version": {
+    "numpy": "1.25.0.dev0+96.g9989e1e43",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.9.18"
+  },
+  "property_holds": true,
+  "seed": 0
+}

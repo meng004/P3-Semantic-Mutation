@@ -1,0 +1,141 @@
+{
+  "aggregation": {
+    "all_seeds_contrasted": true,
+    "failing_seeds": [],
+    "formal_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "proposed_crit_dual_arm_repro": "PASS",
+    "requirements": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "seed_rows": [
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 0,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 1,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 2,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 3,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 4,
+        "seed_ok": true
+      }
+    ]
+  },
+  "formal_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "neutral_id": "EXT-scikit-learn-01",
+  "per_seed": {
+    "0": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "1": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "2": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "3": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "4": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    }
+  },
+  "smoke_seeds": [
+    0
+  ]
+}

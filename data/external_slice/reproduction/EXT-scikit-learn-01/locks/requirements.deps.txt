@@ -1,0 +1,11 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-scikit-learn-01:deps)
+# python=/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python
+# root_packages=['numpy>=1.21.0,<1.25', 'scipy>=1.7.0,<1.12', 'joblib', 'threadpoolctl']
+joblib==1.5.3 \
+    --hash=sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713
+threadpoolctl==3.6.0 \
+    --hash=sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb
+numpy==1.24.4 \
+    --hash=sha256:d11efb4dbecbdf22508d55e48d9c8384db795e1b7b51ea735289ff96613ff74d
+scipy==1.11.4 \
+    --hash=sha256:91af76a68eeae0064887a48e25c4e616fa519fa0d38602eda7e0f97d65d57937

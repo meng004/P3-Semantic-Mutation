@@ -1,0 +1,40 @@
+{
+  "batch": 3,
+  "created_at": "2026-08-02T07:00:00+00:00",
+  "forbid": [
+    "case_substitution",
+    "drop_failed_seeds",
+    "success_only_reporting",
+    "membership_mutation"
+  ],
+  "formal_repetitions": {
+    "arm_input_parity": "identical seed and trigger inputs for buggy and fixed at each seed",
+    "save_per_execution": [
+      "json",
+      "stdout",
+      "stderr",
+      "raw_return_code"
+    ],
+    "seeds": [0, 1, 2, 3, 4]
+  },
+  "gate": "A1d-r1",
+  "members": [
+    "EXT-numpy-01",
+    "EXT-scipy-01",
+    "EXT-scikit-learn-01",
+    "EXT-statsmodels-01",
+    "EXT-statsmodels-02",
+    "EXT-statsmodels-03"
+  ],
+  "membership_path": "data/external_slice/BATCH3_MEMBERSHIP.json",
+  "membership_sha256_expected": "02d47656f6fc5a528c9f1cf747bba8025440914e12873fcc8975a8f54e6da853",
+  "smoke": {
+    "per_arm": true,
+    "purpose": "environment smoke check before formal repetitions",
+    "seeds": [0]
+  },
+  "verdict_aggregation": {
+    "any_seed_failure": "REPRO_FAILED",
+    "rule": "every formal seed must show buggy_exhibits_issue and fixed_removes_issue"
+  }
+}

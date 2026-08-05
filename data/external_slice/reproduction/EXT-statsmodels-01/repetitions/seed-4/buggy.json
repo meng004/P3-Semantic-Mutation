@@ -1,0 +1,20 @@
+{
+  "exit_status": 1,
+  "expected_property": "Binomial(n=10).deriv(5) == 0",
+  "input": {
+    "mu": 5,
+    "n": 10
+  },
+  "neutral_id": "EXT-statsmodels-01",
+  "observed_output": {
+    "deriv": -9.0,
+    "expected": 0.0
+  },
+  "package_version": {
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "statsmodels": "0.0.0+g46f2e6d"
+  },
+  "property_holds": false,
+  "seed": 4
+}

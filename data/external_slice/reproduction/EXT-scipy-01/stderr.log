@@ -1,0 +1,8 @@
+=== buggy stderr ===
+/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp
+  return _norm_cdf(x) - np.exp(logprod)
+/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp
+  return _norm_cdf(-x) + np.exp(logprod)
+
+=== fixed stderr ===
+

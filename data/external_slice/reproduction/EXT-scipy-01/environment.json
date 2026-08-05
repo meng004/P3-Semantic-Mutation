@@ -1,0 +1,146 @@
+{
+  "batch": 3,
+  "blas_lapack_providers": {
+    "buggy": {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/buggy",
+      "exit_code": 0,
+      "provider_summary": "openblas"
+    },
+    "fixed": {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/fixed",
+      "exit_code": 0,
+      "provider_summary": "openblas"
+    }
+  },
+  "buggy_sha": "c998b5fcaf0654c7511cf9659beeba4780c7182e",
+  "cohort": "supplemental-pilot",
+  "dual_arm_contrast": true,
+  "execution_matrix": {
+    "formal_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "smoke_seeds": [
+      0
+    ]
+  },
+  "failure_detail": null,
+  "failure_stage": null,
+  "fixed_sha": "68d40e7cbe43370049c38bb6013e6b9e77415d68",
+  "formal_aggregation": {
+    "all_seeds_contrasted": true,
+    "failing_seeds": [],
+    "formal_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "proposed_crit_dual_arm_repro": "PASS",
+    "requirements": {
+      "buggy_property_holds": false,
+      "buggy_raw_return_code": 1,
+      "fixed_property_holds": true,
+      "fixed_raw_return_code": 0,
+      "input_parity_ok": true
+    },
+    "seed_rows": [
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 0,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 1,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 2,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 3,
+        "seed_ok": true
+      },
+      {
+        "buggy_property_holds": false,
+        "buggy_raw_return_code": 1,
+        "contrast": true,
+        "fixed_property_holds": true,
+        "fixed_raw_return_code": 0,
+        "input_parity_ok": true,
+        "parity_ok": true,
+        "present": true,
+        "property_ok": true,
+        "return_code_ok": true,
+        "seed": 4,
+        "seed_ok": true
+      }
+    ]
+  },
+  "hash_locked_build_closure": true,
+  "issue_url": "https://github.com/scipy/scipy/issues/24551",
+  "neutral_id": "EXT-scipy-01",
+  "no_build_isolation": true,
+  "platform": {
+    "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "machine": "x86_64",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "python39": "/tmp/c3_batch1/work/python39/install/bin/python3.9"
+  },
+  "proposed_crit_dual_arm_repro": "PASS",
+  "python_for_case": "/usr/bin/python3",
+  "repo": "scipy/scipy",
+  "route": "exact-source-scipy-meson",
+  "seed": 0,
+  "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+  "trigger_exit_codes": {
+    "buggy": 1,
+    "fixed": 0
+  }
+}

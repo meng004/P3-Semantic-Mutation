@@ -1,0 +1,61 @@
+/tmp/c3_batch3/EXT-statsmodels-01/venv-fixed/bin/python -c "
+import json
+import sys
+out = {
+    \"python\": sys.version.split()[0],
+    \"numpy\": None,
+    \"scipy\": None,
+    \"numpy_show_config\": \"\",
+    \"scipy_show_config\": \"\",
+    \"numpy_config_keys\": [],
+    \"errors\": [],
+}
+try:
+    import numpy as np
+    out[\"numpy\"] = getattr(np, \"__version__\", None)
+    try:
+        from io import StringIO
+        buf = StringIO()
+        np.show_config(stream=buf)
+        out[\"numpy_show_config\"] = buf.getvalue()
+    except TypeError:
+        from io import StringIO
+        import contextlib
+        buf = StringIO()
+        with contextlib.redirect_stdout(buf):
+            np.show_config()
+        out[\"numpy_show_config\"] = buf.getvalue()
+    cfg = getattr(np, \"__config__\", None)
+    if cfg is not None and hasattr(cfg, \"get_info\"):
+        for key in (
+            \"blas_opt_info\",
+            \"lapack_opt_info\",
+            \"blas_mkl_info\",
+            \"openblas_info\",
+            \"blas_ilp64_opt_info\",
+        ):
+            try:
+                info = cfg.get_info(key)
+            except Exception as exc:  # noqa: BLE001
+                out[\"errors\"].append(f\"{key}:{exc!r}\")
+                continue
+            if info:
+                out[\"numpy_config_keys\"].append(
+                    {\"key\": key, \"libraries\": info.get(\"libraries\"),
+                     \"library_dirs\": info.get(\"library_dirs\")}
+                )
+except Exception as exc:  # noqa: BLE001
+    out[\"errors\"].append(f\"numpy:{exc!r}\")
+try:
+    import scipy
+    out[\"scipy\"] = getattr(scipy, \"__version__\", None)
+    from io import StringIO
+    import contextlib
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        scipy.show_config()
+    out[\"scipy_show_config\"] = buf.getvalue()
+except Exception as exc:  # noqa: BLE001
+    out[\"errors\"].append(f\"scipy:{exc!r}\")
+print(json.dumps(out, sort_keys=True))
+"

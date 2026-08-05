@@ -1,0 +1,15 @@
+{
+  "arms": {
+    "buggy": {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/buggy",
+      "exit_code": 0,
+      "provider_summary": "openblas"
+    },
+    "fixed": {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/fixed",
+      "exit_code": 0,
+      "provider_summary": "openblas"
+    }
+  },
+  "neutral_id": "EXT-scipy-01"
+}

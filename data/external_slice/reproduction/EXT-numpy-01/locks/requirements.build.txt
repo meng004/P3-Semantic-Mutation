@@ -1,0 +1,11 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-numpy-01:build)
+# python=/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python
+# root_packages=['pip', 'setuptools==59.2.0', 'wheel==0.37.0', 'Cython>=0.29.30,<3.0']
+pip==26.0.1 \
+    --hash=sha256:bdb1b08f4274833d62c1aa29e20907365a2ceb950410df15fc9521bad440122b
+setuptools==59.2.0 \
+    --hash=sha256:4adde3d1e1c89bde1c643c64d89cdd94cbfd8c75252ee459d4500bccb9c7d05d
+wheel==0.37.0 \
+    --hash=sha256:21014b2bd93c6d0034b6ba5d35e4eb284340e09d63c59aef6fc14b0f346146fd
+Cython==0.29.37 \
+    --hash=sha256:e841a8b4f9ceefb2916e32dac4f28a895cd519e8ece71505144da1ee355c548a

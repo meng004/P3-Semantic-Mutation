@@ -1,0 +1,37 @@
+{
+  "exit_status": 0,
+  "expected_property": "VIFs finite and < 30 for independent transformed columns",
+  "input": {
+    "columns": [
+      "x1_log",
+      "x2_inv",
+      "x3_inv",
+      "x1",
+      "x2",
+      "x3"
+    ],
+    "n": 500,
+    "rng_seed": 1
+  },
+  "neutral_id": "EXT-statsmodels-02",
+  "observed_output": {
+    "finite": true,
+    "vif_max": 13.55382447966397,
+    "vifs": [
+      13.543565527122096,
+      3.3587700949282584,
+      2.35328028882303,
+      13.55382447966397,
+      3.343081272131276,
+      2.3500038118954794
+    ]
+  },
+  "package_version": {
+    "numpy": "2.5.1",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "statsmodels": "0.0.0+g8470c9c"
+  },
+  "property_holds": true,
+  "seed": 1
+}

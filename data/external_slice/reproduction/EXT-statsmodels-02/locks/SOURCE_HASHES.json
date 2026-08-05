@@ -1,0 +1,16 @@
+{
+  "buggy": {
+    "archive_sha256": "0874dab4c8d703c36e4f1bd0d3770ba0c5ef19c55900684e5556a97b1f13108a",
+    "mode": "archive",
+    "repo": "statsmodels/statsmodels",
+    "sha": "383d9707516a8613a46d58998e42985b431a33f3",
+    "source_tree_sha256": "03d812fe8b5e88990b7d7c4583b02a95aa53a33277e05a8c4b54e9f146ede135"
+  },
+  "fixed": {
+    "archive_sha256": "5706082ff149bce9517850990c935d14819983666541701e1798d207c6965fde",
+    "mode": "archive",
+    "repo": "statsmodels/statsmodels",
+    "sha": "8470c9c164b4811527659317c972fb5283f0bb12",
+    "source_tree_sha256": "691752f5001dd13040cfb933d481ad13cabaaad123e1cdd625d08769de879f88"
+  }
+}

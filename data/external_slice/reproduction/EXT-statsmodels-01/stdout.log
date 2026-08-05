@@ -1,0 +1,6 @@
+=== buggy stdout ===
+{"property_holds": false, "exit_status": 1}
+
+=== fixed stdout ===
+{"property_holds": true, "exit_status": 0}
+

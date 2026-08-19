@@ -1,0 +1,54 @@
+{
+  "author_authorization": "ONE_ARCHIVE_EXTRACT_CMAKE_LTEST=yes",
+  "baseline_commit": "4444061dde0159a5edd62753fe3cef2d881a308c",
+  "branch": "cursor/p2c-one-archive-spawn-58d6",
+  "closed_scientific_target": "P2-C 单受试 archive+ltest 构建尝试已入账；非 20 行；非 P2-D；非 35 包",
+  "commands": [
+    {
+      "command": "PYTHONPATH=src python3 scripts/p3_v3/run_p2c_one_archive_spawn.py --root . --workload data/p3_v3/phase1_frames/out/profiling-workload-1f67b3f303a09aa91413a2b5451d156cdcd76d425833bdd12669a7d1e140ca72.json --behavior-id 13b2cddc5341afe2883cad777028d5c534d68c254ae0635792fb43b497e72a45 --jobs-root data/p3_v3/phase2_profiling/jobs --job-id p2c-20260819-005 --terminal-output data/p3_v3/phase2_profiling/one-archive-terminal.json",
+      "env": {
+        "PYTHONPATH": "src",
+        "cwd": "/workspace",
+        "os": "Linux 6.12.94+ x86_64 glibc 2.39",
+        "pytest": "9.0.3",
+        "python": "CPython 3.12.3",
+        "python_executable": "/usr/bin/python3"
+      },
+      "exit_code": 0,
+      "result": "FAIL_INFRASTRUCTURE E_ARCHIVE_FETCH_FAILED"
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m pytest tests/p3_v3/test_phase2_p2c_one_archive.py -q",
+      "env": {
+        "PYTHONPATH": "src",
+        "cwd": "/workspace",
+        "os": "Linux 6.12.94+ x86_64 glibc 2.39",
+        "pytest": "9.0.3",
+        "python": "CPython 3.12.3",
+        "python_executable": "/usr/bin/python3"
+      },
+      "exit_code": 0,
+      "result": "5 passed"
+    }
+  ],
+  "correction_verdict": "CLOSE_AND_ADVANCE",
+  "failures_exclusions_retries": "none",
+  "handoff_commit_semantics": "head_commit is the evidence commit that contains the one-archive script, exclusive intent/result, one-archive terminal, and packet test. This handoff file is the direct child of that commit and cannot embed its own SHA.",
+  "head_commit": "e6acee9d2b01b4bd79b6bd8ea0d3452aa06c2dc5",
+  "input_sha256": {
+    "data/p3_v3/phase1_frames/out/profiling-workload-1f67b3f303a09aa91413a2b5451d156cdcd76d425833bdd12669a7d1e140ca72.json": "db46368cc3a8e78ffeceb60c38d46cd903ac49ddc779757ee94f1350bd15382d",
+    "data/p3_v3/phase1_frames/receipts.json": "8eeccfe4d1aebb09e6ee9ad2fadb82ac5b8697c40f602592faa6b3878692a440",
+    "data/p3_v3/protocol/protocol.json": "240d8270d41802c9d5b86f30564eadd1a86fd9ed09de2c7e947d17c1a4d78519"
+  },
+  "output_sha256": {
+    "data/p3_v3/phase2_profiling/jobs/p2c-20260819-005/1/intent.json": "e0229365b6a841a14aaf719d96946be37fd98ccf8dddaac14d7665bdbe6f1721",
+    "data/p3_v3/phase2_profiling/jobs/p2c-20260819-005/1/result.json": "1c6518c9625e5dd4fcb7f5f8bedcfb7648ff74ebc3b8fa857ba7c372924f6e3b",
+    "data/p3_v3/phase2_profiling/one-archive-terminal.json": "a4c46e0e124a55a072cbb210d651d6d66691604f97fab4937212bb14bdca8d12",
+    "data/p3_v3/phase2_profiling/one-archive-terminal.json#artifact_sha256": "12f3f91ff9a899113d5b40e44b711246c53d6bde7e8b7e00e357a0cc2117e624",
+    "scripts/p3_v3/run_p2c_one_archive_spawn.py": "a9da98aa8b579b405f2c959383a5d2f9c6b5d9cc726d028847c9e78fd4021084",
+    "tests/p3_v3/test_phase2_p2c_one_archive.py": "5ea4697a2f9f732789fac0c4c62bfc4101212767351c0291ee911121ccf32c86"
+  },
+  "packet_id": "2026-08-19-005",
+  "scientific_target": "P2-C",
+  "unresolved": []
+}

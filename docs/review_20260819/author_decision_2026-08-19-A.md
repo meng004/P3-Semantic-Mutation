@@ -55,9 +55,11 @@ pinned subject is now authorized as packet 005 (one archive + cmake
 - **After author exception (one archive + cmake/deps for this subject):**
   packet 005 issued.
 - **After 005 C1:** fetch booked `E_ARCHIVE_FETCH_FAILED` (P12 404).
-  C1 `docs/review_20260819/2026-08-19-005_review.md`. No packet 006.
-  **WAIT** until `P12_ONE_ARCHIVE_REACHABLE=yes` plus independent
-  confirm of clone access or matching tar digest.
+- **After author string `P12_ONE_ARCHIVE_REACHABLE=yes`:** received and
+  **refused**. Independent `gh api` / `git ls-remote` still 404; no
+  local tar. Record:
+  `docs/review_20260819/author_string_2026-08-20-p12-reachable-refused.md`.
+  **No packet 006.** Repeating the same string is not new evidence.
 - **Cursor VM while waiting:** `docs/review_20260819/cursor_vm_instruction_wait_p2c_hold.md`
 - C2 is **not** due.
 

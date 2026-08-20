@@ -1,15 +1,12 @@
-# Cursor VM instruction — WAIT (post-005 fetch 404)
+# Cursor VM instruction — WAIT (P12 reachable string refused)
 
-Issued after C1 `docs/review_20260819/2026-08-19-005_review.md`.
+Issued after `docs/review_20260819/author_string_2026-08-20-p12-reachable-refused.md`.
 This is the only authorized Cursor VM input until the reviewer issues a
 new `EXECUTION_PACKET`.
 
-Paste the wrapper plus the `CURSOR_VM_INSTRUCTION` block into a new
-Cursor VM. The VM must HARD STOP after confirming WAIT. It must not
-retry packet 005 against the same 404, invent P2-D, or pull 35 archives.
-
-The exact unblocking string is sent to the **评审模型**, not acted on
-by this VM.
+The verbal token `P12_ONE_ARCHIVE_REACHABLE=yes` was received and
+refused (ls-remote still 404; no local tar). This WAIT VM must not act
+on that string or retry packet 005.
 
 ---
 
@@ -26,13 +23,13 @@ by this VM.
 ```text
 CURSOR_VM_INSTRUCTION
 PHASE=WAIT_P2C_REMAINDER_AND_P2D
-STATUS=P12_ONE_ARCHIVE_UNREACHABLE
+STATUS=AUTHOR_STRING_REFUSED_NO_P12
 TOKEN=none
 PARENT=none
 HEAD=none
 REF=origin/cursor/phase2-c0-p2a-packet-a558
-AUTHORITY=docs/review_20260819/2026-08-19-005_review.md
-AUTHORITY_COMMIT=294d8f27
+AUTHORITY=docs/review_20260819/author_string_2026-08-20-p12-reachable-refused.md
+AUTHORITY_COMMIT=pending-this-commit
 BRANCH=none
 WORKTREE=none
 ALLOWED_FILES=none
@@ -48,9 +45,9 @@ EDITS=none
 COMMIT_SUBJECT=none
 TOPOLOGY=none
 REPORT_FIELDS=phase,status,commands_executed,files_changed,waiting_for,hard_stop
-WAITING_FOR_EXACT_STRING=P12_ONE_ARCHIVE_REACHABLE=yes
-WAITING_FOR=reviewer-confirmable one-archive: clone of github.com/meng004/P12-Defect4MR at d57fa811 succeeds OR archives/1f67b3f3....tar sha256=c7c3d38533c01a7366d2511497082af5f30f510d0f95db822d98441a06a1898c
-WAITING_STRING_MEANING=author asserts to the 评审模型 that the one pinned archive is now reachable. The 评审模型 must still confirm clone access or the tar digest before a cmake/spawn retry. This WAIT VM must not start work.
+WAITING_FOR_EXACT_STRING=none
+WAITING_FOR=reviewer-confirmable one-archive: git ls-remote of github.com/meng004/P12-Defect4MR at d57fa811 returns a SHA OR archives/1f67b3f3....tar sha256=c7c3d38533c01a7366d2511497082af5f30f510d0f95db822d98441a06a1898c
+WAITING_STRING_MEANING=the token P12_ONE_ARCHIVE_REACHABLE=yes was received and refused on 2026-08-20. Repeating it is not new evidence. This WAIT VM must not start work.
 UNTIL_THEN_FORBIDDEN=P2-C remainder; P2-D; packet 006 same-404 retry; 35-pack dump; claim upgrade
 HARD_STOP=yes
 MUST_NOT_ISSUE_NEXT_GATE=yes

@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl": "59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca",
+    "packaging-26.2-py3-none-any.whl": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e",
+    "pandas-3.0.5-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl": "d373ce03ffd84010ed9839fa73672a9c8256990532e158440c0085db7d914b34",
+    "patsy-1.0.2-py2.py3-none-any.whl": "37bfddbc58fcf0362febb5f54f10743f8b21dd2aa73dec7e7ef59d1b02ae668a",
+    "python_dateutil-2.9.0.post0-py2.py3-none-any.whl": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+    "scipy-1.18.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl": "1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2",
+    "six-1.17.0-py2.py3-none-any.whl": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
+  },
+  "lock": "data/external_slice/reproduction/EXT-statsmodels-01/locks/requirements.deps.txt",
+  "packages": [
+    "numpy>=2",
+    "scipy>=1.13",
+    "pandas",
+    "patsy",
+    "packaging"
+  ],
+  "resolved_requirements": [
+    "pandas==3.0.5",
+    "patsy==1.0.2",
+    "packaging==26.2",
+    "numpy==2.5.1",
+    "python-dateutil==2.9.0.post0",
+    "scipy==1.18.0",
+    "six==1.17.0"
+  ]
+}

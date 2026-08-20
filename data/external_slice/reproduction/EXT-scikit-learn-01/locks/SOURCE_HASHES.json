@@ -1,0 +1,16 @@
+{
+  "buggy": {
+    "archive_sha256": "4cb1ed91fa029de3ad678abeeacc9cb7c00ae52fcc28d85f2eac6295fc3d92b3",
+    "mode": "archive",
+    "repo": "scikit-learn/scikit-learn",
+    "sha": "6c18131f1390843aa4fd9fd615cbc7feac40bc81",
+    "source_tree_sha256": "a21119e04afca4a8dc9dae8b8d1f6adb2c3714d038cd5a56c3f46735bd10e1b0"
+  },
+  "fixed": {
+    "archive_sha256": "a54d73701d1fa796602d79231ad82d22bc625b71530365cd37fc12d37874f971",
+    "mode": "archive",
+    "repo": "scikit-learn/scikit-learn",
+    "sha": "8e9cd7d33a64ffc6a7ab90e4069f4659f9aed6cb",
+    "source_tree_sha256": "5b76b04f3067544e3cb6cc8cfd2e8b7c8d21a1e144ed2346a488745ef94c17ab"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "cython-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl": "23e80bc885c599e72072e18d0746df82d394b73100c1e153cda7359e6e59fe09",
+    "meson-1.11.2-py3-none-any.whl": "7e4f6e83fec83e3eaac928e058b073c7557b282c35b6a2024cea143a39926a39",
+    "meson_python-0.20.0-py3-none-any.whl": "6a744cf0c09e76ecbdc58cfa374b48c8902dac1b74479628238634efbf36aec9",
+    "ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl": "fb46acf6b93b8dd0322adc3a4945452a4e774b75b91293bafcc7b7f8e6517dfa",
+    "numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl": "59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca",
+    "packaging-26.2-py3-none-any.whl": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e",
+    "pip-26.2-py3-none-any.whl": "931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad",
+    "pyproject_metadata-0.12.1-py3-none-any.whl": "f7162d580a96386a8eb096da06215f981f547d1490f03055ef99e323bc2da427",
+    "scipy-1.18.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl": "1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2",
+    "setuptools-83.0.0-py3-none-any.whl": "29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3",
+    "setuptools_scm-9.2.2-py3-none-any.whl": "30e8f84d2ab1ba7cb0e653429b179395d0c33775d54807fc5f1dd6671801aef7",
+    "wheel-0.47.0-py3-none-any.whl": "212281cab4dff978f6cedd499cd893e1f620791ca6ff7107cf270781e587eced"
+  },
+  "lock": "data/external_slice/reproduction/EXT-statsmodels-02/locks/requirements.build.txt",
+  "packages": [
+    "pip",
+    "setuptools",
+    "wheel",
+    "packaging",
+    "meson-python",
+    "meson>=1.9.0",
+    "ninja",
+    "Cython>=3.0.13,<4",
+    "numpy>=2.0.0,<3",
+    "scipy>=1.13,<2",
+    "setuptools_scm>=9.2.0,<10"
+  ],
+  "resolved_requirements": [
+    "pip==26.2",
+    "setuptools==83.0.0",
+    "wheel==0.47.0",
+    "packaging==26.2",
+    "meson-python==0.20.0",
+    "ninja==1.13.0",
+    "cython==3.2.9",
+    "meson==1.11.2",
+    "numpy==2.5.1",
+    "pyproject-metadata==0.12.1",
+    "scipy==1.18.0",
+    "setuptools-scm==9.2.2"
+  ]
+}

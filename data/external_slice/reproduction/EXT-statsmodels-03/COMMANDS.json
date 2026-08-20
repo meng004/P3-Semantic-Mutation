@@ -1,0 +1,256 @@
+{
+  "commands": [
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build pip setuptools==69.5.1 wheel==0.42.0 packaging Cython==0.29.36 numpy==1.19.5 scipy==1.5.4 pandas==1.1.5 patsy==0.5.6",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:build:pip-download",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m23.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.0.1\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Collecting pip\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython==0.29.36\n  Using cached Cython-0.29.36-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy==1.19.5\n  Using cached numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl (14.9 MB)\nCollecting scipy==1.5.4\n  Using cached scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl (25.8 MB)\nCollecting pandas==1.1.5\n  Using cached pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl (9.3 MB)\nCollecting patsy==0.5.6\n  Using cached patsy-0.5.6-py2.py3-none-any.whl (233 kB)\nCollecting python-dateutil>=2.7.3\n  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nCollecting pytz>=2017.2\n  Using cached pytz-2026.3.post1-py2.py3-none-any.whl (508 kB)\nCollecting six\n  Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/wheel-0.42.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/Cython-0.29.36-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/patsy-0.5.6-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/pip-26.0.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/packaging-26.2-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/python_dateutil-2.9.0.post0-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/pytz-2026.3.post1-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/six-1.17.0-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.build/setuptools-69.5.1-py3-none-any.whl\nSuccessfully downloaded wheel Cython numpy scipy pandas patsy pip packaging python-dateutil pytz six setuptools\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps numpy==1.19.5 scipy==1.5.4 pandas==1.1.5 patsy==0.5.6",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:deps:pip-download",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m23.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.0.1\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Collecting numpy==1.19.5\n  Using cached numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl (14.9 MB)\nCollecting scipy==1.5.4\n  Using cached scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl (25.8 MB)\nCollecting pandas==1.1.5\n  Using cached pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl (9.3 MB)\nCollecting patsy==0.5.6\n  Using cached patsy-0.5.6-py2.py3-none-any.whl (233 kB)\nCollecting pytz>=2017.2\n  Using cached pytz-2026.3.post1-py2.py3-none-any.whl (508 kB)\nCollecting python-dateutil>=2.7.3\n  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nCollecting six\n  Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/patsy-0.5.6-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/python_dateutil-2.9.0.post0-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/pytz-2026.3.post1-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-statsmodels-03/locks/.download-requirements.deps/six-1.17.0-py2.py3-none-any.whl\nSuccessfully downloaded numpy scipy pandas patsy python-dateutil pytz six\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging==26.2\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython==0.29.36\n  Using cached Cython-0.29.36-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy==1.19.5\n  Using cached numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl (14.9 MB)\nCollecting scipy==1.5.4\n  Using cached scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl (25.8 MB)\nCollecting pandas==1.1.5\n  Using cached pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl (9.3 MB)\nCollecting patsy==0.5.6\n  Using cached patsy-0.5.6-py2.py3-none-any.whl (233 kB)\nCollecting python-dateutil==2.9.0.post0\n  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nCollecting pytz==2026.3.post1\n  Using cached pytz-2026.3.post1-py2.py3-none-any.whl (508 kB)\nCollecting six==1.17.0\n  Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)\nInstalling collected packages: pytz, wheel, six, setuptools, pip, packaging, numpy, Cython, scipy, python-dateutil, patsy, pandas\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.36 numpy-1.19.5 packaging-26.2 pandas-1.1.5 patsy-0.5.6 pip-26.0.1 python-dateutil-2.9.0.post0 pytz-2026.3.post1 scipy-1.5.4 setuptools-69.5.1 six-1.17.0 wheel-0.42.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:pip-install-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Requirement already satisfied: numpy==1.19.5 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 4)) (1.19.5)\nRequirement already satisfied: scipy==1.5.4 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 6)) (1.5.4)\nRequirement already satisfied: pandas==1.1.5 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 8)) (1.1.5)\nRequirement already satisfied: patsy==0.5.6 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 10)) (0.5.6)\nRequirement already satisfied: python-dateutil==2.9.0.post0 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 12)) (2.9.0.post0)\nRequirement already satisfied: pytz==2026.3.post1 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 14)) (2026.3.post1)\nRequirement already satisfied: six==1.17.0 in /tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 16)) (1.17.0)\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "curl -fsSL -L -H \"Authorization: Bearer <REDACTED_GITHUB_TOKEN>\" -o /tmp/c3_batch3/EXT-statsmodels-03/buggy.tar.gz https://github.com/statsmodels/statsmodels/archive/62d08d162bffd792144b413f9f38d963d0ed857c.tar.gz",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:download-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "tar -xzf /tmp/c3_batch3/EXT-statsmodels-03/buggy.tar.gz --strip-components=1 -C /tmp/c3_batch3/EXT-statsmodels-03/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:extract-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-statsmodels-03/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-statsmodels-03/buggy-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: statsmodels\n  Building wheel for statsmodels (pyproject.toml): started\n  Building wheel for statsmodels (pyproject.toml): finished with status 'done'\n  Created wheel for statsmodels: filename=statsmodels-0.8.0-cp39-cp39-linux_x86_64.whl size=7034947 sha256=491ae212d57d2db782c37300e7ade80e57c0e38eae4afe35bebd24f28ac8b460\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/7b/6e/fe/cb2ffc702858709ac50874c10ce0a008ff75f4053a10d3173a\nSuccessfully built statsmodels\nInstalling collected packages: statsmodels\nSuccessfully installed statsmodels-0.8.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging==26.2\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython==0.29.36\n  Using cached Cython-0.29.36-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy==1.19.5\n  Using cached numpy-1.19.5-cp39-cp39-manylinux2010_x86_64.whl (14.9 MB)\nCollecting scipy==1.5.4\n  Using cached scipy-1.5.4-cp39-cp39-manylinux1_x86_64.whl (25.8 MB)\nCollecting pandas==1.1.5\n  Using cached pandas-1.1.5-cp39-cp39-manylinux1_x86_64.whl (9.3 MB)\nCollecting patsy==0.5.6\n  Using cached patsy-0.5.6-py2.py3-none-any.whl (233 kB)\nCollecting python-dateutil==2.9.0.post0\n  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nCollecting pytz==2026.3.post1\n  Using cached pytz-2026.3.post1-py2.py3-none-any.whl (508 kB)\nCollecting six==1.17.0\n  Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)\nInstalling collected packages: pytz, wheel, six, setuptools, pip, packaging, numpy, Cython, scipy, python-dateutil, patsy, pandas\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.36 numpy-1.19.5 packaging-26.2 pandas-1.1.5 patsy-0.5.6 pip-26.0.1 python-dateutil-2.9.0.post0 pytz-2026.3.post1 scipy-1.5.4 setuptools-69.5.1 six-1.17.0 wheel-0.42.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:pip-install-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Requirement already satisfied: numpy==1.19.5 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 4)) (1.19.5)\nRequirement already satisfied: scipy==1.5.4 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 6)) (1.5.4)\nRequirement already satisfied: pandas==1.1.5 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 8)) (1.1.5)\nRequirement already satisfied: patsy==0.5.6 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 10)) (0.5.6)\nRequirement already satisfied: python-dateutil==2.9.0.post0 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 12)) (2.9.0.post0)\nRequirement already satisfied: pytz==2026.3.post1 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 14)) (2026.3.post1)\nRequirement already satisfied: six==1.17.0 in /tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-statsmodels-03/locks/requirements.deps.txt (line 16)) (1.17.0)\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "curl -fsSL -L -H \"Authorization: Bearer <REDACTED_GITHUB_TOKEN>\" -o /tmp/c3_batch3/EXT-statsmodels-03/fixed.tar.gz https://github.com/statsmodels/statsmodels/archive/af5819b308c23529c597c5686e91c5b25dcd75c6.tar.gz",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:download-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "tar -xzf /tmp/c3_batch3/EXT-statsmodels-03/fixed.tar.gz --strip-components=1 -C /tmp/c3_batch3/EXT-statsmodels-03/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:extract-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-statsmodels-03/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-statsmodels-03/fixed-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: statsmodels\n  Building wheel for statsmodels (pyproject.toml): started\n  Building wheel for statsmodels (pyproject.toml): finished with status 'done'\n  Created wheel for statsmodels: filename=statsmodels-0.8.0-cp39-cp39-linux_x86_64.whl size=7035378 sha256=bf8a12d3f52a2c2f4ec14e38150081dad017693c7c6b039eba5f07b8b2367655\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/7a/cf/f9/8cffa8d5094837c8c1366286d51ed41f215c3aeac166e1f9a8\nSuccessfully built statsmodels\nInstalling collected packages: statsmodels\nSuccessfully installed statsmodels-0.8.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:buggy:blas-lapack-provider",
+      "stderr_tail": "",
+      "stdout_tail": "{\"errors\": [], \"numpy\": \"1.19.5\", \"numpy_config_keys\": [{\"key\": \"blas_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}, {\"key\": \"lapack_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}, {\"key\": \"openblas_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}], \"numpy_show_config\": \"blas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\n\", \"python\": \"3.9.18\", \"scipy\": \"1.5.4\", \"scipy_show_config\": \"lapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:blas-lapack-provider",
+      "stderr_tail": "",
+      "stdout_tail": "{\"errors\": [], \"numpy\": \"1.19.5\", \"numpy_config_keys\": [{\"key\": \"blas_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}, {\"key\": \"lapack_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}, {\"key\": \"openblas_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/local/lib\"]}], \"numpy_show_config\": \"blas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\n\", \"python\": \"3.9.18\", \"scipy\": \"1.5.4\", \"scipy_show_config\": \"lapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/smoke/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/smoke/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-1/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-1/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-2/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-2/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-3/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-3/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-4/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-statsmodels-03:buggy:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-statsmodels-03/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-statsmodels-03.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-statsmodels-03/repetitions/seed-4/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-statsmodels-03:fixed:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    }
+  ]
+}

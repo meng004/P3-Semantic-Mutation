@@ -1,0 +1,37 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-scipy-01:build)
+# python=/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python
+# root_packages=['pip', 'setuptools', 'wheel', 'packaging', 'meson-python>=0.15.0', 'meson>=1.9.0', 'Cython>=3.0.8', 'pybind11>=2.13.2', 'pythran>=0.14.0', 'ninja', 'numpy>=2.0.0', 'setuptools_scm>=8']
+pip==26.2 \
+    --hash=sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad
+setuptools==83.0.0 \
+    --hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3
+wheel==0.47.0 \
+    --hash=sha256:212281cab4dff978f6cedd499cd893e1f620791ca6ff7107cf270781e587eced
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+ninja==1.13.0 \
+    --hash=sha256:fb46acf6b93b8dd0322adc3a4945452a4e774b75b91293bafcc7b7f8e6517dfa
+beniget==0.4.2.post1 \
+    --hash=sha256:e1b336e7b5f2ae201e6cc21f533486669f1b9eccba018dcff5969cd52f1c20ba
+cython==3.2.9 \
+    --hash=sha256:23e80bc885c599e72072e18d0746df82d394b73100c1e153cda7359e6e59fe09
+gast==0.6.0 \
+    --hash=sha256:52b182313f7330389f72b069ba00f174cfe2a06411099547288839c6cbafbd54
+meson-python==0.20.0 \
+    --hash=sha256:6a744cf0c09e76ecbdc58cfa374b48c8902dac1b74479628238634efbf36aec9
+meson==1.11.2 \
+    --hash=sha256:7e4f6e83fec83e3eaac928e058b073c7557b282c35b6a2024cea143a39926a39
+numpy==2.5.1 \
+    --hash=sha256:59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca
+ply==3.11 \
+    --hash=sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+pybind11==3.0.4 \
+    --hash=sha256:961720ee652da51d531b7b2451a6bd2bc042b0106e6d9baa48ecb7d58034ce63
+pyproject-metadata==0.12.1 \
+    --hash=sha256:f7162d580a96386a8eb096da06215f981f547d1490f03055ef99e323bc2da427
+pythran==0.18.1 \
+    --hash=sha256:e1d811a5843d1881f8adcc3944fe3b84c7317ebf4530617829c19c9836f18b49
+setuptools-scm==10.2.1 \
+    --hash=sha256:b7c82f4102d389ee57dc66ccdb4f9b4bca3c40ba83b43f1f63d68ccd72db2580
+vcs-versioning==2.2.3 \
+    --hash=sha256:4f7873af76f5cc24e701608354f376f5eb70b317d663787ace57a7edd7a27506

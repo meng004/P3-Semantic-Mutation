@@ -1,0 +1,256 @@
+{
+  "commands": [
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build pip setuptools==69.5.1 wheel==0.42.0 packaging Cython>=0.29.33,<3.0 numpy>=1.21.0,<1.25 scipy>=1.7.0,<1.12 setuptools_scm>=8",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:build:pip-download",
+      "stderr_tail": "\u001b[33mWARNING: There was an error checking the latest version of pip.\u001b[0m\u001b[33m\n\u001b[0m",
+      "stdout_tail": "Collecting pip\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython<3.0,>=0.29.33\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy<1.25,>=1.21.0\n  Using cached numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.3 MB)\nCollecting scipy<1.12,>=1.7.0\n  Using cached scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (36.6 MB)\nCollecting setuptools_scm>=8\n  Using cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nCollecting tomli>=1\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting vcs-versioning<3,>=2.0.0.dev0\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nCollecting typing-extensions>=4.1\n  Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/wheel-0.42.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/pip-26.0.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/packaging-26.2-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/setuptools_scm-10.2.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/tomli-2.4.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/typing_extensions-4.16.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/vcs_versioning-2.2.3-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.build/setuptools-69.5.1-py3-none-any.whl\nSuccessfully downloaded wheel pip packaging Cython numpy scipy setuptools_scm tomli typing-extensions vcs-versioning setuptools\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.deps numpy>=1.21.0,<1.25 scipy>=1.7.0,<1.12 joblib threadpoolctl",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:deps:pip-download",
+      "stderr_tail": "\u001b[33mWARNING: There was an error checking the latest version of pip.\u001b[0m\u001b[33m\n\u001b[0m",
+      "stdout_tail": "Collecting numpy<1.25,>=1.21.0\n  Using cached numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.3 MB)\nCollecting scipy<1.12,>=1.7.0\n  Using cached scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (36.6 MB)\nCollecting joblib\n  Using cached joblib-1.5.3-py3-none-any.whl (309 kB)\nCollecting threadpoolctl\n  Using cached threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.deps/numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.deps/scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.deps/joblib-1.5.3-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scikit-learn-01/locks/.download-requirements.deps/threadpoolctl-3.6.0-py3-none-any.whl\nSuccessfully downloaded numpy scipy joblib threadpoolctl\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:pip-install-build-require-hashes",
+      "stderr_tail": "\u001b[33mWARNING: There was an error checking the latest version of pip.\u001b[0m\u001b[33m\n\u001b[0m",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging==26.2\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython==0.29.37\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy==1.24.4\n  Using cached numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.3 MB)\nCollecting scipy==1.11.4\n  Using cached scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (36.6 MB)\nCollecting setuptools-scm==10.2.1\n  Using cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nCollecting tomli==2.4.1\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting typing-extensions==4.16.0\n  Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)\nCollecting vcs-versioning==2.2.3\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nInstalling collected packages: wheel, typing-extensions, tomli, setuptools, pip, packaging, numpy, Cython, vcs-versioning, scipy, setuptools-scm\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.37 numpy-1.24.4 packaging-26.2 pip-26.0.1 scipy-1.11.4 setuptools-69.5.1 setuptools-scm-10.2.1 tomli-2.4.1 typing-extensions-4.16.0 vcs-versioning-2.2.3 wheel-0.42.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:pip-install-require-hashes",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.2\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Collecting joblib==1.5.3 (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 4))\n  Using cached joblib-1.5.3-py3-none-any.whl (309 kB)\nCollecting threadpoolctl==3.6.0 (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 6))\n  Using cached threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nRequirement already satisfied: numpy==1.24.4 in /tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 8)) (1.24.4)\nRequirement already satisfied: scipy==1.11.4 in /tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 10)) (1.11.4)\nInstalling collected packages: threadpoolctl, joblib\n\u001b[?25l\n\u001b[2K   \u001b[38;5;70m\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u001b[0m \u001b[32m2/2\u001b[0m [joblib]\n\u001b[?25h\n\u001b[1A\u001b[2KSuccessfully installed joblib-1.5.3 threadpoolctl-3.6.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "curl -fsSL -L -H \"Authorization: Bearer <REDACTED_GITHUB_TOKEN>\" -o /tmp/c3_batch3/EXT-scikit-learn-01/buggy.tar.gz https://github.com/scikit-learn/scikit-learn/archive/6c18131f1390843aa4fd9fd615cbc7feac40bc81.tar.gz",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:download-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "tar -xzf /tmp/c3_batch3/EXT-scikit-learn-01/buggy.tar.gz --strip-components=1 -C /tmp/c3_batch3/EXT-scikit-learn-01/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:extract-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-scikit-learn-01/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:pip-install-exact-source",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.2\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49mpip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-scikit-learn-01/buggy-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: scikit-learn\n  Building wheel for scikit-learn (pyproject.toml): started\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): finished with status 'done'\n  Created wheel for scikit-learn: filename=scikit_learn-1.4.dev0-cp39-cp39-linux_x86_64.whl size=11213688 sha256=5edb404e0178dce0782c6e5b195af5e1de7c73cfcfe07bf35119f94eac1349f0\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/97/6b/af/97741976b08cdaceab93437ba8c4b6ab04e33219666b0d0a8a\nSuccessfully built scikit-learn\nInstalling collected packages: scikit-learn\nSuccessfully installed scikit-learn-1.4.dev0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:pip-install-build-require-hashes",
+      "stderr_tail": "\u001b[33mWARNING: There was an error checking the latest version of pip.\u001b[0m\u001b[33m\n\u001b[0m",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==69.5.1\n  Using cached setuptools-69.5.1-py3-none-any.whl (894 kB)\nCollecting wheel==0.42.0\n  Using cached wheel-0.42.0-py3-none-any.whl (65 kB)\nCollecting packaging==26.2\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting Cython==0.29.37\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nCollecting numpy==1.24.4\n  Using cached numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.3 MB)\nCollecting scipy==1.11.4\n  Using cached scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (36.6 MB)\nCollecting setuptools-scm==10.2.1\n  Using cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nCollecting tomli==2.4.1\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting typing-extensions==4.16.0\n  Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)\nCollecting vcs-versioning==2.2.3\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nInstalling collected packages: wheel, typing-extensions, tomli, setuptools, pip, packaging, numpy, Cython, vcs-versioning, scipy, setuptools-scm\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.37 numpy-1.24.4 packaging-26.2 pip-26.0.1 scipy-1.11.4 setuptools-69.5.1 setuptools-scm-10.2.1 tomli-2.4.1 typing-extensions-4.16.0 vcs-versioning-2.2.3 wheel-0.42.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:pip-install-require-hashes",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.2\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python -m pip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Collecting joblib==1.5.3 (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 4))\n  Using cached joblib-1.5.3-py3-none-any.whl (309 kB)\nCollecting threadpoolctl==3.6.0 (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 6))\n  Using cached threadpoolctl-3.6.0-py3-none-any.whl (18 kB)\nRequirement already satisfied: numpy==1.24.4 in /tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 8)) (1.24.4)\nRequirement already satisfied: scipy==1.11.4 in /tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/lib/python3.9/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt (line 10)) (1.11.4)\nInstalling collected packages: threadpoolctl, joblib\n\u001b[?25l\n\u001b[2K   \u001b[38;5;70m\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u001b[0m \u001b[32m2/2\u001b[0m [joblib]\n\u001b[?25h\n\u001b[1A\u001b[2KSuccessfully installed joblib-1.5.3 threadpoolctl-3.6.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "curl -fsSL -L -H \"Authorization: Bearer <REDACTED_GITHUB_TOKEN>\" -o /tmp/c3_batch3/EXT-scikit-learn-01/fixed.tar.gz https://github.com/scikit-learn/scikit-learn/archive/8e9cd7d33a64ffc6a7ab90e4069f4659f9aed6cb.tar.gz",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:download-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "tar -xzf /tmp/c3_batch3/EXT-scikit-learn-01/fixed.tar.gz --strip-components=1 -C /tmp/c3_batch3/EXT-scikit-learn-01/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:extract-archive",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-scikit-learn-01/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:pip-install-exact-source",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m26.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.2\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49mpip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-scikit-learn-01/fixed-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: scikit-learn\n  Building wheel for scikit-learn (pyproject.toml): started\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): still running...\n  Building wheel for scikit-learn (pyproject.toml): finished with status 'done'\n  Created wheel for scikit-learn: filename=scikit_learn-1.4.dev0-cp39-cp39-linux_x86_64.whl size=11215052 sha256=db56aca494073fcb6702b9ef47f165fa4888c63eb410e91f164251fbfb6bd891\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/6a/a2/c3/df68e47b333beb8d7fb99d1b2d0ab1722ae4f2c8b6fc15f9f1\nSuccessfully built scikit-learn\nInstalling collected packages: scikit-learn\nSuccessfully installed scikit-learn-1.4.dev0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:buggy:blas-lapack-provider",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/lib/python3.9/site-packages/scipy/__config__.py:146: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n",
+      "stdout_tail": "ibraries\": [\"openblas64_\", \"openblas64_\"], \"library_dirs\": [\"/usr/local/lib\"]}], \"numpy_show_config\": \"openblas64__info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nblas_ilp64_opt_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nopenblas64__lapack_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None), ('HAVE_LAPACKE', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nlapack_ilp64_opt_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None), ('HAVE_LAPACKE', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nSupported SIMD extensions in this NumPy install:\\n    baseline = SSE,SSE2,SSE3\\n    found = SSSE3,SSE41,POPCNT,SSE42,AVX,F16C,FMA3,AVX2,AVX512F,AVX512CD,AVX512_SKX,AVX512_CLX,AVX512_CNL,AVX512_ICL\\n    not found = AVX512_KNL,AVX512_KNM\\n\", \"python\": \"3.9.18\", \"scipy\": \"1.11.4\", \"scipy_show_config\": \"{\\n  \\\"Compilers\\\": {\\n    \\\"c\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"cc\\\"\\n    },\\n    \\\"cython\\\": {\\n      \\\"name\\\": \\\"cython\\\",\\n      \\\"linker\\\": \\\"cython\\\",\\n      \\\"version\\\": \\\"0.29.36\\\",\\n      \\\"commands\\\": \\\"cython\\\"\\n    },\\n    \\\"c++\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"c++\\\"\\n    },\\n    \\\"fortran\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"gfortran\\\"\\n    },\\n    \\\"pythran\\\": {\\n      \\\"version\\\": \\\"0.14.0\\\",\\n      \\\"include directory\\\": \\\"../../tmp/pip-build-env-jptl773x/overlay/lib/python3.9/site-packages/pythran\\\"\\n    }\\n  },\\n  \\\"Machine Information\\\": {\\n    \\\"host\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"build\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"cross-compiled\\\": true\\n  },\\n  \\\"Build Dependencies\\\": {\\n    \\\"blas\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.21.dev\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/local/include\\\",\\n      \\\"lib directory\\\": \\\"/usr/local/lib\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT= DYNAMIC_ARCH=1 DYNAMIC_OLDER= NO_CBLAS= NO_LAPACK= NO_LAPACKE= NO_AFFINITY=1 USE_OPENMP= HASWELL MAX_THREADS=2\\\",\\n      \\\"pc file directory\\\": \\\"/usr/local/lib/pkgconfig\\\"\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.21.dev\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/local/include\\\",\\n      \\\"lib directory\\\": \\\"/usr/local/lib\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT= DYNAMIC_ARCH=1 DYNAMIC_OLDER= NO_CBLAS= NO_LAPACK= NO_LAPACKE= NO_AFFINITY=1 USE_OPENMP= HASWELL MAX_THREADS=2\\\",\\n      \\\"pc file directory\\\": \\\"/usr/local/lib/pkgconfig\\\"\\n    },\\n    \\\"pybind11\\\": {\\n      \\\"name\\\": \\\"pybind11\\\",\\n      \\\"version\\\": \\\"2.11.0\\\",\\n      \\\"detection method\\\": \\\"config-tool\\\",\\n      \\\"include directory\\\": \\\"unknown\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/opt/python/cp39-cp39/bin/python\\\",\\n    \\\"version\\\": \\\"3.9\\\"\\n  }\\n}\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:blas-lapack-provider",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/lib/python3.9/site-packages/scipy/__config__.py:146: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n",
+      "stdout_tail": "ibraries\": [\"openblas64_\", \"openblas64_\"], \"library_dirs\": [\"/usr/local/lib\"]}], \"numpy_show_config\": \"openblas64__info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nblas_ilp64_opt_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nopenblas64__lapack_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None), ('HAVE_LAPACKE', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nlapack_ilp64_opt_info:\\n    libraries = ['openblas64_', 'openblas64_']\\n    library_dirs = ['/usr/local/lib']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None), ('BLAS_SYMBOL_SUFFIX', '64_'), ('HAVE_BLAS_ILP64', None), ('HAVE_LAPACKE', None)]\\n    runtime_library_dirs = ['/usr/local/lib']\\nSupported SIMD extensions in this NumPy install:\\n    baseline = SSE,SSE2,SSE3\\n    found = SSSE3,SSE41,POPCNT,SSE42,AVX,F16C,FMA3,AVX2,AVX512F,AVX512CD,AVX512_SKX,AVX512_CLX,AVX512_CNL,AVX512_ICL\\n    not found = AVX512_KNL,AVX512_KNM\\n\", \"python\": \"3.9.18\", \"scipy\": \"1.11.4\", \"scipy_show_config\": \"{\\n  \\\"Compilers\\\": {\\n    \\\"c\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"cc\\\"\\n    },\\n    \\\"cython\\\": {\\n      \\\"name\\\": \\\"cython\\\",\\n      \\\"linker\\\": \\\"cython\\\",\\n      \\\"version\\\": \\\"0.29.36\\\",\\n      \\\"commands\\\": \\\"cython\\\"\\n    },\\n    \\\"c++\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"c++\\\"\\n    },\\n    \\\"fortran\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"10.2.1\\\",\\n      \\\"commands\\\": \\\"gfortran\\\"\\n    },\\n    \\\"pythran\\\": {\\n      \\\"version\\\": \\\"0.14.0\\\",\\n      \\\"include directory\\\": \\\"../../tmp/pip-build-env-jptl773x/overlay/lib/python3.9/site-packages/pythran\\\"\\n    }\\n  },\\n  \\\"Machine Information\\\": {\\n    \\\"host\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"build\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"cross-compiled\\\": true\\n  },\\n  \\\"Build Dependencies\\\": {\\n    \\\"blas\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.21.dev\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/local/include\\\",\\n      \\\"lib directory\\\": \\\"/usr/local/lib\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT= DYNAMIC_ARCH=1 DYNAMIC_OLDER= NO_CBLAS= NO_LAPACK= NO_LAPACKE= NO_AFFINITY=1 USE_OPENMP= HASWELL MAX_THREADS=2\\\",\\n      \\\"pc file directory\\\": \\\"/usr/local/lib/pkgconfig\\\"\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.21.dev\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/local/include\\\",\\n      \\\"lib directory\\\": \\\"/usr/local/lib\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT= DYNAMIC_ARCH=1 DYNAMIC_OLDER= NO_CBLAS= NO_LAPACK= NO_LAPACKE= NO_AFFINITY=1 USE_OPENMP= HASWELL MAX_THREADS=2\\\",\\n      \\\"pc file directory\\\": \\\"/usr/local/lib/pkgconfig\\\"\\n    },\\n    \\\"pybind11\\\": {\\n      \\\"name\\\": \\\"pybind11\\\",\\n      \\\"version\\\": \\\"2.11.0\\\",\\n      \\\"detection method\\\": \\\"config-tool\\\",\\n      \\\"include directory\\\": \\\"unknown\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/opt/python/cp39-cp39/bin/python\\\",\\n    \\\"version\\\": \\\"3.9\\\"\\n  }\\n}\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/smoke/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/smoke/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-1/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-1/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-2/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-2/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-3/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-3/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-4/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scikit-learn-01:buggy:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scikit-learn-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-scikit-learn-01/repetitions/seed-4/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scikit-learn-01:fixed:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "checks": {
+    "admission_checker": {
+      "exit_code": 0,
+      "stdout_tail": "PASS: pre-readiness C2 candidate only; 64 Defect4MR candidate rows, 64 evidence records, and 9 supplemental pilot rows are structurally valid and separate. This does not establish final admission or freeze.\n"
+    },
+    "compileall": {
+      "exit_code": 0
+    },
+    "handoff_hash_checker": {
+      "exit_code": 0,
+      "stdout_tail": "HASH_CHECK_OK\n"
+    },
+    "leak_scan_reserved_runbook": {
+      "exit_code": 0,
+      "expected_checker_exit": 0,
+      "expected_clean_rg_exit": 1,
+      "pattern": "(?i)(^|[^[:alnum:]_])(C\\x45|O\\x53|H\\x50|T\\x46|S\\x49|f\\x69ber|strat\\x75m)([^[:alnum:]_]|$)",
+      "scope": "decision-level Batch 3 artifacts",
+      "stdout_tail": ""
+    },
+    "membership_and_sheet_pending": {
+      "exit_code": 0,
+      "stdout_tail": "membership_matrix_ok 6\n"
+    },
+    "pytest": {
+      "exit_code": 0,
+      "stdout_tail": "stats/test_tosem_scripts.py ..                                     [ 98%]\ntests/stats/test_viz.py .                                                [ 98%]\ntests/test_count_main_prose.py .                                         [ 98%]\ntests/test_tosem_build.py ..                                             [ 99%]\ntests/viz/test_viz_smoke.py .                                            [100%]\n\n=============================== warnings summary ===============================\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\n  /home/ubuntu/.local/lib/python3.12/site-packages/sklearn/gaussian_process/kernels.py:440: ConvergenceWarning: The optimal value found for dimension 0 of parameter k2__noise_level is close to the specified lower bound 1e-05. Decreasing the bound and calling fit again may find a better value.\n    warnings.warn(\n\ntests/stats/test_mixed_effects.py::test_fit_returns_class_means_and_p_values\n  /home/ubuntu/.local/lib/python3.12/site-packages/statsmodels/regression/mixed_linear_model.py:2237: ConvergenceWarning: The MLE may be on the boundary of the parameter space.\n    warnings.warn(msg, ConvergenceWarning)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n======================= 272 passed, 10 warnings in 6.44s =======================\n"
+    },
+    "token_scan": {
+      "exit_code": 0,
+      "expected_checker_exit": 0,
+      "expected_clean_rg_exit": 1,
+      "pattern": "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|Bearer [A-Za-z0-9][A-Za-z0-9._-]{15,}",
+      "stdout_tail": ""
+    }
+  },
+  "commands": [
+    {
+      "command": "/usr/bin/python3 scripts/check_external_admission.py --sheet data/external_slice/admission_sheet.cursor_candidate.csv",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:admission_checker",
+      "stderr_tail": "",
+      "stdout_tail": "PASS: pre-readiness C2 candidate only; 64 Defect4MR candidate rows, 64 evidence records, and 9 supplemental pilot rows are structurally valid and separate. This does not establish final admission or freeze.\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/usr/bin/python3 -m pytest -q",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:pytest",
+      "stderr_tail": "",
+      "stdout_tail": "mutators/test_validation_epsilon.py ..                             [ 70%]\ntests/pipeline/test_campaign.py ..                                       [ 70%]\ntests/pipeline/test_run_cell.py .                                        [ 71%]\ntests/puts/test_a1.py ...                                                [ 72%]\ntests/puts/test_a1_scalar_interface.py ......                            [ 74%]\ntests/puts/test_a2.py ...                                                [ 75%]\ntests/puts/test_a3.py ...                                                [ 76%]\ntests/puts/test_b1.py ...                                                [ 77%]\ntests/puts/test_b2.py ...                                                [ 79%]\ntests/puts/test_b3.py ...                                                [ 80%]\ntests/puts/test_c1.py ...                                                [ 81%]\ntests/puts/test_c2.py ...                                                [ 82%]\ntests/puts/test_c3.py ...                                                [ 83%]\ntests/puts/test_d1.py ...                                                [ 84%]\ntests/puts/test_d2.py ...                                                [ 85%]\ntests/puts/test_d3.py ...                                                [ 86%]\ntests/stats/test_cliffs_delta.py ..........                              [ 90%]\ntests/stats/test_mixed_effects.py .                                      [ 90%]\ntests/stats/test_pattern_coverage.py ...                                 [ 91%]\ntests/stats/test_rq1_rates.py .                                          [ 92%]\ntests/stats/test_rq2_alignment.py ..                                     [ 93%]\ntests/stats/test_rq3_cross_class.py ..                                   [ 93%]\ntests/stats/test_rq4_correlation.py .                                    [ 94%]\ntests/stats/test_sms.py ...                                              [ 95%]\ntests/stats/test_tosem_revision.py ......                                [ 97%]\ntests/stats/test_tosem_scripts.py ..                                     [ 98%]\ntests/stats/test_viz.py .                                                [ 98%]\ntests/test_count_main_prose.py .                                         [ 98%]\ntests/test_tosem_build.py ..                                             [ 99%]\ntests/viz/test_viz_smoke.py .                                            [100%]\n\n=============================== warnings summary ===============================\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_every_put_has_loadable_program\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\ntests/integration/test_full_pipeline_smoke.py::test_validation_module_loads_each_put\n  /home/ubuntu/.local/lib/python3.12/site-packages/sklearn/gaussian_process/kernels.py:440: ConvergenceWarning: The optimal value found for dimension 0 of parameter k2__noise_level is close to the specified lower bound 1e-05. Decreasing the bound and calling fit again may find a better value.\n    warnings.warn(\n\ntests/stats/test_mixed_effects.py::test_fit_returns_class_means_and_p_values\n  /home/ubuntu/.local/lib/python3.12/site-packages/statsmodels/regression/mixed_linear_model.py:2237: ConvergenceWarning: The MLE may be on the boundary of the parameter space.\n    warnings.warn(msg, ConvergenceWarning)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n======================= 272 passed, 10 warnings in 6.44s =======================\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/usr/bin/python3 -m compileall -q scripts/external_slice/run_c3_batch3_readiness.py data/external_slice/reproducers/EXT-numpy-01.py data/external_slice/reproducers/EXT-scipy-01.py data/external_slice/reproducers/EXT-scikit-learn-01.py data/external_slice/reproducers/EXT-statsmodels-01.py data/external_slice/reproducers/EXT-statsmodels-02.py data/external_slice/reproducers/EXT-statsmodels-03.py",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:compileall",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "bash -lc \"rg -n '(?i)(^|[^[:alnum:]_])(C\\x45|O\\x53|H\\x50|T\\x46|S\\x49|f\\x69ber|strat\\x75m)([^[:alnum:]_]|$)' data/external_slice/readiness_batch3.json data/external_slice/BATCH3_MEMBERSHIP.json data/external_slice/HANDOFF_REPRO_BATCH3.json data/external_slice/reproduction/EXT-numpy-01/environment.json data/external_slice/reproduction/EXT-numpy-01/buggy.json data/external_slice/reproduction/EXT-numpy-01/fixed.json data/external_slice/reproduction/EXT-scikit-learn-01/environment.json data/external_slice/reproduction/EXT-scikit-learn-01/buggy.json data/external_slice/reproduction/EXT-scikit-learn-01/fixed.json data/external_slice/reproduction/EXT-scipy-01/environment.json data/external_slice/reproduction/EXT-scipy-01/buggy.json data/external_slice/reproduction/EXT-scipy-01/fixed.json data/external_slice/reproduction/EXT-statsmodels-01/environment.json data/external_slice/reproduction/EXT-statsmodels-01/buggy.json data/external_slice/reproduction/EXT-statsmodels-01/fixed.json data/external_slice/reproduction/EXT-statsmodels-02/environment.json data/external_slice/reproduction/EXT-statsmodels-02/buggy.json data/external_slice/reproduction/EXT-statsmodels-02/fixed.json data/external_slice/reproduction/EXT-statsmodels-03/environment.json data/external_slice/reproduction/EXT-statsmodels-03/buggy.json data/external_slice/reproduction/EXT-statsmodels-03/fixed.json; ec=$?; if [ $ec -eq 1 ]; then exit 0; elif [ $ec -eq 0 ]; then echo 'RESERVED_TERM_LEAK'; exit 1; else exit $ec; fi\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:leak_scan_reserved_runbook",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "bash -lc \"rg -n 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|Bearer [A-Za-z0-9][A-Za-z0-9._-]{15,}' data/external_slice/reproduction data/external_slice/readiness_batch3.json data/external_slice/BATCH3_MEMBERSHIP.json data/external_slice/HANDOFF_REPRO_BATCH3.json; ec=$?; if [ $ec -eq 1 ]; then exit 0; elif [ $ec -eq 0 ]; then echo 'TOKEN_LEAK'; exit 1; else exit $ec; fi\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:token_scan",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/usr/bin/python3 scripts/external_slice/verify_batch3_membership_matrix.py",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:membership_and_sheet_pending",
+      "stderr_tail": "",
+      "stdout_tail": "membership_matrix_ok 6\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/usr/bin/python3 /workspace/scripts/external_slice/check_batch3_handoff_hashes.py",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "verify:handoff_hash_checker",
+      "stderr_tail": "",
+      "stdout_tail": "HASH_CHECK_OK\n",
+      "timeout_s": null
+    }
+  ]
+}

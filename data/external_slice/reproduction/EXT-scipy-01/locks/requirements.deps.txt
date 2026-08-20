@@ -1,0 +1,5 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-scipy-01:deps)
+# python=/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python
+# root_packages=['numpy>=2.0.0']
+numpy==2.5.1 \
+    --hash=sha256:59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca

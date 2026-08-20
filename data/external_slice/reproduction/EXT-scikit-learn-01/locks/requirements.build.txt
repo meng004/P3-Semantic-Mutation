@@ -1,0 +1,25 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-scikit-learn-01:build)
+# python=/tmp/c3_batch3/EXT-scikit-learn-01/venv-buggy/bin/python
+# root_packages=['pip', 'setuptools==69.5.1', 'wheel==0.42.0', 'packaging', 'Cython>=0.29.33,<3.0', 'numpy>=1.21.0,<1.25', 'scipy>=1.7.0,<1.12', 'setuptools_scm>=8']
+pip==26.0.1 \
+    --hash=sha256:bdb1b08f4274833d62c1aa29e20907365a2ceb950410df15fc9521bad440122b
+setuptools==69.5.1 \
+    --hash=sha256:c636ac361bc47580504644275c9ad802c50415c7522212252c033bd15f301f32
+wheel==0.42.0 \
+    --hash=sha256:177f9c9b0d45c47873b619f5b650346d632cdc35fb5e4d25058e09c9e581433d
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+Cython==0.29.37 \
+    --hash=sha256:e841a8b4f9ceefb2916e32dac4f28a895cd519e8ece71505144da1ee355c548a
+numpy==1.24.4 \
+    --hash=sha256:d11efb4dbecbdf22508d55e48d9c8384db795e1b7b51ea735289ff96613ff74d
+scipy==1.11.4 \
+    --hash=sha256:91af76a68eeae0064887a48e25c4e616fa519fa0d38602eda7e0f97d65d57937
+setuptools-scm==10.2.1 \
+    --hash=sha256:b7c82f4102d389ee57dc66ccdb4f9b4bca3c40ba83b43f1f63d68ccd72db2580
+tomli==2.4.1 \
+    --hash=sha256:0d85819802132122da43cb86656f8d1f8c6587d54ae7dcaf30e90533028b49fe
+typing-extensions==4.16.0 \
+    --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8
+vcs-versioning==2.2.3 \
+    --hash=sha256:4f7873af76f5cc24e701608354f376f5eb70b317d663787ace57a7edd7a27506

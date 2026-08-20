@@ -1,0 +1,328 @@
+{
+  "commands": [
+    {
+      "command": "/usr/bin/python3 -m venv /tmp/c3_batch3/EXT-scipy-01/venv-buggy",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/usr/bin/python3 -m venv /tmp/c3_batch3/EXT-scipy-01/venv-fixed",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build pip setuptools wheel packaging meson-python>=0.15.0 meson>=1.9.0 Cython>=3.0.8 pybind11>=2.13.2 pythran>=0.14.0 ninja numpy>=2.0.0 setuptools_scm>=8",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:build:pip-download",
+      "stderr_tail": "",
+      "stdout_tail": "yproject_metadata-0.12.1-py3-none-any.whl.metadata (6.5 kB)\nCollecting ply>=3.4 (from pythran>=0.14.0)\n  Using cached ply-3.11-py2.py3-none-any.whl.metadata (844 bytes)\nCollecting gast~=0.6.0 (from pythran>=0.14.0)\n  Using cached gast-0.6.0-py3-none-any.whl.metadata (1.3 kB)\nCollecting beniget~=0.4.0 (from pythran>=0.14.0)\n  Using cached beniget-0.4.2.post1-py3-none-any.whl.metadata (820 bytes)\nCollecting vcs-versioning<3,>=2.0.0.dev0 (from setuptools_scm>=8)\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl.metadata (1.7 kB)\nUsing cached pip-26.2-py3-none-any.whl (1.8 MB)\nUsing cached setuptools-83.0.0-py3-none-any.whl (1.0 MB)\nUsing cached wheel-0.47.0-py3-none-any.whl (32 kB)\nUsing cached packaging-26.2-py3-none-any.whl (100 kB)\nUsing cached meson_python-0.20.0-py3-none-any.whl (29 kB)\nUsing cached meson-1.11.2-py3-none-any.whl (1.1 MB)\nUsing cached cython-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.4 MB)\nUsing cached pybind11-3.0.4-py3-none-any.whl (314 kB)\nUsing cached pythran-0.18.1-py3-none-any.whl (4.4 MB)\nUsing cached ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (180 kB)\nUsing cached numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)\nUsing cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nUsing cached beniget-0.4.2.post1-py3-none-any.whl (17 kB)\nUsing cached gast-0.6.0-py3-none-any.whl (21 kB)\nUsing cached ply-3.11-py2.py3-none-any.whl (49 kB)\nUsing cached pyproject_metadata-0.12.1-py3-none-any.whl (23 kB)\nUsing cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/pip-26.2-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/setuptools-83.0.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/wheel-0.47.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/packaging-26.2-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/meson_python-0.20.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/meson-1.11.2-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/cython-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/pybind11-3.0.4-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/pythran-0.18.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/setuptools_scm-10.2.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/beniget-0.4.2.post1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/gast-0.6.0-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/ply-3.11-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/pyproject_metadata-0.12.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.build/vcs_versioning-2.2.3-py3-none-any.whl\nSuccessfully downloaded pip setuptools wheel packaging meson-python meson Cython pybind11 pythran ninja numpy setuptools_scm beniget gast ply pyproject-metadata vcs-versioning\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.deps numpy>=2.0.0",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:deps:pip-download",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting numpy>=2.0.0\n  Using cached numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)\nUsing cached numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)\nSaved ./data/external_slice/reproduction/EXT-scipy-01/locks/.download-requirements.deps/numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl\nSuccessfully downloaded numpy\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 4))\n  Using cached pip-26.2-py3-none-any.whl (1.8 MB)\nCollecting setuptools==83.0.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 6))\n  Using cached setuptools-83.0.0-py3-none-any.whl (1.0 MB)\nCollecting wheel==0.47.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 8))\n  Using cached wheel-0.47.0-py3-none-any.whl (32 kB)\nCollecting packaging==26.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 10))\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting ninja==1.13.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 12))\n  Using cached ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (180 kB)\nCollecting beniget==0.4.2.post1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 14))\n  Using cached beniget-0.4.2.post1-py3-none-any.whl (17 kB)\nCollecting cython==3.2.9 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 16))\n  Using cached cython-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.4 MB)\nCollecting gast==0.6.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 18))\n  Using cached gast-0.6.0-py3-none-any.whl (21 kB)\nCollecting meson-python==0.20.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 20))\n  Using cached meson_python-0.20.0-py3-none-any.whl (29 kB)\nCollecting meson==1.11.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 22))\n  Using cached meson-1.11.2-py3-none-any.whl (1.1 MB)\nCollecting numpy==2.5.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 24))\n  Using cached numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)\nCollecting ply==3.11 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 26))\n  Using cached ply-3.11-py2.py3-none-any.whl (49 kB)\nCollecting pybind11==3.0.4 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 28))\n  Using cached pybind11-3.0.4-py3-none-any.whl (314 kB)\nCollecting pyproject-metadata==0.12.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 30))\n  Using cached pyproject_metadata-0.12.1-py3-none-any.whl (23 kB)\nCollecting pythran==0.18.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 32))\n  Using cached pythran-0.18.1-py3-none-any.whl (4.4 MB)\nCollecting setuptools-scm==10.2.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 34))\n  Using cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nCollecting vcs-versioning==2.2.3 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 36))\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nInstalling collected packages: ply, setuptools, pybind11, pip, packaging, numpy, ninja, meson, gast, cython, wheel, vcs-versioning, pyproject-metadata, beniget, setuptools-scm, pythran, meson-python\n  Attempting uninstall: pip\n    Found existing installation: pip 24.0\n    Uninstalling pip-24.0:\n      Successfully uninstalled pip-24.0\nSuccessfully installed beniget-0.4.2.post1 cython-3.2.9 gast-0.6.0 meson-1.11.2 meson-python-0.20.0 ninja-1.13.0 numpy-2.5.1 packaging-26.2 pip-26.2 ply-3.11 pybind11-3.0.4 pyproject-metadata-0.12.1 pythran-0.18.1 setuptools-83.0.0 setuptools-scm-10.2.1 vcs-versioning-2.2.3 wheel-0.47.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:pip-install-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Requirement already satisfied: numpy==2.5.1 in /tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.deps.txt (line 4)) (2.5.1)\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "git clone --filter=blob:none https://github.com/scipy/scipy.git /tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-clone",
+      "stderr_tail": "Cloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git'...\nUpdating files:   0% (2/3027)\nUpdating files:   1% (31/3027)\nUpdating files:   2% (61/3027)\nUpdating files:   3% (91/3027)\nUpdating files:   4% (122/3027)\nUpdating files:   5% (152/3027)\nUpdating files:   6% (182/3027)\nUpdating files:   7% (212/3027)\nUpdating files:   8% (243/3027)\nUpdating files:   9% (273/3027)\nUpdating files:  10% (303/3027)\nUpdating files:  11% (333/3027)\nUpdating files:  12% (364/3027)\nUpdating files:  13% (394/3027)\nUpdating files:  14% (424/3027)\nUpdating files:  15% (455/3027)\nUpdating files:  16% (485/3027)\nUpdating files:  17% (515/3027)\nUpdating files:  18% (545/3027)\nUpdating files:  19% (576/3027)\nUpdating files:  20% (606/3027)\nUpdating files:  21% (636/3027)\nUpdating files:  22% (666/3027)\nUpdating files:  23% (697/3027)\nUpdating files:  24% (727/3027)\nUpdating files:  25% (757/3027)\nUpdating files:  26% (788/3027)\nUpdating files:  27% (818/3027)\nUpdating files:  28% (848/3027)\nUpdating files:  29% (878/3027)\nUpdating files:  30% (909/3027)\nUpdating files:  31% (939/3027)\nUpdating files:  32% (969/3027)\nUpdating files:  33% (999/3027)\nUpdating files:  34% (1030/3027)\nUpdating files:  35% (1060/3027)\nUpdating files:  36% (1090/3027)\nUpdating files:  37% (1120/3027)\nUpdating files:  38% (1151/3027)\nUpdating files:  39% (1181/3027)\nUpdating files:  40% (1211/3027)\nUpdating files:  41% (1242/3027)\nUpdating files:  42% (1272/3027)\nUpdating files:  43% (1302/3027)\nUpdating files:  44% (1332/3027)\nUpdating files:  45% (1363/3027)\nUpdating files:  46% (1393/3027)\nUpdating files:  47% (1423/3027)\nUpdating files:  48% (1453/3027)\nUpdating files:  49% (1484/3027)\nUpdating files:  50% (1514/3027)\nUpdating files:  51% (1544/3027)\nUpdating files:  52% (1575/3027)\nUpdating files:  53% (1605/3027)\nUpdating files:  54% (1635/3027)\nUpdating files:  55% (1665/3027)\nUpdating files:  56% (1696/3027)\nUpdating files:  57% (1726/3027)\nUpdating files:  58% (1756/3027)\nUpdating files:  59% (1786/3027)\nUpdating files:  60% (1817/3027)\nUpdating files:  61% (1847/3027)\nUpdating files:  62% (1877/3027)\nUpdating files:  63% (1908/3027)\nUpdating files:  64% (1938/3027)\nUpdating files:  65% (1968/3027)\nUpdating files:  66% (1998/3027)\nUpdating files:  67% (2029/3027)\nUpdating files:  68% (2059/3027)\nUpdating files:  69% (2089/3027)\nUpdating files:  70% (2119/3027)\nUpdating files:  71% (2150/3027)\nUpdating files:  72% (2180/3027)\nUpdating files:  73% (2210/3027)\nUpdating files:  74% (2240/3027)\nUpdating files:  75% (2271/3027)\nUpdating files:  76% (2301/3027)\nUpdating files:  77% (2331/3027)\nUpdating files:  78% (2362/3027)\nUpdating files:  79% (2392/3027)\nUpdating files:  80% (2422/3027)\nUpdating files:  81% (2452/3027)\nUpdating files:  82% (2483/3027)\nUpdating files:  83% (2513/3027)\nUpdating files:  84% (2543/3027)\nUpdating files:  85% (2573/3027)\nUpdating files:  86% (2604/3027)\nUpdating files:  87% (2634/3027)\nUpdating files:  88% (2664/3027)\nUpdating files:  89% (2695/3027)\nUpdating files:  90% (2725/3027)\nUpdating files:  91% (2755/3027)\nUpdating files:  92% (2785/3027)\nUpdating files:  93% (2816/3027)\nUpdating files:  94% (2846/3027)\nUpdating files:  95% (2876/3027)\nUpdating files:  96% (2906/3027)\nUpdating files:  97% (2937/3027)\nUpdating files:  98% (2967/3027)\nUpdating files:  99% (2997/3027)\nUpdating files: 100% (3027/3027)\nUpdating files: 100% (3027/3027), done.\n",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git checkout --detach c998b5fcaf0654c7511cf9659beeba4780c7182e",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-checkout",
+      "stderr_tail": "HEAD is now at c998b5fca DOC: fix unknown parameters and enable PR02 rule (#24569)\n",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-rev-parse",
+      "stderr_tail": "",
+      "stdout_tail": "c998b5fcaf0654c7511cf9659beeba4780c7182e\n",
+      "timeout_s": null
+    },
+    {
+      "command": "git fetch --tags origin",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-fetch-tags",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule update --init --depth 1",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-submodule-update",
+      "stderr_tail": "Submodule 'doc/source/_static/scipy-mathjax' (https://github.com/scipy/scipy-mathjax.git) registered for path 'doc/source/_static/scipy-mathjax'\nSubmodule 'subprojects/array_api_compat' (https://github.com/data-apis/array-api-compat.git) registered for path 'subprojects/array_api_compat/array_api_compat'\nSubmodule 'subprojects/array_api_extra' (https://github.com/data-apis/array-api-extra) registered for path 'subprojects/array_api_extra'\nSubmodule 'subprojects/boost_math/math' (https://github.com/boostorg/math.git) registered for path 'subprojects/boost_math/math'\nSubmodule 'subprojects/cobyqa' (https://github.com/cobyqa/cobyqa.git) registered for path 'subprojects/cobyqa'\nSubmodule 'subprojects/highs' (https://github.com/scipy/HiGHs) registered for path 'subprojects/highs'\nSubmodule 'subprojects/pocketfft' (https://github.com/scipy/pocketfft) registered for path 'subprojects/pocketfft'\nSubmodule 'subprojects/unuran' (https://github.com/scipy/unuran) registered for path 'subprojects/unuran'\nSubmodule 'subprojects/xsf' (https://github.com/scipy/xsf.git) registered for path 'subprojects/xsf'\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/doc/source/_static/scipy-mathjax'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/array_api_compat/array_api_compat'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/array_api_extra'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/boost_math/math'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/cobyqa'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/highs'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/pocketfft'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/unuran'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/buggy-git/subprojects/xsf'...\nFrom https://github.com/scipy/scipy-mathjax\n * branch            3d21c58225c09243d5a088b1557654d280925e02 -> FETCH_HEAD\nFrom https://github.com/data-apis/array-api-compat\n * branch            946ce4ad77968b94e93594c79653162426ec3224 -> FETCH_HEAD\nFrom https://github.com/data-apis/array-api-extra\n * branch            4ab875dc1ed76b9adf5415b52c58482af208eaf8 -> FETCH_HEAD\nFrom https://github.com/boostorg/math\n * branch            5e088ffe2ed0e237b9069e3a7352865283d8f196 -> FETCH_HEAD\nFrom https://github.com/cobyqa/cobyqa\n * branch            69b7177b9febb9178a5f7a9d61200407f1f77d25 -> FETCH_HEAD\nFrom https://github.com/scipy/xsf\n * branch            901df2deb9ead0ae9657cf07c79967ba55022c7c -> FETCH_HEAD\n",
+      "stdout_tail": "Submodule path 'doc/source/_static/scipy-mathjax': checked out '3d21c58225c09243d5a088b1557654d280925e02'\nSubmodule path 'subprojects/array_api_compat/array_api_compat': checked out '946ce4ad77968b94e93594c79653162426ec3224'\nSubmodule path 'subprojects/array_api_extra': checked out '4ab875dc1ed76b9adf5415b52c58482af208eaf8'\nSubmodule path 'subprojects/boost_math/math': checked out '5e088ffe2ed0e237b9069e3a7352865283d8f196'\nSubmodule path 'subprojects/cobyqa': checked out '69b7177b9febb9178a5f7a9d61200407f1f77d25'\nSubmodule path 'subprojects/highs': checked out '4f96ee8f40b2d3a46e00d6137d5eb31044680776'\nSubmodule path 'subprojects/pocketfft': checked out 'd746b2bb5368e0aa6b75de1d83dc7aae46e7da80'\nSubmodule path 'subprojects/unuran': checked out '7e2344e93eb688acc430393c12228419fa130b9b'\nSubmodule path 'subprojects/xsf': checked out '901df2deb9ead0ae9657cf07c79967ba55022c7c'\n",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule status",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:git-submodule-status",
+      "stderr_tail": "",
+      "stdout_tail": " 3d21c58225c09243d5a088b1557654d280925e02 doc/source/_static/scipy-mathjax (3d21c58)\n 946ce4ad77968b94e93594c79653162426ec3224 subprojects/array_api_compat/array_api_compat (946ce4a)\n 4ab875dc1ed76b9adf5415b52c58482af208eaf8 subprojects/array_api_extra (4ab875d)\n 5e088ffe2ed0e237b9069e3a7352865283d8f196 subprojects/boost_math/math (5e088ff)\n 69b7177b9febb9178a5f7a9d61200407f1f77d25 subprojects/cobyqa (69b7177)\n 4f96ee8f40b2d3a46e00d6137d5eb31044680776 subprojects/highs (heads/main)\n d746b2bb5368e0aa6b75de1d83dc7aae46e7da80 subprojects/pocketfft (heads/cpp)\n 7e2344e93eb688acc430393c12228419fa130b9b subprojects/unuran (heads/main)\n 901df2deb9ead0ae9657cf07c79967ba55022c7c subprojects/xsf (901df2d)\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-scipy-01/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-scipy-01/buggy-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: scipy\n  Building wheel for scipy (pyproject.toml): started\n  Building wheel for scipy (pyproject.toml): finished with status 'done'\n  Created wheel for scipy: filename=scipy-1.18.0.dev0-cp312-cp312-linux_x86_64.whl size=24763002 sha256=80f6769d99b6badd1e124d44c3d1514bf216385cfe13820d3bb221ad476e6403\n  Stored in directory: /tmp/pip-ephem-wheel-cache-0ic57iba/wheels/c2/7e/13/9af56996ab6d3b64c297ef9386a8ae710e78911ad9679167d9\nSuccessfully built scipy\nInstalling collected packages: scipy\nSuccessfully installed scipy-1.18.0.dev0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 4))\n  Using cached pip-26.2-py3-none-any.whl (1.8 MB)\nCollecting setuptools==83.0.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 6))\n  Using cached setuptools-83.0.0-py3-none-any.whl (1.0 MB)\nCollecting wheel==0.47.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 8))\n  Using cached wheel-0.47.0-py3-none-any.whl (32 kB)\nCollecting packaging==26.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 10))\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nCollecting ninja==1.13.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 12))\n  Using cached ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (180 kB)\nCollecting beniget==0.4.2.post1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 14))\n  Using cached beniget-0.4.2.post1-py3-none-any.whl (17 kB)\nCollecting cython==3.2.9 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 16))\n  Using cached cython-3.2.9-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.4 MB)\nCollecting gast==0.6.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 18))\n  Using cached gast-0.6.0-py3-none-any.whl (21 kB)\nCollecting meson-python==0.20.0 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 20))\n  Using cached meson_python-0.20.0-py3-none-any.whl (29 kB)\nCollecting meson==1.11.2 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 22))\n  Using cached meson-1.11.2-py3-none-any.whl (1.1 MB)\nCollecting numpy==2.5.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 24))\n  Using cached numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)\nCollecting ply==3.11 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 26))\n  Using cached ply-3.11-py2.py3-none-any.whl (49 kB)\nCollecting pybind11==3.0.4 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 28))\n  Using cached pybind11-3.0.4-py3-none-any.whl (314 kB)\nCollecting pyproject-metadata==0.12.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 30))\n  Using cached pyproject_metadata-0.12.1-py3-none-any.whl (23 kB)\nCollecting pythran==0.18.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 32))\n  Using cached pythran-0.18.1-py3-none-any.whl (4.4 MB)\nCollecting setuptools-scm==10.2.1 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 34))\n  Using cached setuptools_scm-10.2.1-py3-none-any.whl (29 kB)\nCollecting vcs-versioning==2.2.3 (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.build.txt (line 36))\n  Using cached vcs_versioning-2.2.3-py3-none-any.whl (108 kB)\nInstalling collected packages: ply, setuptools, pybind11, pip, packaging, numpy, ninja, meson, gast, cython, wheel, vcs-versioning, pyproject-metadata, beniget, setuptools-scm, pythran, meson-python\n  Attempting uninstall: pip\n    Found existing installation: pip 24.0\n    Uninstalling pip-24.0:\n      Successfully uninstalled pip-24.0\nSuccessfully installed beniget-0.4.2.post1 cython-3.2.9 gast-0.6.0 meson-1.11.2 meson-python-0.20.0 ninja-1.13.0 numpy-2.5.1 packaging-26.2 pip-26.2 ply-3.11 pybind11-3.0.4 pyproject-metadata-0.12.1 pythran-0.18.1 setuptools-83.0.0 setuptools-scm-10.2.1 vcs-versioning-2.2.3 wheel-0.47.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.deps.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:pip-install-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Requirement already satisfied: numpy==2.5.1 in /tmp/c3_batch3/EXT-scipy-01/venv-fixed/lib/python3.12/site-packages (from -r /workspace/data/external_slice/reproduction/EXT-scipy-01/locks/requirements.deps.txt (line 4)) (2.5.1)\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "git clone --filter=blob:none https://github.com/scipy/scipy.git /tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-clone",
+      "stderr_tail": "Cloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git'...\nUpdating files:   0% (2/3027)\nUpdating files:   1% (31/3027)\nUpdating files:   2% (61/3027)\nUpdating files:   3% (91/3027)\nUpdating files:   4% (122/3027)\nUpdating files:   5% (152/3027)\nUpdating files:   6% (182/3027)\nUpdating files:   7% (212/3027)\nUpdating files:   8% (243/3027)\nUpdating files:   9% (273/3027)\nUpdating files:  10% (303/3027)\nUpdating files:  11% (333/3027)\nUpdating files:  12% (364/3027)\nUpdating files:  13% (394/3027)\nUpdating files:  14% (424/3027)\nUpdating files:  15% (455/3027)\nUpdating files:  16% (485/3027)\nUpdating files:  17% (515/3027)\nUpdating files:  18% (545/3027)\nUpdating files:  19% (576/3027)\nUpdating files:  20% (606/3027)\nUpdating files:  21% (636/3027)\nUpdating files:  22% (666/3027)\nUpdating files:  23% (697/3027)\nUpdating files:  24% (727/3027)\nUpdating files:  25% (757/3027)\nUpdating files:  26% (788/3027)\nUpdating files:  27% (818/3027)\nUpdating files:  28% (848/3027)\nUpdating files:  29% (878/3027)\nUpdating files:  30% (909/3027)\nUpdating files:  31% (939/3027)\nUpdating files:  32% (969/3027)\nUpdating files:  33% (999/3027)\nUpdating files:  34% (1030/3027)\nUpdating files:  35% (1060/3027)\nUpdating files:  36% (1090/3027)\nUpdating files:  37% (1120/3027)\nUpdating files:  38% (1151/3027)\nUpdating files:  39% (1181/3027)\nUpdating files:  40% (1211/3027)\nUpdating files:  41% (1242/3027)\nUpdating files:  42% (1272/3027)\nUpdating files:  43% (1302/3027)\nUpdating files:  44% (1332/3027)\nUpdating files:  45% (1363/3027)\nUpdating files:  46% (1393/3027)\nUpdating files:  47% (1423/3027)\nUpdating files:  48% (1453/3027)\nUpdating files:  49% (1484/3027)\nUpdating files:  50% (1514/3027)\nUpdating files:  51% (1544/3027)\nUpdating files:  52% (1575/3027)\nUpdating files:  53% (1605/3027)\nUpdating files:  54% (1635/3027)\nUpdating files:  55% (1665/3027)\nUpdating files:  56% (1696/3027)\nUpdating files:  56% (1699/3027)\nUpdating files:  57% (1726/3027)\nUpdating files:  58% (1756/3027)\nUpdating files:  59% (1786/3027)\nUpdating files:  60% (1817/3027)\nUpdating files:  61% (1847/3027)\nUpdating files:  62% (1877/3027)\nUpdating files:  63% (1908/3027)\nUpdating files:  64% (1938/3027)\nUpdating files:  65% (1968/3027)\nUpdating files:  66% (1998/3027)\nUpdating files:  67% (2029/3027)\nUpdating files:  68% (2059/3027)\nUpdating files:  69% (2089/3027)\nUpdating files:  70% (2119/3027)\nUpdating files:  71% (2150/3027)\nUpdating files:  72% (2180/3027)\nUpdating files:  73% (2210/3027)\nUpdating files:  74% (2240/3027)\nUpdating files:  75% (2271/3027)\nUpdating files:  76% (2301/3027)\nUpdating files:  77% (2331/3027)\nUpdating files:  78% (2362/3027)\nUpdating files:  79% (2392/3027)\nUpdating files:  80% (2422/3027)\nUpdating files:  81% (2452/3027)\nUpdating files:  82% (2483/3027)\nUpdating files:  83% (2513/3027)\nUpdating files:  84% (2543/3027)\nUpdating files:  85% (2573/3027)\nUpdating files:  86% (2604/3027)\nUpdating files:  87% (2634/3027)\nUpdating files:  88% (2664/3027)\nUpdating files:  89% (2695/3027)\nUpdating files:  90% (2725/3027)\nUpdating files:  91% (2755/3027)\nUpdating files:  92% (2785/3027)\nUpdating files:  93% (2816/3027)\nUpdating files:  94% (2846/3027)\nUpdating files:  95% (2876/3027)\nUpdating files:  96% (2906/3027)\nUpdating files:  97% (2937/3027)\nUpdating files:  98% (2967/3027)\nUpdating files:  99% (2997/3027)\nUpdating files: 100% (3027/3027)\nUpdating files: 100% (3027/3027), done.\n",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git checkout --detach 68d40e7cbe43370049c38bb6013e6b9e77415d68",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-checkout",
+      "stderr_tail": "HEAD is now at 68d40e7cb BUG: stats: Fix numerical instability in exponnorm for small K (#24597)\n",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-rev-parse",
+      "stderr_tail": "",
+      "stdout_tail": "68d40e7cbe43370049c38bb6013e6b9e77415d68\n",
+      "timeout_s": null
+    },
+    {
+      "command": "git fetch --tags origin",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-fetch-tags",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule update --init --depth 1",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-submodule-update",
+      "stderr_tail": "Submodule 'doc/source/_static/scipy-mathjax' (https://github.com/scipy/scipy-mathjax.git) registered for path 'doc/source/_static/scipy-mathjax'\nSubmodule 'subprojects/array_api_compat' (https://github.com/data-apis/array-api-compat.git) registered for path 'subprojects/array_api_compat/array_api_compat'\nSubmodule 'subprojects/array_api_extra' (https://github.com/data-apis/array-api-extra) registered for path 'subprojects/array_api_extra'\nSubmodule 'subprojects/boost_math/math' (https://github.com/boostorg/math.git) registered for path 'subprojects/boost_math/math'\nSubmodule 'subprojects/cobyqa' (https://github.com/cobyqa/cobyqa.git) registered for path 'subprojects/cobyqa'\nSubmodule 'subprojects/highs' (https://github.com/scipy/HiGHs) registered for path 'subprojects/highs'\nSubmodule 'subprojects/pocketfft' (https://github.com/scipy/pocketfft) registered for path 'subprojects/pocketfft'\nSubmodule 'subprojects/unuran' (https://github.com/scipy/unuran) registered for path 'subprojects/unuran'\nSubmodule 'subprojects/xsf' (https://github.com/scipy/xsf.git) registered for path 'subprojects/xsf'\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/doc/source/_static/scipy-mathjax'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/array_api_compat/array_api_compat'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/array_api_extra'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/boost_math/math'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/cobyqa'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/highs'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/pocketfft'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/unuran'...\nCloning into '/tmp/c3_batch3/EXT-scipy-01/fixed-git/subprojects/xsf'...\nFrom https://github.com/scipy/scipy-mathjax\n * branch            3d21c58225c09243d5a088b1557654d280925e02 -> FETCH_HEAD\nFrom https://github.com/data-apis/array-api-compat\n * branch            946ce4ad77968b94e93594c79653162426ec3224 -> FETCH_HEAD\nFrom https://github.com/data-apis/array-api-extra\n * branch            4ab875dc1ed76b9adf5415b52c58482af208eaf8 -> FETCH_HEAD\nFrom https://github.com/boostorg/math\n * branch            5e088ffe2ed0e237b9069e3a7352865283d8f196 -> FETCH_HEAD\nFrom https://github.com/cobyqa/cobyqa\n * branch            69b7177b9febb9178a5f7a9d61200407f1f77d25 -> FETCH_HEAD\nFrom https://github.com/scipy/xsf\n * branch            901df2deb9ead0ae9657cf07c79967ba55022c7c -> FETCH_HEAD\n",
+      "stdout_tail": "Submodule path 'doc/source/_static/scipy-mathjax': checked out '3d21c58225c09243d5a088b1557654d280925e02'\nSubmodule path 'subprojects/array_api_compat/array_api_compat': checked out '946ce4ad77968b94e93594c79653162426ec3224'\nSubmodule path 'subprojects/array_api_extra': checked out '4ab875dc1ed76b9adf5415b52c58482af208eaf8'\nSubmodule path 'subprojects/boost_math/math': checked out '5e088ffe2ed0e237b9069e3a7352865283d8f196'\nSubmodule path 'subprojects/cobyqa': checked out '69b7177b9febb9178a5f7a9d61200407f1f77d25'\nSubmodule path 'subprojects/highs': checked out '4f96ee8f40b2d3a46e00d6137d5eb31044680776'\nSubmodule path 'subprojects/pocketfft': checked out 'd746b2bb5368e0aa6b75de1d83dc7aae46e7da80'\nSubmodule path 'subprojects/unuran': checked out '7e2344e93eb688acc430393c12228419fa130b9b'\nSubmodule path 'subprojects/xsf': checked out '901df2deb9ead0ae9657cf07c79967ba55022c7c'\n",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule status",
+      "cwd": "/tmp/c3_batch3/EXT-scipy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:git-submodule-status",
+      "stderr_tail": "",
+      "stdout_tail": " 3d21c58225c09243d5a088b1557654d280925e02 doc/source/_static/scipy-mathjax (3d21c58)\n 946ce4ad77968b94e93594c79653162426ec3224 subprojects/array_api_compat/array_api_compat (946ce4a)\n 4ab875dc1ed76b9adf5415b52c58482af208eaf8 subprojects/array_api_extra (4ab875d)\n 5e088ffe2ed0e237b9069e3a7352865283d8f196 subprojects/boost_math/math (5e088ff)\n 69b7177b9febb9178a5f7a9d61200407f1f77d25 subprojects/cobyqa (69b7177)\n 4f96ee8f40b2d3a46e00d6137d5eb31044680776 subprojects/highs (heads/main)\n d746b2bb5368e0aa6b75de1d83dc7aae46e7da80 subprojects/pocketfft (heads/cpp)\n 7e2344e93eb688acc430393c12228419fa130b9b subprojects/unuran (heads/main)\n 901df2deb9ead0ae9657cf07c79967ba55022c7c subprojects/xsf (901df2d)\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-scipy-01/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-scipy-01/fixed-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): still running...\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: scipy\n  Building wheel for scipy (pyproject.toml): started\n  Building wheel for scipy (pyproject.toml): finished with status 'done'\n  Created wheel for scipy: filename=scipy-1.18.0.dev0-cp312-cp312-linux_x86_64.whl size=24763316 sha256=cc1939760ad040f31bb0518e89054f0a14c208779d394334687ada84192c455f\n  Stored in directory: /tmp/pip-ephem-wheel-cache-mwkayjpr/wheels/c1/5a/f9/1b4630fdfc4e0490efcadcf6f6b20e1ca24056aa75ccfb46b8\nSuccessfully built scipy\nInstalling collected packages: scipy\nSuccessfully installed scipy-1.18.0.dev0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:buggy:blas-lapack-provider",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/numpy/__config__.py:155: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/__config__.py:166: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n",
+      "stdout_tail": ": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include\\\",\\n      \\\"lib directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib\\\",\\n      \\\"openblas configuration\\\": \\\"OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/project/.openblas\\\"\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"scipy-openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.33.112.0\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include\\\",\\n      \\\"lib directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib\\\",\\n      \\\"openblas configuration\\\": \\\"OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/project/.openblas\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/tmp/build-env-kd0sw37v/bin/python\\\",\\n    \\\"version\\\": \\\"3.12\\\"\\n  },\\n  \\\"SIMD Extensions\\\": {\\n    \\\"baseline\\\": [\\n      \\\"X86_V2\\\"\\n    ],\\n    \\\"found\\\": [\\n      \\\"X86_V3\\\",\\n      \\\"X86_V4\\\",\\n      \\\"AVX512_ICL\\\",\\n      \\\"AVX512_SPR\\\"\\n    ]\\n  }\\n}\\n\", \"python\": \"3.12.3\", \"scipy\": \"1.18.0.dev0+git20260220.c998b5f\", \"scipy_show_config\": \"{\\n  \\\"Compilers\\\": {\\n    \\\"c\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"gcc\\\"\\n    },\\n    \\\"cython\\\": {\\n      \\\"name\\\": \\\"cython\\\",\\n      \\\"linker\\\": \\\"cython\\\",\\n      \\\"version\\\": \\\"3.2.9\\\",\\n      \\\"commands\\\": \\\"cython\\\"\\n    },\\n    \\\"c++\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"g++\\\"\\n    },\\n    \\\"fortran\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"gfortran\\\"\\n    },\\n    \\\"pythran\\\": {\\n      \\\"version\\\": \\\"0.18.1\\\",\\n      \\\"include directory\\\": \\\"../../venv-buggy/lib/python3.12/site-packages/pythran\\\"\\n    }\\n  },\\n  \\\"Machine Information\\\": {\\n    \\\"host\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"build\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"cross-compiled\\\": false\\n  },\\n  \\\"Build Dependencies\\\": {\\n    \\\"blas\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.26\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/include/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"lib directory\\\": \\\"/usr/lib/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT=0 DYNAMIC_ARCH=1 DYNAMIC_OLDER=1 NO_CBLAS= NO_LAPACK= NO_LAPACKE=1 NO_AFFINITY=1 USE_OPENMP=0 generic MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/usr/lib/x86_64-linux-gnu/pkgconfig\\\",\\n      \\\"has ilp64\\\": false\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.26\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/include/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"lib directory\\\": \\\"/usr/lib/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT=0 DYNAMIC_ARCH=1 DYNAMIC_OLDER=1 NO_CBLAS= NO_LAPACK= NO_LAPACKE=1 NO_AFFINITY=1 USE_OPENMP=0 generic MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/usr/lib/x86_64-linux-gnu/pkgconfig\\\",\\n      \\\"has ilp64\\\": false\\n    },\\n    \\\"pybind11\\\": {\\n      \\\"name\\\": \\\"pybind11\\\",\\n      \\\"version\\\": \\\"3.0.4\\\",\\n      \\\"detection method\\\": \\\"config-tool\\\",\\n      \\\"include directory\\\": \\\"unknown\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python\\\",\\n    \\\"version\\\": \\\"3.12\\\"\\n  }\\n}\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:blas-lapack-provider",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/lib/python3.12/site-packages/numpy/__config__.py:155: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n/tmp/c3_batch3/EXT-scipy-01/venv-fixed/lib/python3.12/site-packages/scipy/__config__.py:166: UserWarning: Install `pyyaml` for better output\n  warnings.warn(\"Install `pyyaml` for better output\", stacklevel=1)\n",
+      "stdout_tail": ": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include\\\",\\n      \\\"lib directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib\\\",\\n      \\\"openblas configuration\\\": \\\"OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/project/.openblas\\\"\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"scipy-openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.33.112.0\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include\\\",\\n      \\\"lib directory\\\": \\\"/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib\\\",\\n      \\\"openblas configuration\\\": \\\"OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/project/.openblas\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/tmp/build-env-kd0sw37v/bin/python\\\",\\n    \\\"version\\\": \\\"3.12\\\"\\n  },\\n  \\\"SIMD Extensions\\\": {\\n    \\\"baseline\\\": [\\n      \\\"X86_V2\\\"\\n    ],\\n    \\\"found\\\": [\\n      \\\"X86_V3\\\",\\n      \\\"X86_V4\\\",\\n      \\\"AVX512_ICL\\\",\\n      \\\"AVX512_SPR\\\"\\n    ]\\n  }\\n}\\n\", \"python\": \"3.12.3\", \"scipy\": \"1.18.0.dev0+git20260221.68d40e7\", \"scipy_show_config\": \"{\\n  \\\"Compilers\\\": {\\n    \\\"c\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"gcc\\\"\\n    },\\n    \\\"cython\\\": {\\n      \\\"name\\\": \\\"cython\\\",\\n      \\\"linker\\\": \\\"cython\\\",\\n      \\\"version\\\": \\\"3.2.9\\\",\\n      \\\"commands\\\": \\\"cython\\\"\\n    },\\n    \\\"c++\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"g++\\\"\\n    },\\n    \\\"fortran\\\": {\\n      \\\"name\\\": \\\"gcc\\\",\\n      \\\"linker\\\": \\\"ld.bfd\\\",\\n      \\\"version\\\": \\\"13.3.0\\\",\\n      \\\"commands\\\": \\\"gfortran\\\"\\n    },\\n    \\\"pythran\\\": {\\n      \\\"version\\\": \\\"0.18.1\\\",\\n      \\\"include directory\\\": \\\"../../venv-fixed/lib/python3.12/site-packages/pythran\\\"\\n    }\\n  },\\n  \\\"Machine Information\\\": {\\n    \\\"host\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"build\\\": {\\n      \\\"cpu\\\": \\\"x86_64\\\",\\n      \\\"family\\\": \\\"x86_64\\\",\\n      \\\"endian\\\": \\\"little\\\",\\n      \\\"system\\\": \\\"linux\\\"\\n    },\\n    \\\"cross-compiled\\\": false\\n  },\\n  \\\"Build Dependencies\\\": {\\n    \\\"blas\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.26\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/include/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"lib directory\\\": \\\"/usr/lib/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT=0 DYNAMIC_ARCH=1 DYNAMIC_OLDER=1 NO_CBLAS= NO_LAPACK= NO_LAPACKE=1 NO_AFFINITY=1 USE_OPENMP=0 generic MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/usr/lib/x86_64-linux-gnu/pkgconfig\\\",\\n      \\\"has ilp64\\\": false\\n    },\\n    \\\"lapack\\\": {\\n      \\\"name\\\": \\\"openblas\\\",\\n      \\\"found\\\": true,\\n      \\\"version\\\": \\\"0.3.26\\\",\\n      \\\"detection method\\\": \\\"pkgconfig\\\",\\n      \\\"include directory\\\": \\\"/usr/include/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"lib directory\\\": \\\"/usr/lib/x86_64-linux-gnu/openblas-pthread/\\\",\\n      \\\"openblas configuration\\\": \\\"USE_64BITINT=0 DYNAMIC_ARCH=1 DYNAMIC_OLDER=1 NO_CBLAS= NO_LAPACK= NO_LAPACKE=1 NO_AFFINITY=1 USE_OPENMP=0 generic MAX_THREADS=64\\\",\\n      \\\"pc file directory\\\": \\\"/usr/lib/x86_64-linux-gnu/pkgconfig\\\",\\n      \\\"has ilp64\\\": false\\n    },\\n    \\\"pybind11\\\": {\\n      \\\"name\\\": \\\"pybind11\\\",\\n      \\\"version\\\": \\\"3.0.4\\\",\\n      \\\"detection method\\\": \\\"config-tool\\\",\\n      \\\"include directory\\\": \\\"unknown\\\"\\n    }\\n  },\\n  \\\"Python Information\\\": {\\n    \\\"path\\\": \\\"/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python\\\",\\n    \\\"version\\\": \\\"3.12\\\"\\n  }\\n}\\n\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/smoke/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:smoke-seed-0",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/smoke/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:formal-seed-0",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-1/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:formal-seed-1",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-1/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-2/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:formal-seed-2",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-2/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-3/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:formal-seed-3",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-3/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-4/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-scipy-01:buggy:formal-seed-4",
+      "stderr_tail": "/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2224: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(x) - np.exp(logprod)\n/tmp/c3_batch3/EXT-scipy-01/venv-buggy/lib/python3.12/site-packages/scipy/stats/_continuous_distns.py:2230: RuntimeWarning: overflow encountered in exp\n  return _norm_cdf(-x) + np.exp(logprod)\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-scipy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-scipy-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-scipy-01/repetitions/seed-4/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-scipy-01:fixed:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    }
+  ]
+}

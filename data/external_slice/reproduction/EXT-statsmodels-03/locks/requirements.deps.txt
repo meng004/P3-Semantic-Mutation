@@ -1,0 +1,17 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-statsmodels-03:deps)
+# python=/tmp/c3_batch3/EXT-statsmodels-03/venv-buggy/bin/python
+# root_packages=['numpy==1.19.5', 'scipy==1.5.4', 'pandas==1.1.5', 'patsy==0.5.6']
+numpy==1.19.5 \
+    --hash=sha256:400580cbd3cff6ffa6293df2278c75aef2d58d8d93d3c5614cd67981dae68ceb
+scipy==1.5.4 \
+    --hash=sha256:ed572470af2438b526ea574ff8f05e7f39b44ac37f712105e57fc4d53a6fb660
+pandas==1.1.5 \
+    --hash=sha256:2b1c6cd28a0dfda75c7b5957363333f01d370936e4c6276b7b8e696dd500582a
+patsy==0.5.6 \
+    --hash=sha256:19056886fd8fa71863fa32f0eb090267f21fb74be00f19f5c70b2e9d76c883c6
+python-dateutil==2.9.0.post0 \
+    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+pytz==2026.3.post1 \
+    --hash=sha256:dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815
+six==1.17.0 \
+    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274

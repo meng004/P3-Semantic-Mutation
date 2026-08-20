@@ -1,0 +1,2 @@
+/tmp/c3_batch3/EXT-scikit-learn-01/venv-fixed/lib/python3.9/site-packages/scipy/__config__.py:146: UserWarning: Install `pyyaml` for better output
+  warnings.warn("Install `pyyaml` for better output", stacklevel=1)

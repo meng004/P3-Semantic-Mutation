@@ -1,0 +1,301 @@
+{
+  "commands": [
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-numpy-01/venv-buggy",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch1/work/python39/install/bin/python3.9 -m venv /tmp/c3_batch3/EXT-numpy-01/venv-fixed",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:venv",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python -m pip download -d /workspace/data/external_slice/reproduction/EXT-numpy-01/locks/.download-requirements.build pip setuptools==59.2.0 wheel==0.37.0 Cython>=0.29.30,<3.0",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:build:pip-download",
+      "stderr_tail": "\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m A new release of pip is available: \u001b[0m\u001b[31;49m23.0.1\u001b[0m\u001b[39;49m -> \u001b[0m\u001b[32;49m26.0.1\u001b[0m\n\u001b[1m[\u001b[0m\u001b[34;49mnotice\u001b[0m\u001b[1;39;49m]\u001b[0m\u001b[39;49m To update, run: \u001b[0m\u001b[32;49m/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python -m pip install --upgrade pip\u001b[0m\n",
+      "stdout_tail": "Collecting pip\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==59.2.0\n  Using cached setuptools-59.2.0-py3-none-any.whl (952 kB)\nCollecting wheel==0.37.0\n  Using cached wheel-0.37.0-py2.py3-none-any.whl (35 kB)\nCollecting Cython<3.0,>=0.29.30\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nSaved ./data/external_slice/reproduction/EXT-numpy-01/locks/.download-requirements.build/wheel-0.37.0-py2.py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-numpy-01/locks/.download-requirements.build/pip-26.0.1-py3-none-any.whl\nSaved ./data/external_slice/reproduction/EXT-numpy-01/locks/.download-requirements.build/Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl\nSaved ./data/external_slice/reproduction/EXT-numpy-01/locks/.download-requirements.build/setuptools-59.2.0-py3-none-any.whl\nSuccessfully downloaded wheel pip Cython setuptools\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-numpy-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==59.2.0\n  Using cached setuptools-59.2.0-py3-none-any.whl (952 kB)\nCollecting wheel==0.37.0\n  Using cached wheel-0.37.0-py2.py3-none-any.whl (35 kB)\nCollecting Cython==0.29.37\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nInstalling collected packages: wheel, setuptools, pip, Cython\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.37 pip-26.0.1 setuptools-59.2.0 wheel-0.37.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "git clone --filter=blob:none https://github.com/numpy/numpy.git /tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-clone",
+      "stderr_tail": "Cloning into '/tmp/c3_batch3/EXT-numpy-01/buggy-git'...\nUpdating files:   0% (2/2354)\nUpdating files:   1% (24/2354)\nUpdating files:   2% (48/2354)\nUpdating files:   3% (71/2354)\nUpdating files:   4% (95/2354)\nUpdating files:   5% (118/2354)\nUpdating files:   6% (142/2354)\nUpdating files:   7% (165/2354)\nUpdating files:   8% (189/2354)\nUpdating files:   9% (212/2354)\nUpdating files:  10% (236/2354)\nUpdating files:  11% (259/2354)\nUpdating files:  12% (283/2354)\nUpdating files:  13% (307/2354)\nUpdating files:  14% (330/2354)\nUpdating files:  15% (354/2354)\nUpdating files:  16% (377/2354)\nUpdating files:  17% (401/2354)\nUpdating files:  18% (424/2354)\nUpdating files:  19% (448/2354)\nUpdating files:  20% (471/2354)\nUpdating files:  21% (495/2354)\nUpdating files:  22% (518/2354)\nUpdating files:  23% (542/2354)\nUpdating files:  24% (565/2354)\nUpdating files:  25% (589/2354)\nUpdating files:  26% (613/2354)\nUpdating files:  27% (636/2354)\nUpdating files:  28% (660/2354)\nUpdating files:  29% (683/2354)\nUpdating files:  30% (707/2354)\nUpdating files:  31% (730/2354)\nUpdating files:  32% (754/2354)\nUpdating files:  33% (777/2354)\nUpdating files:  34% (801/2354)\nUpdating files:  35% (824/2354)\nUpdating files:  36% (848/2354)\nUpdating files:  37% (871/2354)\nUpdating files:  38% (895/2354)\nUpdating files:  39% (919/2354)\nUpdating files:  40% (942/2354)\nUpdating files:  41% (966/2354)\nUpdating files:  42% (989/2354)\nUpdating files:  43% (1013/2354)\nUpdating files:  44% (1036/2354)\nUpdating files:  45% (1060/2354)\nUpdating files:  46% (1083/2354)\nUpdating files:  47% (1107/2354)\nUpdating files:  48% (1130/2354)\nUpdating files:  49% (1154/2354)\nUpdating files:  50% (1177/2354)\nUpdating files:  51% (1201/2354)\nUpdating files:  52% (1225/2354)\nUpdating files:  53% (1248/2354)\nUpdating files:  54% (1272/2354)\nUpdating files:  55% (1295/2354)\nUpdating files:  56% (1319/2354)\nUpdating files:  57% (1342/2354)\nUpdating files:  58% (1366/2354)\nUpdating files:  59% (1389/2354)\nUpdating files:  60% (1413/2354)\nUpdating files:  61% (1436/2354)\nUpdating files:  62% (1460/2354)\nUpdating files:  63% (1484/2354)\nUpdating files:  64% (1507/2354)\nUpdating files:  65% (1531/2354)\nUpdating files:  66% (1554/2354)\nUpdating files:  67% (1578/2354)\nUpdating files:  68% (1601/2354)\nUpdating files:  69% (1625/2354)\nUpdating files:  70% (1648/2354)\nUpdating files:  71% (1672/2354)\nUpdating files:  72% (1695/2354)\nUpdating files:  73% (1719/2354)\nUpdating files:  74% (1742/2354)\nUpdating files:  75% (1766/2354)\nUpdating files:  76% (1790/2354)\nUpdating files:  77% (1813/2354)\nUpdating files:  78% (1837/2354)\nUpdating files:  79% (1860/2354)\nUpdating files:  80% (1884/2354)\nUpdating files:  81% (1907/2354)\nUpdating files:  82% (1931/2354)\nUpdating files:  83% (1954/2354)\nUpdating files:  84% (1978/2354)\nUpdating files:  85% (2001/2354)\nUpdating files:  86% (2025/2354)\nUpdating files:  87% (2048/2354)\nUpdating files:  88% (2072/2354)\nUpdating files:  89% (2096/2354)\nUpdating files:  90% (2119/2354)\nUpdating files:  91% (2143/2354)\nUpdating files:  92% (2166/2354)\nUpdating files:  93% (2190/2354)\nUpdating files:  94% (2213/2354)\nUpdating files:  95% (2237/2354)\nUpdating files:  96% (2260/2354)\nUpdating files:  97% (2284/2354)\nUpdating files:  98% (2307/2354)\nUpdating files:  99% (2331/2354)\nUpdating files: 100% (2354/2354)\nUpdating files: 100% (2354/2354), done.\n",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git checkout --detach 8ff45c5bb520db04af8720bf1d34a392a8d2561a",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-checkout",
+      "stderr_tail": "HEAD is now at 8ff45c5bb Merge pull request #22708 from SyamGadde/SyamGadde-patch-1\n",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-rev-parse",
+      "stderr_tail": "",
+      "stdout_tail": "8ff45c5bb520db04af8720bf1d34a392a8d2561a\n",
+      "timeout_s": null
+    },
+    {
+      "command": "git fetch --tags origin",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-fetch-tags",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule update --init --depth 1",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-submodule-update",
+      "stderr_tail": "Submodule 'doc/source/_static/scipy-mathjax' (https://github.com/scipy/scipy-mathjax.git) registered for path 'doc/source/_static/scipy-mathjax'\nSubmodule 'numpy/core/src/umath/svml' (https://github.com/numpy/SVML.git) registered for path 'numpy/core/src/umath/svml'\nCloning into '/tmp/c3_batch3/EXT-numpy-01/buggy-git/doc/source/_static/scipy-mathjax'...\nCloning into '/tmp/c3_batch3/EXT-numpy-01/buggy-git/numpy/core/src/umath/svml'...\nFrom https://github.com/numpy/SVML\n * branch            1c5260a61e7dce6be48073dfa96291edb0a11d79 -> FETCH_HEAD\n",
+      "stdout_tail": "Submodule path 'doc/source/_static/scipy-mathjax': checked out '36f4c898f2255e0c98eb6949cd67381552d5ffea'\nSubmodule path 'numpy/core/src/umath/svml': checked out '1c5260a61e7dce6be48073dfa96291edb0a11d79'\n",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule status",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/buggy-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:git-submodule-status",
+      "stderr_tail": "",
+      "stdout_tail": " 36f4c898f2255e0c98eb6949cd67381552d5ffea doc/source/_static/scipy-mathjax (heads/master)\n 1c5260a61e7dce6be48073dfa96291edb0a11d79 numpy/core/src/umath/svml (1c5260a)\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-numpy-01/buggy-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-numpy-01/buggy-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: numpy\n  Building wheel for numpy (pyproject.toml): started\n  Building wheel for numpy (pyproject.toml): still running...\n  Building wheel for numpy (pyproject.toml): still running...\n  Building wheel for numpy (pyproject.toml): finished with status 'done'\n  Created wheel for numpy: filename=numpy-1.25.0.dev0+81.g8ff45c5bb-cp39-cp39-linux_x86_64.whl size=22146790 sha256=109287d8ce77a5e908c2a499c8baaa345e6756648e3ed4901c1d2205ceb8c358\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/42/59/77/c4785d73224685bc8490b73b933813f93ec92f50591ed1f661\nSuccessfully built numpy\nInstalling collected packages: numpy\nSuccessfully installed numpy-1.25.0.dev0+81.g8ff45c5bb\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python -m pip install --require-hashes -r /workspace/data/external_slice/reproduction/EXT-numpy-01/locks/requirements.build.txt",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:pip-install-build-require-hashes",
+      "stderr_tail": "",
+      "stdout_tail": "Collecting pip==26.0.1\n  Using cached pip-26.0.1-py3-none-any.whl (1.8 MB)\nCollecting setuptools==59.2.0\n  Using cached setuptools-59.2.0-py3-none-any.whl (952 kB)\nCollecting wheel==0.37.0\n  Using cached wheel-0.37.0-py2.py3-none-any.whl (35 kB)\nCollecting Cython==0.29.37\n  Using cached Cython-0.29.37-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (1.9 MB)\nInstalling collected packages: wheel, setuptools, pip, Cython\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 58.1.0\n    Uninstalling setuptools-58.1.0:\n      Successfully uninstalled setuptools-58.1.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed Cython-0.29.37 pip-26.0.1 setuptools-59.2.0 wheel-0.37.0\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "git clone --filter=blob:none https://github.com/numpy/numpy.git /tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-clone",
+      "stderr_tail": "Cloning into '/tmp/c3_batch3/EXT-numpy-01/fixed-git'...\nUpdating files:   0% (2/2354)\nUpdating files:   1% (24/2354)\nUpdating files:   2% (48/2354)\nUpdating files:   3% (71/2354)\nUpdating files:   4% (95/2354)\nUpdating files:   5% (118/2354)\nUpdating files:   6% (142/2354)\nUpdating files:   7% (165/2354)\nUpdating files:   8% (189/2354)\nUpdating files:   9% (212/2354)\nUpdating files:  10% (236/2354)\nUpdating files:  11% (259/2354)\nUpdating files:  12% (283/2354)\nUpdating files:  13% (307/2354)\nUpdating files:  14% (330/2354)\nUpdating files:  15% (354/2354)\nUpdating files:  16% (377/2354)\nUpdating files:  17% (401/2354)\nUpdating files:  18% (424/2354)\nUpdating files:  19% (448/2354)\nUpdating files:  20% (471/2354)\nUpdating files:  21% (495/2354)\nUpdating files:  22% (518/2354)\nUpdating files:  23% (542/2354)\nUpdating files:  24% (565/2354)\nUpdating files:  25% (589/2354)\nUpdating files:  26% (613/2354)\nUpdating files:  27% (636/2354)\nUpdating files:  28% (660/2354)\nUpdating files:  29% (683/2354)\nUpdating files:  30% (707/2354)\nUpdating files:  31% (730/2354)\nUpdating files:  32% (754/2354)\nUpdating files:  33% (777/2354)\nUpdating files:  34% (801/2354)\nUpdating files:  35% (824/2354)\nUpdating files:  36% (848/2354)\nUpdating files:  37% (871/2354)\nUpdating files:  38% (895/2354)\nUpdating files:  39% (919/2354)\nUpdating files:  40% (942/2354)\nUpdating files:  41% (966/2354)\nUpdating files:  42% (989/2354)\nUpdating files:  43% (1013/2354)\nUpdating files:  44% (1036/2354)\nUpdating files:  45% (1060/2354)\nUpdating files:  46% (1083/2354)\nUpdating files:  47% (1107/2354)\nUpdating files:  48% (1130/2354)\nUpdating files:  49% (1154/2354)\nUpdating files:  50% (1177/2354)\nUpdating files:  51% (1201/2354)\nUpdating files:  52% (1225/2354)\nUpdating files:  53% (1248/2354)\nUpdating files:  54% (1272/2354)\nUpdating files:  55% (1295/2354)\nUpdating files:  56% (1319/2354)\nUpdating files:  57% (1342/2354)\nUpdating files:  58% (1366/2354)\nUpdating files:  59% (1389/2354)\nUpdating files:  60% (1413/2354)\nUpdating files:  61% (1436/2354)\nUpdating files:  62% (1460/2354)\nUpdating files:  63% (1484/2354)\nUpdating files:  64% (1507/2354)\nUpdating files:  65% (1531/2354)\nUpdating files:  66% (1554/2354)\nUpdating files:  67% (1578/2354)\nUpdating files:  68% (1601/2354)\nUpdating files:  69% (1625/2354)\nUpdating files:  70% (1648/2354)\nUpdating files:  71% (1672/2354)\nUpdating files:  72% (1695/2354)\nUpdating files:  73% (1719/2354)\nUpdating files:  74% (1742/2354)\nUpdating files:  75% (1766/2354)\nUpdating files:  76% (1790/2354)\nUpdating files:  77% (1813/2354)\nUpdating files:  78% (1837/2354)\nUpdating files:  79% (1860/2354)\nUpdating files:  80% (1884/2354)\nUpdating files:  81% (1907/2354)\nUpdating files:  82% (1931/2354)\nUpdating files:  83% (1954/2354)\nUpdating files:  84% (1978/2354)\nUpdating files:  85% (2001/2354)\nUpdating files:  86% (2025/2354)\nUpdating files:  87% (2048/2354)\nUpdating files:  88% (2072/2354)\nUpdating files:  89% (2096/2354)\nUpdating files:  90% (2119/2354)\nUpdating files:  91% (2143/2354)\nUpdating files:  92% (2166/2354)\nUpdating files:  93% (2190/2354)\nUpdating files:  94% (2213/2354)\nUpdating files:  95% (2237/2354)\nUpdating files:  96% (2260/2354)\nUpdating files:  97% (2284/2354)\nUpdating files:  98% (2307/2354)\nUpdating files:  99% (2331/2354)\nUpdating files: 100% (2354/2354)\nUpdating files: 100% (2354/2354), done.\n",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git checkout --detach 9989e1e43fb24d163887f450ef15e6f270b8e15b",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-checkout",
+      "stderr_tail": "HEAD is now at 9989e1e43 Merge pull request #18535 from prithvitewatia/Issue18378\n",
+      "stdout_tail": "",
+      "timeout_s": null
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-rev-parse",
+      "stderr_tail": "",
+      "stdout_tail": "9989e1e43fb24d163887f450ef15e6f270b8e15b\n",
+      "timeout_s": null
+    },
+    {
+      "command": "git fetch --tags origin",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-fetch-tags",
+      "stderr_tail": "",
+      "stdout_tail": "",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule update --init --depth 1",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-submodule-update",
+      "stderr_tail": "Submodule 'doc/source/_static/scipy-mathjax' (https://github.com/scipy/scipy-mathjax.git) registered for path 'doc/source/_static/scipy-mathjax'\nSubmodule 'numpy/core/src/umath/svml' (https://github.com/numpy/SVML.git) registered for path 'numpy/core/src/umath/svml'\nCloning into '/tmp/c3_batch3/EXT-numpy-01/fixed-git/doc/source/_static/scipy-mathjax'...\nCloning into '/tmp/c3_batch3/EXT-numpy-01/fixed-git/numpy/core/src/umath/svml'...\nFrom https://github.com/numpy/SVML\n * branch            1c5260a61e7dce6be48073dfa96291edb0a11d79 -> FETCH_HEAD\n",
+      "stdout_tail": "Submodule path 'doc/source/_static/scipy-mathjax': checked out '36f4c898f2255e0c98eb6949cd67381552d5ffea'\nSubmodule path 'numpy/core/src/umath/svml': checked out '1c5260a61e7dce6be48073dfa96291edb0a11d79'\n",
+      "timeout_s": 600
+    },
+    {
+      "command": "git submodule status",
+      "cwd": "/tmp/c3_batch3/EXT-numpy-01/fixed-git",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:git-submodule-status",
+      "stderr_tail": "",
+      "stdout_tail": " 36f4c898f2255e0c98eb6949cd67381552d5ffea doc/source/_static/scipy-mathjax (heads/master)\n 1c5260a61e7dce6be48073dfa96291edb0a11d79 numpy/core/src/umath/svml (1c5260a)\n",
+      "timeout_s": null
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python -m pip install --no-deps --no-build-isolation /tmp/c3_batch3/EXT-numpy-01/fixed-src",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:pip-install-exact-source",
+      "stderr_tail": "",
+      "stdout_tail": "Processing /tmp/c3_batch3/EXT-numpy-01/fixed-src\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: numpy\n  Building wheel for numpy (pyproject.toml): started\n  Building wheel for numpy (pyproject.toml): still running...\n  Building wheel for numpy (pyproject.toml): still running...\n  Building wheel for numpy (pyproject.toml): finished with status 'done'\n  Created wheel for numpy: filename=numpy-1.25.0.dev0+96.g9989e1e43-cp39-cp39-linux_x86_64.whl size=22146664 sha256=7fc945adc78a9dd8456da37cee82a55da1db59279a8a02620f5e38994c664aee\n  Stored in directory: /home/ubuntu/.cache/pip/wheels/2c/3c/1b/8fca5c257ed1a488cac52654f3408c3d1bb446743da9d98b60\nSuccessfully built numpy\nInstalling collected packages: numpy\nSuccessfully installed numpy-1.25.0.dev0+96.g9989e1e43\n",
+      "timeout_s": 7200
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:buggy:blas-lapack-provider",
+      "stderr_tail": "",
+      "stdout_tail": "{\"errors\": [\"scipy:ModuleNotFoundError(\\\"No module named 'scipy'\\\")\"], \"numpy\": \"1.25.0.dev0+81.g8ff45c5bb\", \"numpy_config_keys\": [{\"key\": \"blas_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}, {\"key\": \"lapack_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}, {\"key\": \"openblas_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}], \"numpy_show_config\": \"blas_armpl_info:\\n  NOT AVAILABLE\\nblas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_armpl_info:\\n  NOT AVAILABLE\\nlapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nSupported SIMD extensions in this NumPy install:\\n    baseline = SSE,SSE2,SSE3\\n    found = SSSE3,SSE41,POPCNT,SSE42,AVX,F16C,FMA3,AVX2,AVX512F,AVX512CD,AVX512_SKX,AVX512_CLX,AVX512_CNL,AVX512_ICL\\n    not found = \\n\", \"python\": \"3.9.18\", \"scipy\": null, \"scipy_show_config\": \"\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python -c \"\nimport json\nimport sys\nout = {\n    \\\"python\\\": sys.version.split()[0],\n    \\\"numpy\\\": None,\n    \\\"scipy\\\": None,\n    \\\"numpy_show_config\\\": \\\"\\\",\n    \\\"scipy_show_config\\\": \\\"\\\",\n    \\\"numpy_config_keys\\\": [],\n    \\\"errors\\\": [],\n}\ntry:\n    import numpy as np\n    out[\\\"numpy\\\"] = getattr(np, \\\"__version__\\\", None)\n    try:\n        from io import StringIO\n        buf = StringIO()\n        np.show_config(stream=buf)\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    except TypeError:\n        from io import StringIO\n        import contextlib\n        buf = StringIO()\n        with contextlib.redirect_stdout(buf):\n            np.show_config()\n        out[\\\"numpy_show_config\\\"] = buf.getvalue()\n    cfg = getattr(np, \\\"__config__\\\", None)\n    if cfg is not None and hasattr(cfg, \\\"get_info\\\"):\n        for key in (\n            \\\"blas_opt_info\\\",\n            \\\"lapack_opt_info\\\",\n            \\\"blas_mkl_info\\\",\n            \\\"openblas_info\\\",\n            \\\"blas_ilp64_opt_info\\\",\n        ):\n            try:\n                info = cfg.get_info(key)\n            except Exception as exc:  # noqa: BLE001\n                out[\\\"errors\\\"].append(f\\\"{key}:{exc!r}\\\")\n                continue\n            if info:\n                out[\\\"numpy_config_keys\\\"].append(\n                    {\\\"key\\\": key, \\\"libraries\\\": info.get(\\\"libraries\\\"),\n                     \\\"library_dirs\\\": info.get(\\\"library_dirs\\\")}\n                )\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"numpy:{exc!r}\\\")\ntry:\n    import scipy\n    out[\\\"scipy\\\"] = getattr(scipy, \\\"__version__\\\", None)\n    from io import StringIO\n    import contextlib\n    buf = StringIO()\n    with contextlib.redirect_stdout(buf):\n        scipy.show_config()\n    out[\\\"scipy_show_config\\\"] = buf.getvalue()\nexcept Exception as exc:  # noqa: BLE001\n    out[\\\"errors\\\"].append(f\\\"scipy:{exc!r}\\\")\nprint(json.dumps(out, sort_keys=True))\n\"",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:blas-lapack-provider",
+      "stderr_tail": "",
+      "stdout_tail": "{\"errors\": [\"scipy:ModuleNotFoundError(\\\"No module named 'scipy'\\\")\"], \"numpy\": \"1.25.0.dev0+96.g9989e1e43\", \"numpy_config_keys\": [{\"key\": \"blas_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}, {\"key\": \"lapack_opt_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}, {\"key\": \"openblas_info\", \"libraries\": [\"openblas\", \"openblas\"], \"library_dirs\": [\"/usr/lib/x86_64-linux-gnu\"]}], \"numpy_show_config\": \"blas_armpl_info:\\n  NOT AVAILABLE\\nblas_mkl_info:\\n  NOT AVAILABLE\\nblis_info:\\n  NOT AVAILABLE\\nopenblas_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nblas_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_armpl_info:\\n  NOT AVAILABLE\\nlapack_mkl_info:\\n  NOT AVAILABLE\\nopenblas_lapack_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nlapack_opt_info:\\n    libraries = ['openblas', 'openblas']\\n    library_dirs = ['/usr/lib/x86_64-linux-gnu']\\n    language = c\\n    define_macros = [('HAVE_CBLAS', None)]\\nSupported SIMD extensions in this NumPy install:\\n    baseline = SSE,SSE2,SSE3\\n    found = SSSE3,SSE41,POPCNT,SSE42,AVX,F16C,FMA3,AVX2,AVX512F,AVX512CD,AVX512_SKX,AVX512_CLX,AVX512_CNL,AVX512_ICL\\n    not found = \\n\", \"python\": \"3.9.18\", \"scipy\": null, \"scipy_show_config\": \"\"}\n",
+      "timeout_s": 120
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/smoke/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:smoke-seed-0",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/smoke/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:smoke-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-0/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:formal-seed-0",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 0 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-0/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:formal-seed-0",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-1/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:formal-seed-1",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 1 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-1/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:formal-seed-1",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-2/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:formal-seed-2",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 2 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-2/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:formal-seed-2",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-3/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:formal-seed-3",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 3 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-3/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:formal-seed-3",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-buggy/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-4/buggy.json",
+      "cwd": "/workspace",
+      "exit_code": 1,
+      "label": "EXT-numpy-01:buggy:formal-seed-4",
+      "stderr_tail": "/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power\n  got = (0) ** np.array([1 - 1j])\n",
+      "stdout_tail": "{\"property_holds\": false, \"exit_status\": 1}\n",
+      "timeout_s": 300
+    },
+    {
+      "command": "/tmp/c3_batch3/EXT-numpy-01/venv-fixed/bin/python /workspace/data/external_slice/reproducers/EXT-numpy-01.py --seed 4 --json-out /workspace/data/external_slice/reproduction/EXT-numpy-01/repetitions/seed-4/fixed.json",
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "label": "EXT-numpy-01:fixed:formal-seed-4",
+      "stderr_tail": "",
+      "stdout_tail": "{\"property_holds\": true, \"exit_status\": 0}\n",
+      "timeout_s": 300
+    }
+  ]
+}

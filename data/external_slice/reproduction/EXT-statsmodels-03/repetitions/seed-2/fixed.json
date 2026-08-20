@@ -1,0 +1,32 @@
+{
+  "exit_status": 0,
+  "expected_property": "two-sample proportions_ztest works with value=None (null diff 0) AND one-sample requires an explicit value",
+  "input": {
+    "count": [
+      5,
+      12
+    ],
+    "nobs": [
+      83,
+      99
+    ],
+    "value": null
+  },
+  "neutral_id": "EXT-statsmodels-03",
+  "observed_output": {
+    "one_sample_err": "ValueError('value must be provided for a 1-sample test')",
+    "one_sample_requires_value": true,
+    "two_pval": 0.15918129181156992,
+    "two_sample_err": null,
+    "two_sample_ok": true,
+    "two_stat": -1.4078304151258787
+  },
+  "package_version": {
+    "numpy": "1.19.5",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.9.18",
+    "statsmodels": "0.8.0.dev0+Unknown"
+  },
+  "property_holds": true,
+  "seed": 2
+}

@@ -1,0 +1,38 @@
+{
+  "buggy": {
+    "includes_dot_git": true,
+    "mode": "git_checkout",
+    "repo": "scipy/scipy",
+    "sha": "c998b5fcaf0654c7511cf9659beeba4780c7182e",
+    "source_tree_sha256": "3dac77c45f43c9f0038686611cea0ef0513a68d3d98c7a63b355a42a0ce7294d",
+    "submodule_status": [
+      "3d21c58225c09243d5a088b1557654d280925e02 doc/source/_static/scipy-mathjax (3d21c58)",
+      " 946ce4ad77968b94e93594c79653162426ec3224 subprojects/array_api_compat/array_api_compat (946ce4a)",
+      " 4ab875dc1ed76b9adf5415b52c58482af208eaf8 subprojects/array_api_extra (4ab875d)",
+      " 5e088ffe2ed0e237b9069e3a7352865283d8f196 subprojects/boost_math/math (5e088ff)",
+      " 69b7177b9febb9178a5f7a9d61200407f1f77d25 subprojects/cobyqa (69b7177)",
+      " 4f96ee8f40b2d3a46e00d6137d5eb31044680776 subprojects/highs (heads/main)",
+      " d746b2bb5368e0aa6b75de1d83dc7aae46e7da80 subprojects/pocketfft (heads/cpp)",
+      " 7e2344e93eb688acc430393c12228419fa130b9b subprojects/unuran (heads/main)",
+      " 901df2deb9ead0ae9657cf07c79967ba55022c7c subprojects/xsf (901df2d)"
+    ]
+  },
+  "fixed": {
+    "includes_dot_git": true,
+    "mode": "git_checkout",
+    "repo": "scipy/scipy",
+    "sha": "68d40e7cbe43370049c38bb6013e6b9e77415d68",
+    "source_tree_sha256": "8523f67ccfeb8e4fe7ff8b2457c52027b5d0b324e407716116e43b092a56ba1e",
+    "submodule_status": [
+      "3d21c58225c09243d5a088b1557654d280925e02 doc/source/_static/scipy-mathjax (3d21c58)",
+      " 946ce4ad77968b94e93594c79653162426ec3224 subprojects/array_api_compat/array_api_compat (946ce4a)",
+      " 4ab875dc1ed76b9adf5415b52c58482af208eaf8 subprojects/array_api_extra (4ab875d)",
+      " 5e088ffe2ed0e237b9069e3a7352865283d8f196 subprojects/boost_math/math (5e088ff)",
+      " 69b7177b9febb9178a5f7a9d61200407f1f77d25 subprojects/cobyqa (69b7177)",
+      " 4f96ee8f40b2d3a46e00d6137d5eb31044680776 subprojects/highs (heads/main)",
+      " d746b2bb5368e0aa6b75de1d83dc7aae46e7da80 subprojects/pocketfft (heads/cpp)",
+      " 7e2344e93eb688acc430393c12228419fa130b9b subprojects/unuran (heads/main)",
+      " 901df2deb9ead0ae9657cf07c79967ba55022c7c subprojects/xsf (901df2d)"
+    ]
+  }
+}

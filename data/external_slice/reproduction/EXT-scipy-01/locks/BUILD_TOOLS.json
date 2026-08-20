@@ -1,0 +1,11 @@
+{
+  "captured_at": "2026-08-02T07:20:24.545124+00:00",
+  "tools": {
+    "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "machine": "x86_64",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "python39": "/tmp/c3_batch1/work/python39/install/bin/python3.9"
+  }
+}

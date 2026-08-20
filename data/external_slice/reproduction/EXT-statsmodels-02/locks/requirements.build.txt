@@ -1,0 +1,27 @@
+# Hash-locked requirements for C3 Batch 3 (EXT-statsmodels-02:build)
+# python=/tmp/c3_batch3/EXT-statsmodels-02/venv-buggy/bin/python
+# root_packages=['pip', 'setuptools', 'wheel', 'packaging', 'meson-python', 'meson>=1.9.0', 'ninja', 'Cython>=3.0.13,<4', 'numpy>=2.0.0,<3', 'scipy>=1.13,<2', 'setuptools_scm>=9.2.0,<10']
+pip==26.2 \
+    --hash=sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad
+setuptools==83.0.0 \
+    --hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3
+wheel==0.47.0 \
+    --hash=sha256:212281cab4dff978f6cedd499cd893e1f620791ca6ff7107cf270781e587eced
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+meson-python==0.20.0 \
+    --hash=sha256:6a744cf0c09e76ecbdc58cfa374b48c8902dac1b74479628238634efbf36aec9
+ninja==1.13.0 \
+    --hash=sha256:fb46acf6b93b8dd0322adc3a4945452a4e774b75b91293bafcc7b7f8e6517dfa
+cython==3.2.9 \
+    --hash=sha256:23e80bc885c599e72072e18d0746df82d394b73100c1e153cda7359e6e59fe09
+meson==1.11.2 \
+    --hash=sha256:7e4f6e83fec83e3eaac928e058b073c7557b282c35b6a2024cea143a39926a39
+numpy==2.5.1 \
+    --hash=sha256:59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca
+pyproject-metadata==0.12.1 \
+    --hash=sha256:f7162d580a96386a8eb096da06215f981f547d1490f03055ef99e323bc2da427
+scipy==1.18.0 \
+    --hash=sha256:1f55797419e16e7f30cf88ffb3113ce0467f00cfe3f70d5c281730b21769bfc2
+setuptools-scm==9.2.2 \
+    --hash=sha256:30e8f84d2ab1ba7cb0e653429b179395d0c33775d54807fc5f1dd6671801aef7

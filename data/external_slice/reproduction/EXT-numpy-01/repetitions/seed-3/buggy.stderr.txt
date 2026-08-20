@@ -1,0 +1,2 @@
+/workspace/data/external_slice/reproducers/EXT-numpy-01.py:19: RuntimeWarning: invalid value encountered in power
+  got = (0) ** np.array([1 - 1j])

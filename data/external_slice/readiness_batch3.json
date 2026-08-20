@@ -1,0 +1,896 @@
+{
+  "batch": 3,
+  "batch_name": "supplemental-pilot-six",
+  "cases": [
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-numpy-01",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-numpy-01/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-numpy-01/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "8ff45c5bb520db04af8720bf1d34a392a8d2561a",
+      "cohort": "supplemental-pilot",
+      "command_count": 33,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "9989e1e43fb24d163887f450ef15e6f270b8e15b",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/numpy/numpy/issues/18378",
+      "locks_dir": "data/external_slice/reproduction/EXT-numpy-01/locks",
+      "neutral_id": "EXT-numpy-01",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "numpy/numpy",
+      "route": "exact-source-numpy-setuptools-py39",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-numpy-01.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    },
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-scipy-01/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "c998b5fcaf0654c7511cf9659beeba4780c7182e",
+      "cohort": "supplemental-pilot",
+      "command_count": 36,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "68d40e7cbe43370049c38bb6013e6b9e77415d68",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/scipy/scipy/issues/24551",
+      "locks_dir": "data/external_slice/reproduction/EXT-scipy-01/locks",
+      "neutral_id": "EXT-scipy-01",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "scipy/scipy",
+      "route": "exact-source-scipy-meson",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-scipy-01.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    },
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-scikit-learn-01",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-scikit-learn-01/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-scikit-learn-01/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "6c18131f1390843aa4fd9fd615cbc7feac40bc81",
+      "cohort": "supplemental-pilot",
+      "command_count": 28,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "8e9cd7d33a64ffc6a7ab90e4069f4659f9aed6cb",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/scikit-learn/scikit-learn/issues/26766",
+      "locks_dir": "data/external_slice/reproduction/EXT-scikit-learn-01/locks",
+      "neutral_id": "EXT-scikit-learn-01",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "scikit-learn/scikit-learn",
+      "route": "exact-source-sklearn-setuptools-py39",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-scikit-learn-01.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    },
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-01",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-01/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-01/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "46f2e6ddd2d2aed4599c85bdd51459b050185213",
+      "cohort": "supplemental-pilot",
+      "command_count": 28,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "303b0033ab295c2264b1168bd1c6d2b4abaad7af",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/statsmodels/statsmodels/issues/9860",
+      "locks_dir": "data/external_slice/reproduction/EXT-statsmodels-01/locks",
+      "neutral_id": "EXT-statsmodels-01",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "statsmodels/statsmodels",
+      "route": "exact-source-statsmodels-meson",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-statsmodels-01.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    },
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-02",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-02/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-02/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "383d9707516a8613a46d58998e42985b431a33f3",
+      "cohort": "supplemental-pilot",
+      "command_count": 28,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "8470c9c164b4811527659317c972fb5283f0bb12",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/statsmodels/statsmodels/issues/9791",
+      "locks_dir": "data/external_slice/reproduction/EXT-statsmodels-02/locks",
+      "neutral_id": "EXT-statsmodels-02",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "statsmodels/statsmodels",
+      "route": "exact-source-statsmodels-meson",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-statsmodels-02.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    },
+    {
+      "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-03",
+      "blas_lapack_providers": {
+        "buggy": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-03/locks/blas_lapack/buggy",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        },
+        "fixed": {
+          "artifact_dir": "data/external_slice/reproduction/EXT-statsmodels-03/locks/blas_lapack/fixed",
+          "exit_code": 0,
+          "provider_summary": "openblas"
+        }
+      },
+      "buggy_property_holds": false,
+      "buggy_sha": "62d08d162bffd792144b413f9f38d963d0ed857c",
+      "cohort": "supplemental-pilot",
+      "command_count": 28,
+      "dual_arm_contrast": true,
+      "execution_matrix": {
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "smoke_seeds": [
+          0
+        ]
+      },
+      "failure_detail": null,
+      "failure_stage": null,
+      "fixed_property_holds": true,
+      "fixed_sha": "af5819b308c23529c597c5686e91c5b25dcd75c6",
+      "formal_aggregation": {
+        "all_seeds_contrasted": true,
+        "failing_seeds": [],
+        "formal_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "proposed_crit_dual_arm_repro": "PASS",
+        "requirements": {
+          "buggy_property_holds": false,
+          "buggy_raw_return_code": 1,
+          "fixed_property_holds": true,
+          "fixed_raw_return_code": 0,
+          "input_parity_ok": true
+        },
+        "seed_rows": [
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 0,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 1,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 2,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 3,
+            "seed_ok": true
+          },
+          {
+            "buggy_property_holds": false,
+            "buggy_raw_return_code": 1,
+            "contrast": true,
+            "fixed_property_holds": true,
+            "fixed_raw_return_code": 0,
+            "input_parity_ok": true,
+            "parity_ok": true,
+            "present": true,
+            "property_ok": true,
+            "return_code_ok": true,
+            "seed": 4,
+            "seed_ok": true
+          }
+        ]
+      },
+      "issue_url": "https://github.com/statsmodels/statsmodels/issues/2969",
+      "locks_dir": "data/external_slice/reproduction/EXT-statsmodels-03/locks",
+      "neutral_id": "EXT-statsmodels-03",
+      "note": "Supplemental and candidate sheet A2 left PENDING; proposed verdict only here.",
+      "observation_status": "case-local observed pending Gate A1d-r3 review",
+      "proposed_crit_dual_arm_repro": "PASS",
+      "repo": "statsmodels/statsmodels",
+      "route": "exact-source-statsmodels-legacy-py39",
+      "seed": 0,
+      "sheet_crit_dual_arm_repro_unchanged": "PENDING",
+      "trigger": "data/external_slice/reproducers/EXT-statsmodels-03.py",
+      "trigger_exit_codes": {
+        "buggy": 1,
+        "fixed": 0
+      }
+    }
+  ],
+  "counts": {
+    "batch_size": 6,
+    "proposed_PASS": 6,
+    "proposed_REPRO_FAILED": 0
+  },
+  "cumulative_note": "Even if all six PASS, Batch1+2+3 ready <= 18 < protocol n>=20; Gate A1d-r3 cannot unlock canonical freeze; supplementary-mining loop required.",
+  "formal_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "frozen_at_commit": "0e208929ec4b6fc6ef8e49f6312c489be7ed4f8a",
+  "frozen_execution_matrix": "data/external_slice/BATCH3_EXECUTION_MATRIX.json",
+  "frozen_execution_matrix_sha256": "addab92a9ab0643c4ecf89d056c910088180cf5c4651ba1beee543d8bfa776d6",
+  "frozen_membership": "data/external_slice/BATCH3_MEMBERSHIP.json",
+  "frozen_membership_sha256": "02d47656f6fc5a528c9f1cf747bba8025440914e12873fcc8975a8f54e6da853",
+  "gate": "A1d-r3",
+  "gate_a1c_verdict": "PASS_WITH_DISCLOSURE",
+  "not_started": [
+    "C4 annotation support",
+    "human labelling",
+    "category-map freeze",
+    "predictive freeze",
+    "detection-run execution",
+    "canonical admission freeze",
+    "Batch 4+"
+  ],
+  "rederived_from_artifacts": true,
+  "seed": 0,
+  "selection_rule": "exactly the six A1/A3-PASS A2-PENDING supplemental-pilot rows unlocked by Gate A1c PASS_WITH_DISCLOSURE; no substitution",
+  "sheet_mutation_policy": "supplemental and candidate sheet A2 fields remain PENDING",
+  "smoke_seeds": [
+    0
+  ],
+  "source_sheet": "data/external_slice/admission_sheet.csv",
+  "source_sheet_sha256": "77f729b1297ef24d4223d5277b093c93ad84711dfbbe69a1927398d49d387a0a"
+}

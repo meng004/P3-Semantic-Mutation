@@ -1,0 +1,21 @@
+{
+  "artifacts": {
+    "joblib-1.5.3-py3-none-any.whl": "5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713",
+    "numpy-1.24.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl": "d11efb4dbecbdf22508d55e48d9c8384db795e1b7b51ea735289ff96613ff74d",
+    "scipy-1.11.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl": "91af76a68eeae0064887a48e25c4e616fa519fa0d38602eda7e0f97d65d57937",
+    "threadpoolctl-3.6.0-py3-none-any.whl": "43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb"
+  },
+  "lock": "data/external_slice/reproduction/EXT-scikit-learn-01/locks/requirements.deps.txt",
+  "packages": [
+    "numpy>=1.21.0,<1.25",
+    "scipy>=1.7.0,<1.12",
+    "joblib",
+    "threadpoolctl"
+  ],
+  "resolved_requirements": [
+    "joblib==1.5.3",
+    "threadpoolctl==3.6.0",
+    "numpy==1.24.4",
+    "scipy==1.11.4"
+  ]
+}

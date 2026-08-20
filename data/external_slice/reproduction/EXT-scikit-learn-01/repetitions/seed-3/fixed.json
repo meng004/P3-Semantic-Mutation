@@ -1,0 +1,30 @@
+{
+  "exit_status": 0,
+  "expected_property": "sigmoid calibration mean CV AUC >= 0.90 despite huge scores",
+  "input": {
+    "base": "SGDClassifier(squared_hinge)",
+    "cv": 5,
+    "feature_scale": 100000.0,
+    "method": "sigmoid",
+    "n": 1000
+  },
+  "neutral_id": "EXT-scikit-learn-01",
+  "observed_output": {
+    "auc_folds": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "auc_mean": 1.0
+  },
+  "package_version": {
+    "numpy": "1.24.4",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.9.18",
+    "sklearn": "1.4.dev0"
+  },
+  "property_holds": true,
+  "seed": 3
+}

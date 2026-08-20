@@ -1,0 +1,44 @@
+{
+  "exit_code": 0,
+  "parsed": {
+    "errors": [],
+    "numpy": "1.19.5",
+    "numpy_config_keys": [
+      {
+        "key": "blas_opt_info",
+        "libraries": [
+          "openblas",
+          "openblas"
+        ],
+        "library_dirs": [
+          "/usr/local/lib"
+        ]
+      },
+      {
+        "key": "lapack_opt_info",
+        "libraries": [
+          "openblas",
+          "openblas"
+        ],
+        "library_dirs": [
+          "/usr/local/lib"
+        ]
+      },
+      {
+        "key": "openblas_info",
+        "libraries": [
+          "openblas",
+          "openblas"
+        ],
+        "library_dirs": [
+          "/usr/local/lib"
+        ]
+      }
+    ],
+    "numpy_show_config": "blas_mkl_info:\n  NOT AVAILABLE\nblis_info:\n  NOT AVAILABLE\nopenblas_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nblas_opt_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nlapack_mkl_info:\n  NOT AVAILABLE\nopenblas_lapack_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nlapack_opt_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\n",
+    "python": "3.9.18",
+    "scipy": "1.5.4",
+    "scipy_show_config": "lapack_mkl_info:\n  NOT AVAILABLE\nopenblas_lapack_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nlapack_opt_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nblas_mkl_info:\n  NOT AVAILABLE\nblis_info:\n  NOT AVAILABLE\nopenblas_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\nblas_opt_info:\n    libraries = ['openblas', 'openblas']\n    library_dirs = ['/usr/local/lib']\n    language = c\n    define_macros = [('HAVE_CBLAS', None)]\n"
+  },
+  "provider_summary": "openblas"
+}

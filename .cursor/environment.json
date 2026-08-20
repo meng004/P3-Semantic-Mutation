@@ -1,5 +1,5 @@
 {
   "name": "P3 Semantic Mutation",
-  "install": "bash scripts/cloud-agent-install.sh",
-  "start": "bash scripts/cloud-agent-start.sh"
+  "install": "if [ -f scripts/cloud-agent-install.sh ]; then bash scripts/cloud-agent-install.sh; else set -euo pipefail; if ! python3 -c 'import ensurepip, venv' >/dev/null 2>&1; then sudo apt-get update; sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dev; fi; mkdir -p \"$HOME/.venvs\"; [ -x \"$HOME/.venvs/p3/bin/python\" ] || python3 -m venv \"$HOME/.venvs/p3\"; \"$HOME/.venvs/p3/bin/python\" -m pip install --upgrade pip; \"$HOME/.venvs/p3/bin/pip\" install -r requirements-frozen.txt; fi",
+  "start": "if [ -f scripts/cloud-agent-start.sh ]; then bash scripts/cloud-agent-start.sh; else ln -sfn \"$HOME/.venvs/p3\" .venv; fi"
 }

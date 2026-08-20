@@ -35,7 +35,7 @@ is ledger thickening and would not feed `L_t`/`U_t`.
 
 | Target | Status |
 |---|---|
-| Real `ltest` spawn (one-archive fetch + cmake `--target ltest`) | **packet 005 issued** |
+| Real `ltest` spawn (one-archive fetch + cmake `--target ltest`) | 005 **closed** as `E_ARCHIVE_FETCH_FAILED` (P12 404); cmake/spawn still blocked |
 | P2-C remainder (other frozen rows) | **blocked** until (1); do not book as missing-only copies |
 | P2-D (`L_t`/`U_t` / primary technique) | **blocked** (no usable traces) |
 | P2-E / P2-F | later |
@@ -53,9 +53,12 @@ pinned subject is now authorized as packet 005 (one archive + cmake
 - **After 004 C1:** `WAIT` (no tree). Packet 004 booked `E_SOURCE_TREE_ABSENT`.
 - **After `P2C_EXTRACTED_TREE_PRESENT_ON_EXECUTOR_VM=yes`:** refused (no disk tree). Record `author_string_2026-08-19-tree-present-refused.md`.
 - **After author exception (one archive + cmake/deps for this subject):**
-  `docs/review_20260819/author_authorization_2026-08-19-one-archive-cmake.md`.
-  Packet **005** issued. WAIT VM instruction is superseded.
-- **Cursor VM now:** `docs/review_20260819/cursor_vm_instruction_2026-08-19-005.md`
+  packet 005 issued.
+- **After 005 C1:** fetch booked `E_ARCHIVE_FETCH_FAILED` (P12 404).
+  C1 `docs/review_20260819/2026-08-19-005_review.md`. No packet 006.
+  **WAIT** until `P12_ONE_ARCHIVE_REACHABLE=yes` plus independent
+  confirm of clone access or matching tar digest.
+- **Cursor VM while waiting:** `docs/review_20260819/cursor_vm_instruction_wait_p2c_hold.md`
 - C2 is **not** due.
 
 ## §10.1

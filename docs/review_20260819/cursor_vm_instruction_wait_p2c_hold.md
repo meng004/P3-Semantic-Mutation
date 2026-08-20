@@ -2,7 +2,8 @@
 
 Issued after `docs/review_20260819/p12_access_configured_2026-08-20.md`.
 This is the only authorized Cursor VM input until the reviewer issues a
-new `EXECUTION_PACKET`.
+new `EXECUTION_PACKET`. New executor first paste (env verify + this WAIT):
+`docs/review_20260819/cursor_vm_instruction_2026-08-20-new-executor.md`.
 
 Private P12 **git** is now readable on the reviewer VM (`gh api` +
 `git ls-remote`). The pinned subject `.tar` is **not** in commit

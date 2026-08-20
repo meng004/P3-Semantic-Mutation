@@ -1,9 +1,10 @@
 # Cursor VM instruction — WAIT (P12 git reachable; archive blob absent)
 
 Issued after `docs/review_20260819/p12_access_configured_2026-08-20.md`.
-This is the only authorized Cursor VM input until the reviewer issues a
-new `EXECUTION_PACKET`. New executor first paste (env verify + this WAIT):
-`docs/review_20260819/cursor_vm_instruction_2026-08-20-new-executor.md`.
+**SUPERSEDED 2026-08-20** by packet 006
+(`docs/review_20260819/execution_packet_2026-08-20-006.md`,
+`docs/review_20260819/cursor_vm_instruction_2026-08-20-006.md`).
+Do not paste this WAIT into a new VM. Empty Cloud WAIT VMs are closed.
 
 Private P12 **git** is now readable on the reviewer VM (`gh api` +
 `git ls-remote`). The pinned subject `.tar` is **not** in commit

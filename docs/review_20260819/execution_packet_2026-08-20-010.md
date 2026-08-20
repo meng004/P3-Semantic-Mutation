@@ -40,9 +40,9 @@ forbidden:
   - git clone / sparse-checkout P12；34 个其他 archive；git clean -x
   - git add extracted/ archives/ _p2c_build/
   - cmake --build --target ltest
-  - ENABLE_XBRAID / XBRAID_DIR / 任何未在 009 help 中出现的 --target
+  - ENABLE_XBRAID / XBRAID_DIR / ENABLE_LAPACK / 任何未在 009 help 中出现的 --target
   - 猜测的 cmake -D；brew / apt 猜包名
-  - 给示例加 --help / --version / cvode.* 等额外 token
+  - 给示例加 --help / --version / cvode.max_order / CVodeSetOptions 等额外 token
   - 默认 cmake --build（all）
   - spawn POSIX_TIMER_TEST/ltest；改 selected_behavior_ids；P2-D；claim 升级；P12 揭盲
 acceptance_criteria:

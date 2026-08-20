@@ -11,7 +11,8 @@ dirty HEAD. Do not use an empty Cloud VM.
 禁止 rtk。禁止自行签发 SOL_* token 或下一 Gate。
 做到 HARD STOP 后停止。
 禁止 git clone P12。禁止 git clean -x。禁止 cmake --target ltest。
-禁止 ENABLE_XBRAID。禁止猜 -D。禁止给示例加额外参数。禁止 brew/apt。
+禁止 ENABLE_XBRAID。禁止 ENABLE_LAPACK。禁止猜 -D。
+禁止给示例加额外参数（含 cvode.* / --help）。禁止 brew/apt。
 ```
 
 ## ENV_INIT
@@ -23,7 +24,7 @@ STATUS=LOCAL_TAR_REHASH
 ALLOWED_COMMANDS=sha256sum data/p3_v3/p12_intake/archives/1f67b3f303a09aa91413a2b5451d156cdcd76d425833bdd12669a7d1e140ca72.tar; python3 --version; command -v cmake
 REQUIRED_SHA256=c7c3d38533c01a7366d2511497082af5f30f510d0f95db822d98441a06a1898c
 IF_HASH_FAIL=stop; report TAR_HASH_FAIL; do not clone P12
-FORBIDDEN_COMMANDS=git clone P12-Defect4MR; git clean -x; git add archives; git add extracted; cmake --build --target ltest; ENABLE_XBRAID; brew install; apt-get; guessed cmake -D flags; extra example argv tokens
+FORBIDDEN_COMMANDS=git clone P12-Defect4MR; git clean -x; git add archives; git add extracted; cmake --build --target ltest; ENABLE_XBRAID; ENABLE_LAPACK; brew install; apt-get; guessed cmake -D flags; extra example argv tokens; CVodeSetOptions tokens
 ```
 
 ## CURSOR_VM_INSTRUCTION
@@ -41,7 +42,7 @@ PACKET_REF=origin/cursor/phase2-c0-p2a-packet-a558
 BRANCH=cursor/p2c-local-tar-example-58d6
 WORKTREE=new branch from PARENT; keep gitignored tar
 ALLOWED_FILES=scripts/p3_v3/run_p2c_local_tar_example.py; data/p3_v3/phase2_profiling/jobs/p2c-20260820-010/; data/p3_v3/phase2_profiling/local-tar-example-terminal.json; data/p3_v3/handoff/2026-08-20-010.json; tests/p3_v3/test_phase2_p2c_local_tar_example.py
-FORBIDDEN=any other tracked file; src/p3_v3; evidence.py; 006-009 scripts; phase1_frames; clone P12; 34 archives; git add extracted/ archives/ _p2c_build/; git clean -x; cmake --target ltest; ENABLE_XBRAID; guessed -D; extra argv; default all-build; P2-D; claim upgrade; rtk; issue next Gate
+FORBIDDEN=any other tracked file; src/p3_v3; evidence.py; 006-009 scripts; phase1_frames; clone P12; 34 archives; git add extracted/ archives/ _p2c_build/; git clean -x; cmake --target ltest; ENABLE_XBRAID; ENABLE_LAPACK; guessed -D; extra argv; CVodeSetOptions tokens; default all-build; P2-D; claim upgrade; rtk; issue next Gate
 READINESS=local tar sha256sum == c7c3d38533c01a7366d2511497082af5f30f510d0f95db822d98441a06a1898c; then HEAD=4444061d and tracked tree clean
 EDITS=implement packet 010 acceptance criteria 1-10 exactly
 TESTS=PYTHONPATH=src python3 -m pytest tests/p3_v3/test_phase2_p2c_local_tar_example.py -q

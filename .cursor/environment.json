@@ -1,0 +1,5 @@
+{
+  "name": "P3 Semantic Mutation",
+  "install": "bash scripts/cloud-agent-install.sh",
+  "start": "bash scripts/cloud-agent-start.sh"
+}

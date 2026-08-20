@@ -1,12 +1,15 @@
-# Cursor VM instruction — superseded hold
+# Cursor VM instruction — current hold
 
 **Current authorized executor paste:**
-`docs/review_20260819/cursor_vm_instruction_2026-08-20-wait-after-011.md`.
+`docs/review_20260819/cursor_vm_instruction_2026-08-20-012.md`.
 
-011 C1 is closed (`E_PROFILE_BINARY_ABSENT` on frozen BENCHMARK
-`[3]`). Official-doc note:
-`docs/review_20260819/official_docs_2026-08-20-nvector-serial-benchmark.md`.
-Do not invent six integers. Do not pass `BUILD_BENCHMARKS` or
-`SUNDIALS_ENABLE_BENCHMARKS`. Do not spawn this binary.
-Do not retry `ltest`. Do not pass `ENABLE_XBRAID` or `ENABLE_LAPACK`.
-Do not start P2-D. Do not issue 012.
+012 is issued for frozen PROJECT_TEST `[4]`. Official-doc note:
+`docs/review_20260819/official_docs_2026-08-20-project-test-kinsol-unit.md`.
+
+Instantiatable argv is `["kin_test_getuserdata"]` only.
+Do not use `["ctest", "-R", "^NAME$"]`. Do not `ctest -R`.
+Do not pass `SUNDIALS_TEST_UNITTESTS` or
+`SUNDIALS_TEST_ENABLE_UNIT_TESTS`.
+Do not retry `ltest` / the 011 benchmark. Do not pass
+`ENABLE_XBRAID` / `ENABLE_LAPACK` / `BUILD_BENCHMARKS`.
+Do not start P2-D.

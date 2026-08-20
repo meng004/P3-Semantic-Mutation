@@ -1,8 +1,9 @@
-# Cursor VM instruction — hold after 009 C1
+# Cursor VM instruction — superseded hold
 
-**No authorized executor science paste.**
+**Current authorized executor paste:**
+`docs/review_20260819/cursor_vm_instruction_2026-08-20-010.md`.
 
-009 C1 is closed. Do not paste 008/009. Do not retry `--target ltest`.
-Do not spawn `POSIX_TIMER_TEST/ltest`. Do not start EXAMPLE or P2-D
-until the author picks an option in
-`docs/review_20260819/2026-08-20-009_review.md` (Process state).
+009 C1 is closed. Official-doc note:
+`docs/review_20260819/official_docs_2026-08-20-ltest-and-example.md`.
+Do not retry `ltest`. Do not pass `ENABLE_XBRAID`. Do not invent
+EXAMPLE flags.

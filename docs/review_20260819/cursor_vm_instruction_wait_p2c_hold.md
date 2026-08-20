@@ -1,7 +1,7 @@
 # Cursor VM instruction — superseded hold
 
 **Current authorized executor paste:**
-`docs/review_20260819/cursor_vm_instruction_2026-08-20-007.md`.
+`docs/review_20260819/cursor_vm_instruction_2026-08-20-008.md`.
 
-The cmake-log WAIT is closed: excerpt was `absent`. Packet 007 persists
-`--target ltest` streams. Do not paste the old WAIT.
+007 C1 is closed. Do not paste 007 or the cmake-log WAIT.
+Do not retry `--target ltest`.

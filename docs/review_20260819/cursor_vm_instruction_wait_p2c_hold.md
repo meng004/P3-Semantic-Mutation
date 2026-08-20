@@ -5,5 +5,5 @@
 
 009 C1 is closed. Official-doc note:
 `docs/review_20260819/official_docs_2026-08-20-ltest-and-example.md`.
-Do not retry `ltest`. Do not pass `ENABLE_XBRAID`. Do not invent
-EXAMPLE flags.
+Do not retry `ltest`. Do not pass `ENABLE_XBRAID` or `ENABLE_LAPACK`.
+Do not invent EXAMPLE flags (`cvode.*`, `--help`, `CVodeSetOptions`).

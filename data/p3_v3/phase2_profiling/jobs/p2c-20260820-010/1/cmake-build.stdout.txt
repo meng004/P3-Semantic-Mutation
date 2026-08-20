@@ -1,0 +1,94 @@
+[  7%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundatanode/sundatanode_inmem.c.o
+[  7%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_adaptcontroller.c.o
+[  7%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_adjointcheckpointscheme.c.o
+[  7%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_adjointstepper.c.o
+[  7%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_band.c.o
+[ 15%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_cli.c.o
+[ 15%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_context.c.o
+[ 15%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_dense.c.o
+[ 15%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_datanode.c.o
+[ 15%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_direct.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_errors.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_domeigestimator.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_futils.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_hashmap.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_iterative.c.o
+[ 23%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_linearsolver.c.o
+[ 30%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_logger.c.o
+[ 30%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_math.c.o
+[ 30%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_matrix.c.o
+[ 30%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_memory.c.o
+[ 30%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_nonlinearsolver.c.o
+[ 38%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_nvector_senswrapper.c.o
+[ 38%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_nvector.c.o
+[ 38%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_stepper.c.o
+[ 38%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_profiler.c.o
+[ 38%] Building C object src/sundials/CMakeFiles/sundials_core_obj_shared.dir/sundials_version.c.o
+[ 38%] Built target sundials_core_obj_shared
+[ 46%] Linking C shared library libsundials_core.dylib
+[ 46%] Built target sundials_core_shared
+[ 46%] Built target fake_sundials_cvode_obj_shared
+[ 46%] Built target fake_sundials_nvecserial_obj_shared
+[ 46%] Building C object src/nvector/serial/CMakeFiles/sundials_nvecserial_obj_shared.dir/nvector_serial.c.o
+[ 46%] Built target sundials_nvecserial_obj_shared
+[ 46%] Built target fake_sundials_sunmatrixband_obj_shared
+[ 46%] Building C object src/sunmatrix/band/CMakeFiles/sundials_sunmatrixband_obj_shared.dir/sunmatrix_band.c.o
+[ 46%] Built target sundials_sunmatrixband_obj_shared
+[ 46%] Linking C shared library libsundials_sunmatrixband.dylib
+[ 46%] Built target sundials_sunmatrixband_shared
+[ 46%] Built target fake_sundials_sunmatrixdense_obj_shared
+[ 46%] Building C object src/sunmatrix/dense/CMakeFiles/sundials_sunmatrixdense_obj_shared.dir/sunmatrix_dense.c.o
+[ 46%] Built target sundials_sunmatrixdense_obj_shared
+[ 46%] Linking C shared library libsundials_sunmatrixdense.dylib
+[ 46%] Built target sundials_sunmatrixdense_shared
+[ 46%] Built target fake_sundials_sunmatrixsparse_obj_shared
+[ 53%] Building C object src/sunmatrix/sparse/CMakeFiles/sundials_sunmatrixsparse_obj_shared.dir/sunmatrix_sparse.c.o
+[ 53%] Built target sundials_sunmatrixsparse_obj_shared
+[ 53%] Built target fake_sundials_sunlinsolband_obj_shared
+[ 61%] Building C object src/sunlinsol/band/CMakeFiles/sundials_sunlinsolband_obj_shared.dir/sunlinsol_band.c.o
+[ 61%] Built target sundials_sunlinsolband_obj_shared
+[ 61%] Built target fake_sundials_sunlinsoldense_obj_shared
+[ 61%] Building C object src/sunlinsol/dense/CMakeFiles/sundials_sunlinsoldense_obj_shared.dir/sunlinsol_dense.c.o
+[ 61%] Built target sundials_sunlinsoldense_obj_shared
+[ 61%] Built target fake_sundials_sunlinsolpcg_obj_shared
+[ 61%] Building C object src/sunlinsol/pcg/CMakeFiles/sundials_sunlinsolpcg_obj_shared.dir/sunlinsol_pcg.c.o
+[ 61%] Built target sundials_sunlinsolpcg_obj_shared
+[ 61%] Built target fake_sundials_sunlinsolspbcgs_obj_shared
+[ 61%] Building C object src/sunlinsol/spbcgs/CMakeFiles/sundials_sunlinsolspbcgs_obj_shared.dir/sunlinsol_spbcgs.c.o
+[ 61%] Built target sundials_sunlinsolspbcgs_obj_shared
+[ 61%] Built target fake_sundials_sunlinsolspfgmr_obj_shared
+[ 69%] Building C object src/sunlinsol/spfgmr/CMakeFiles/sundials_sunlinsolspfgmr_obj_shared.dir/sunlinsol_spfgmr.c.o
+[ 69%] Built target sundials_sunlinsolspfgmr_obj_shared
+[ 69%] Built target fake_sundials_sunlinsolspgmr_obj_shared
+[ 69%] Building C object src/sunlinsol/spgmr/CMakeFiles/sundials_sunlinsolspgmr_obj_shared.dir/sunlinsol_spgmr.c.o
+[ 69%] Built target sundials_sunlinsolspgmr_obj_shared
+[ 69%] Built target fake_sundials_sunlinsolsptfqmr_obj_shared
+[ 69%] Building C object src/sunlinsol/sptfqmr/CMakeFiles/sundials_sunlinsolsptfqmr_obj_shared.dir/sunlinsol_sptfqmr.c.o
+[ 69%] Built target sundials_sunlinsolsptfqmr_obj_shared
+[ 69%] Built target fake_sundials_sunnonlinsolnewton_obj_shared
+[ 69%] Building C object src/sunnonlinsol/newton/CMakeFiles/sundials_sunnonlinsolnewton_obj_shared.dir/sunnonlinsol_newton.c.o
+[ 69%] Built target sundials_sunnonlinsolnewton_obj_shared
+[ 69%] Built target fake_sundials_sunnonlinsolfixedpoint_obj_shared
+[ 76%] Building C object src/sunnonlinsol/fixedpoint/CMakeFiles/sundials_sunnonlinsolfixedpoint_obj_shared.dir/sunnonlinsol_fixedpoint.c.o
+[ 76%] Built target sundials_sunnonlinsolfixedpoint_obj_shared
+[ 76%] Built target fake_sundials_sunmemsys_obj_shared
+[ 76%] Building C object src/sunmemory/system/CMakeFiles/sundials_sunmemsys_obj_shared.dir/sundials_system_memory.c.o
+[ 76%] Built target sundials_sunmemsys_obj_shared
+[ 76%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode.c.o
+[ 76%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_bandpre.c.o
+[ 76%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_bbdpre.c.o
+[ 84%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_cli.c.o
+[ 84%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_diag.c.o
+[ 84%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_io.c.o
+[ 84%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_ls.c.o
+[ 84%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_nls.c.o
+[ 92%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_proj.c.o
+[ 92%] Building C object src/cvode/CMakeFiles/sundials_cvode_obj_shared.dir/cvode_resize.c.o
+[ 92%] Built target sundials_cvode_obj_shared
+[ 92%] Linking C shared library libsundials_cvode.dylib
+[ 92%] Built target sundials_cvode_shared
+[ 92%] Linking C shared library libsundials_nvecserial.dylib
+[ 92%] Built target sundials_nvecserial_shared
+[ 92%] Building C object examples/cvode/serial/CMakeFiles/cvDiurnal_kry_bp.dir/cvDiurnal_kry_bp.c.o
+[100%] Linking C executable cvDiurnal_kry_bp
+[100%] Built target cvDiurnal_kry_bp

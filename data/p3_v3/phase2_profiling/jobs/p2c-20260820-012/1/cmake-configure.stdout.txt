@@ -1,0 +1,31 @@
+-- SUNDIALS_GIT_VERSION: 
+-- Building SUNDIALS in 'RelWithDebInfo' mode.
+-- Using int64_t for indices
+-- C standard set to 99
+-- C extensions set to ON
+-- Looking for POSIX timers... found
+-- Appending C RELWITHDEBINFO flags
+-- Added NVECTOR_SERIAL module
+-- Added NVECTOR_MANYVECTOR module
+-- Added SUNMATRIX_BAND module
+-- Added SUNMATRIX_DENSE module
+-- Added SUNMATRIX_SPARSE module
+-- Added SUNLINSOL_BAND module
+-- Added SUNLINSOL_DENSE module
+-- Added SUNLINSOL_PCG module
+-- Added SUNLINSOL_SPBCGS module
+-- Added SUNLINSOL_SPFGMR module
+-- Added SUNLINSOL_SPGMR module
+-- Added SUNLINSOL_SPTFQMR module
+-- Added SUNNONLINSOL_NEWTON module
+-- Added SUNNONLINSOL_FIXEDPOINT module
+-- Added SUNDOMEIGEST_POWER module
+-- Added ARKODE module
+-- Added CVODE module
+-- Added CVODES module
+-- Added IDA module
+-- Added IDAS module
+-- Added KINSOL module
+-- Configuring done (0.5s)
+-- Generating done (1.1s)
+-- Build files have been written to: /Users/limeng/Papers/P3-SemanticMutation/data/p3_v3/p12_intake/extracted/1f67b3f303a09aa91413a2b5451d156cdcd76d425833bdd12669a7d1e140ca72/_p2c_build

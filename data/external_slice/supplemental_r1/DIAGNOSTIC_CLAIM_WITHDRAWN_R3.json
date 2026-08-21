@@ -1,0 +1,14 @@
+{
+  "action": "WITHDRAW_UNPROVEN_66_QUERY_DIAGNOSTIC_CLAIM",
+  "created_utc": "2026-08-02T03:19:55Z",
+  "environment_scope_note": "Any anomalous PR-typed response for is:issue queries is scoped to the Cursor VM session that produced COMMAND_LOG / SEARCH_HARD_FAIL; it is not a universal claim that no closed GitHub issue union exists.",
+  "reason": "SEARCH_DIAGNOSTIC_R2.json listed 66 query strings and aggregate 0-issue/262-PR counts without per-query command provenance (commands, exits, timestamps, response hashes/identifiers). COMMAND_LOG.json contained only the first gh api request. Per SUPP-R1-R2-DIAGNOSTIC-PROVENANCE-001 the claim is removed rather than restated.",
+  "retained_command_auditable_facts": [
+    "COMMAND_LOG.json first gh api search/issues call for the exact frozen query on pymc-devs/pymc / 'wrong result'",
+    "SEARCH_HARD_FAIL.json official wrapper exit 2 on PR-typed hit"
+  ],
+  "schema_version": 1,
+  "task": "SUPPLEMENTAL_ADMISSION_R1_R3",
+  "withdrawn_artifact": "data/external_slice/supplemental_r1/SEARCH_DIAGNOSTIC_R2.json",
+  "withdrawn_artifact_sha256_before_delete": "04241a898c15ee81dec0b1da785b29313735fa1a6f372bd2e1b0a8d09e3b6f9b"
+}

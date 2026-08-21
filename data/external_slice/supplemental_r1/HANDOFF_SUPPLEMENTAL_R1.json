@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "task": "SUPPLEMENTAL_MINING_R1",
+  "gate_requested": "SUPPLEMENTAL_ADMISSION_R1-r4",
+  "branch": "cursor/grok-phase3-supplemental-mining-r1",
+  "baseline_commit": "0e208929ec4b6fc6ef8e49f6312c489be7ed4f8a",
+  "scope_commit": "e108b82d38e53d89991960266385edf62da9eefc",
+  "blocked_payload_commit": "a1cc795f340c38b340550c6789ece72a00c4c316",
+  "blocked_handoff_commit": "ac887e8a4a980dafca31c9ee803ec971a57698bc",
+  "r2_correction_payload_commit": "bc3a4e30f57f38f728b4f3971c05c07e6285f643",
+  "r2_correction_handoff_commit": "e007042074956e6c57a089cfed1ecc404b5723a4",
+  "r3_correction_payload_commit": "72a11bc0bf39c9d667bbaab9aa198b85c48c13af",
+  "r3_correction_handoff_commit": "e6110b104e3271dc31c74c6346eff808e0239048",
+  "correction_payload_commit": "f78288df3c4676d5e66fc508dcba7912eda65d23",
+  "handoff_commit": {
+    "required_parent": "f78288df3c4676d5e66fc508dcba7912eda65d23",
+    "resolution": "git rev-parse HEAD after this commit; direct parent must equal correction_payload_commit",
+    "value": "SELF"
+  },
+  "created_utc": "2026-08-02T04:35:00Z",
+  "correction_result": "SEARCH_HARD_FAIL_NO_ADMISSIBLE_CANDIDATES_WITHDRAWAL_RETAINED",
+  "stop_for_local_audit": true,
+  "command_log_path": "data/external_slice/supplemental_r1/COMMAND_LOG.json",
+  "verification_log_path": "data/external_slice/supplemental_r1/VERIFICATION_LOG.json",
+  "environment": {
+    "gh": "gh version 2.91.0 (2026-04-22)",
+    "git": "git version 2.43.0",
+    "platform": "Linux-6.12.94+-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "official_search": {
+    "exit_code": 2,
+    "result": "SEARCH_HARD_FAIL",
+    "wrapper_logged_in_command_log": true,
+    "stderr_tail": "ERROR: SEARCH_HARD_FAIL: PR returned for frozen issue-only query repo=pymc-devs/pymc phrase='wrong result' url=https://github.com/pymc-devs/pymc/pull/7491\n",
+    "environment_scope": "Cursor VM session that produced COMMAND_LOG / SEARCH_HARD_FAIL; not a universal GitHub-wide absence of closed issues.",
+    "note": "R4 did not re-run search; retained R3 wrapper provenance."
+  },
+  "diagnostic_claim": {
+    "status": "WITHDRAWN",
+    "artifact": "data/external_slice/supplemental_r1/DIAGNOSTIC_CLAIM_WITHDRAWN_R3.json",
+    "note": "Unproven 66-query aggregate claim remains withdrawn; R4 made no new diagnostic claim."
+  },
+  "confirmations": {
+    "a2_entirely_pending": true,
+    "forbidden_actions_absent": true,
+    "no_dual_arm_readiness_started": true,
+    "no_existing_admission_readiness_freeze_downstream_changed": true,
+    "previous_128_56_12_not_reused": true,
+    "no_candidate_artifacts_restored": true,
+    "no_new_search_in_r4": true,
+    "successor_lock": "no readiness for any supplemental row before local SUPPLEMENTAL_ADMISSION_R1-r4 gate PASS"
+  },
+  "file_sha256": {
+    "data/external_slice/supplemental_r1/COMMAND_LOG.json": "4770c0c2dff70b60288a6381f7a88eb7bd034434dc05310933b19af1076d3e76",
+    "data/external_slice/supplemental_r1/DIAGNOSTIC_CLAIM_WITHDRAWN_R3.json": "0086087502b7365fdbf32925d2eab800fe0b15a370f32bae1ebfb494e137e7d2",
+    "data/external_slice/supplemental_r1/SCOPE.json": "e90b084bf74152ea4836d04773a8b117e4b24577cf03e2d8d4269c22f3fa51e7",
+    "data/external_slice/supplemental_r1/SEARCH_HARD_FAIL.json": "2652f4923b31fd6438c9371b675edcf235e9d30d4a81ad22c66d570615af7184",
+    "data/external_slice/supplemental_r1/VERIFICATION_LOG.json": "2b00039806e5d314035e4fa760afabaf5505fbc176693dfa52a9ef9e787ff3dc",
+    "data/external_slice/supplemental_r1/WITHDRAWAL_R2.json": "42ad107522d910b53ef816561eb400857428bf4aa0d98ec7279e594dd973544a"
+  },
+  "tree_sha256": {},
+  "evidence_sha256": {},
+  "findings_closed": {
+    "SUPP-R1-SEARCH-SEMANTICS-001": {
+      "status": "CLOSED",
+      "action": "Remains closed from R2."
+    },
+    "SUPP-R1-HANDOFF-DISCLOSURE-001": {
+      "status": "CLOSED",
+      "action": "Remains closed; blocked lineage disclosed."
+    },
+    "SUPP-R1-R2-DIAGNOSTIC-PROVENANCE-001": {
+      "status": "CLOSED",
+      "action": "Remains closed; diagnostic claim withdrawn; wrapper exit 2 retained."
+    },
+    "SUPP-R1-R2-FULL-BINDING-001": {
+      "status": "CLOSED",
+      "action": "Closed via R3 full field/queue binding plus R4 item↔query phrase/repo hard-fail."
+    },
+    "SUPP-R1-R3-PHRASE-PROVENANCE-001": {
+      "status": "CLOSED",
+      "action": "Checker rejects explicit item.phrase/item.repo mismatches against the enclosing frozen query and derives those fields exclusively from the query. Regression covers the exact 'tampered phrase' exit-0 probe."
+    },
+    "SUPP-R1-R3-NEGATIVE-COVERAGE-001": {
+      "status": "CLOSED",
+      "action": "Added explicit negatives for evidence neutral_id/issue_url/mechanism/SHAs/evidence_urls, sheet repository, buggy_sha, verdict, and each of the three criteria."
+    }
+  },
+  "unresolved_findings": [
+    "Frozen is:issue is:closed queries may still return PR-typed hits from the GitHub Search API in the Cursor VM environment that produced COMMAND_LOG / SEARCH_HARD_FAIL (command-auditable first query + official wrapper exit 2). No admissible closed-issue union is minted under the frozen rule without amendment or issue-typed API results.",
+    "No new ADMIT_PENDING_REPRO rows are proposed; withdrawal of the previous 128/56/12 set is retained."
+  ],
+  "withdrawal": {
+    "schema_version": 1,
+    "task": "SUPPLEMENTAL_ADMISSION_R1_R2",
+    "created_utc": "2026-08-02T02:47:10Z",
+    "note": "Previous 128-row PR-derived queue, 56 decisions, and 12 proposed pending rows remain withdrawn and must not enter readiness. R4 did not restore them and did not run a new search.",
+    "blocked_lineage": {
+      "baseline_commit": "0e208929ec4b6fc6ef8e49f6312c489be7ed4f8a",
+      "scope_commit": "e108b82d38e53d89991960266385edf62da9eefc",
+      "blocked_payload_commit": "a1cc795f340c38b340550c6789ece72a00c4c316",
+      "blocked_handoff_commit": "ac887e8a4a980dafca31c9ee803ec971a57698bc",
+      "gate": "SUPPLEMENTAL_ADMISSION_R1",
+      "verdict": "BLOCKED"
+    },
+    "withdrawn_counts": {
+      "queue_rows": 128,
+      "reviewed_rows": 56,
+      "pending_rows": 12,
+      "excluded_rows": 44
+    },
+    "withdrawn_pending_ids": [
+      "EXT-pymc-06",
+      "EXT-pymc-08",
+      "EXT-pymc-09",
+      "EXT-pymc-12",
+      "EXT-pymc-13",
+      "EXT-pytorch-06",
+      "EXT-pytorch-18",
+      "EXT-jax-02",
+      "EXT-jax-04",
+      "EXT-jax-06",
+      "EXT-jax-13",
+      "EXT-jax-17"
+    ]
+  }
+}

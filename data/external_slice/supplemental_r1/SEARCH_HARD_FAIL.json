@@ -1,0 +1,24 @@
+{
+  "created_utc": "2026-08-02T03:19:55Z",
+  "environment_scope": "Claim scoped to this Cursor VM / session command log; not a universal GitHub-wide absence of closed issues.",
+  "official_search_exit_code": 2,
+  "reason": "GitHub search/issues returned PR-typed items for the exact frozen is:issue is:closed queries in this Cursor VM; PR→issue fallback is forbidden. No admissible closed-issue union was minted.",
+  "result": "SEARCH_HARD_FAIL",
+  "schema_version": 1,
+  "stderr_tail": "ERROR: SEARCH_HARD_FAIL: PR returned for frozen issue-only query repo=pymc-devs/pymc phrase='wrong result' url=https://github.com/pymc-devs/pymc/pull/7491\n",
+  "stdout_tail": "",
+  "task": "SUPPLEMENTAL_ADMISSION_R1_R3",
+  "wrapper_command": [
+    "/usr/bin/python3",
+    "scripts/external_slice/mine_supplemental_r1.py",
+    "search",
+    "--scope",
+    "data/external_slice/supplemental_r1/SCOPE.json",
+    "--snapshot",
+    "/tmp/r3_official_search_snapshot.json",
+    "--queue",
+    "/tmp/r3_official_search_queue.json",
+    "--command-log",
+    "/workspace/data/external_slice/supplemental_r1/COMMAND_LOG.json"
+  ]
+}

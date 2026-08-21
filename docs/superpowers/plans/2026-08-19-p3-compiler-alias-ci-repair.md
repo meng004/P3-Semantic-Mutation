@@ -19,6 +19,14 @@ add a helper module or an extra alias acceptance test.
 **Tech Stack:** Python 3.12 invoked as `/usr/bin/python3`, pytest,
 existing `p3_v3.pilot_build`.
 
+The design file identified by SHA-256
+`853001ef80c48de4ce17c47439b58609c893180b5a2b97592ef8746c61899cdc`
+is the semantic SSOT. This plan repeats only the frozen values,
+exact patch, and fail-closed assertions that a later executor
+must consume. Those repeated items are executable assertions, not
+a second semantic definition. If this plan conflicts with the
+design, the executor must stop and return the conflict to Sol.
+
 ## Global Constraints
 
 - Implement against
@@ -32,6 +40,14 @@ existing `p3_v3.pilot_build`.
 - A later implementation node may edit only
   `tests/p3_v3/test_pilot_build.py`, and only
   `test_cmakecache_compiler_generator_root_drift`.
+- Frozen write-set hashes for that file:
+  pre-edit SHA-256
+  `3757f4289f0b0efdc4726a513b97fc56a402e708c5053d24ca48bd246283310e`
+  approved post-edit SHA-256
+  `c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
+- `git merge-base HEAD origin/main` must equal
+  `4444061dde0159a5edd62753fe3cef2d881a308c`. Running the command
+  or checking `origin/main` alone is not enough.
 - Do not modify `src/p3_v3/pilot_build.py`, qualification modules,
   `.github/workflows`, supplemental R2 scanners, PR 16, PR 17,
   PR 19, or PR 28.
@@ -65,7 +81,9 @@ existing `p3_v3.pilot_build`.
 
 ## Frozen CI Evidence
 
-The authoritative RED is pull request 28 GitHub Actions.
+The following tuple is an executable assertion for Task 2, not a
+second semantic definition. The authoritative RED is pull request
+28 GitHub Actions.
 
 ```text
 PR #28 head =
@@ -109,25 +127,21 @@ duration =
 GitHub Actions RED is authoritative. A local pre-edit PASS does not
 close the defect.
 
-## Historical Superseded Context
-
-The original plan also repaired the compile_commands mismatch
-oracle, added an extra symlink alias acceptance test, and treated
-pull request 17 CI (`1196 passed`) as the primary RED. Those
-requirements are superseded. Pull request 19 already closed the
-compile_commands oracle. This plan must not claim that pull
-request 18 closes every compiler-alias test in one change.
-
 ---
 
 ### Task 1: Confirm The Explicit Future Entry
 
 **Files:**
-- Read only: this plan, the design spec, `origin/main`
+- Read only: this plan, the design spec, `origin/main`,
+  `tests/p3_v3/test_pilot_build.py`
 
 **Interfaces:**
 - Consumes: spec SHA-256
   `853001ef80c48de4ce17c47439b58609c893180b5a2b97592ef8746c61899cdc`
+  pre-edit test SHA-256
+  `3757f4289f0b0efdc4726a513b97fc56a402e708c5053d24ca48bd246283310e`
+  approved post-edit test SHA-256
+  `c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
 - Produces: a written entry record. No code edits.
 
 The future implementation entry must be the Sol-written 40-character
@@ -178,9 +192,17 @@ branch = cursor/p3-compiler-alias-ci-repair-c46c
 HEAD = IMPLEMENTATION_ENTRY
 origin PR18 tip = IMPLEMENTATION_ENTRY
 origin/main = 4444061dde0159a5edd62753fe3cef2d881a308c
+merge-base =
+4444061dde0159a5edd62753fe3cef2d881a308c
 ahead/behind = 0 0
 porcelain = empty
 ```
+
+`git merge-base HEAD origin/main` must equal
+`4444061dde0159a5edd62753fe3cef2d881a308c` verbatim. Executing the
+command without comparing that printed SHA, or verifying only
+`origin/main`, is not a pass. A different merge-base is an
+immediate stop. Do not start test edits.
 
 - [ ] **Step 3: Confirm the design digest**
 
@@ -199,6 +221,31 @@ assert digest == (
 )
 PY
 ```
+
+- [ ] **Step 4: Confirm the pre-edit test-file digest**
+
+The future implementation entry must verify this hash before any
+test edit. A mismatch is a stop. Do not start test edits.
+
+```bash
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+p = Path("tests/p3_v3/test_pilot_build.py")
+digest = sha256(p.read_bytes()).hexdigest()
+print(digest)
+assert digest == (
+    "3757f4289f0b0efdc4726a513b97fc56a402e708c5053d24ca48bd246283310e"
+)
+assert digest != (
+    "c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a"
+)
+PY
+```
+
+The approved post-edit digest
+`c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
+must not already match. A premature match is a stop.
 
 ---
 
@@ -254,12 +301,16 @@ Do not xfail, skip, or delete the test.
 **Interfaces:**
 - Consumes: `_synthetic_build_evidence_tree`,
   `collect_baseline_build_evidence`
-- Produces: a portable CMakeCache mismatch subcase
+- Produces: a portable CMakeCache mismatch subcase whose whole-file
+  SHA-256 is
+  `c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
 
 - [ ] **Step 1: Replace only the compiler subcase**
 
 In `test_cmakecache_compiler_generator_root_drift`, replace the
-host-coupled cache compiler assignment with:
+host-coupled cache compiler assignment with this exact patch.
+The patch is an executable assertion, not a second semantic
+definition.
 
 ```python
     cache_other = tmp_path / "cache-other-cxx"
@@ -361,23 +412,61 @@ Do not run CMake, ninja, make, a real compiler, or Boost.Math.
 
 **Files:** only `tests/p3_v3/test_pilot_build.py`
 
-- [ ] **Step 1: Working-tree scope before commit**
+**Interfaces:**
+- Consumes: pre-edit SHA-256
+  `3757f4289f0b0efdc4726a513b97fc56a402e708c5053d24ca48bd246283310e`
+  approved post-edit SHA-256
+  `c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
+- Produces: one implementation commit whose test file matches the
+  approved post-edit digest
+
+`--name-only` is not sufficient proof of function-level scope.
+
+- [ ] **Step 1: Prove the exact write set before commit**
+
+After the Task 3 edit and before `git add` / `git commit`:
 
 ```bash
 git status --porcelain
 git diff --check
+git diff -- tests/p3_v3/test_pilot_build.py
 git diff --name-only
 git diff --cached --name-only
 git ls-files --others --exclude-standard
+
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+digest = sha256(Path("tests/p3_v3/test_pilot_build.py").read_bytes()).hexdigest()
+print(digest)
+assert digest == (
+    "c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a"
+)
+assert digest != (
+    "3757f4289f0b0efdc4726a513b97fc56a402e708c5053d24ca48bd246283310e"
+)
+PY
 ```
 
-The only path that may appear is:
+Required before commit:
 
-```text
-tests/p3_v3/test_pilot_build.py
-```
+- whole-file SHA-256 equals
+  `c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a`
+- `git diff --check` is 0
+- `git diff -- tests/p3_v3/test_pilot_build.py` contains only the
+  approved CMakeCache compiler subcase replacement
+- deletions contain only that subcase `/usr/bin/g++` oracle and
+  the one-line `pytest.raises` form
+- additions contain only the approved `cache_other`,
+  `str(cache_other)`, and formatted `pytest.raises`
+- generator and source-root subcases are unchanged
+- `test_compile_commands_compiler_mismatch` is unchanged
+- no other test function, import, helper, production, or
+  workflow change
+- the only path that may appear is
+  `tests/p3_v3/test_pilot_build.py`
 
-Any other modified, staged, or untracked path is a stop.
+Any extra or missing change is a stop.
 
 - [ ] **Step 2: Independent commit**
 
@@ -388,15 +477,30 @@ git commit -m "test(p3-v3): make CMakeCache mismatch portable"
 
 Do not amend, rebase, squash, or force-push.
 
-- [ ] **Step 3: Committed-history scope after commit, before push**
+- [ ] **Step 3: Re-read the committed file and history before push**
 
 ```bash
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from subprocess import check_output
+
+data = check_output(
+    ["git", "show", "HEAD:tests/p3_v3/test_pilot_build.py"]
+)
+digest = sha256(data).hexdigest()
+print(digest)
+assert digest == (
+    "c82d6413dd6fb1c6ac651e518da5e0524e5a415ef768ebe344e51543b728ce2a"
+)
+PY
+
 git diff --check origin/main...HEAD
 git diff --name-only origin/main...HEAD
 git show --name-only --format= HEAD
 ```
 
-`origin/main...HEAD` may contain only:
+The post-edit hash must be re-verified from `HEAD`, not from the
+working tree alone. `origin/main...HEAD` may contain only:
 
 ```text
 docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-repair-design.md
@@ -423,13 +527,37 @@ Do not create a second branch. Do not force-push.
 - [ ] **Step 1: Update pull request 18 and keep it draft**
 
 Push is already done in Task 7. Update the existing pull request
-18 body so it describes the residual CMakeCache repair. Keep the
-pull request OPEN and draft.
+18 body to the residual CMakeCache implementation record. Keep
+the pull request OPEN and draft.
+
+The body must contain these exact headings:
+
+```text
+## Motivation
+## Changes
+## Tests
+## SSOT integrity
+## Governance
+```
+
+The implementation body must record:
+
+- Motivation: pull request 28 authoritative RED, run
+  `32449925094`, job `96676383508`, and
+  `test_cmakecache_compiler_generator_root_drift`
+- Changes: only the CMakeCache compiler oracle was replaced
+- Tests: the real focused, 75-test file, and root-gate results
+- If the root gate hits the known supplemental R2 blocker, the
+  body must say blocked and must not say root green
+- SSOT integrity: `scripts/build_paper_numbers.py` was not run
+  and is not applicable to this test-only change
+- Governance: OPEN draft; mark-ready, main merge,
+  qualification, and claims remain unauthorized
 
 Do not mark-ready. Do not merge. Do not edit pull request 28.
 Do not edit pull request 19.
 
-- [ ] **Step 2: Confirm remote sync and the untouched combined PR**
+- [ ] **Step 2: Confirm remote sync, body, and the untouched combined PR**
 
 ```bash
 git rev-parse HEAD
@@ -440,7 +568,7 @@ git status --porcelain
 
 gh pr view 18 \
   --repo meng004/P3-Semantic-Mutation \
-  --json number,state,isDraft,baseRefName,headRefName,headRefOid,url
+  --json number,state,isDraft,baseRefName,headRefName,headRefOid,url,body
 
 gh pr view 28 \
   --repo meng004/P3-Semantic-Mutation \
@@ -452,14 +580,20 @@ Required:
 ```text
 HEAD = origin PR18 tip
 ahead/behind = 0 0
-PR #18: OPEN, draft, base=main,
-        headRefName=cursor/p3-compiler-alias-ci-repair-c46c
+PR #18:
+state = OPEN
+isDraft = true
+baseRefName = main
+headRefName = cursor/p3-compiler-alias-ci-repair-c46c
+headRefOid = final HEAD
+body contains ## Motivation, ## Changes, ## Tests,
+## SSOT integrity, and ## Governance
 PR #28: OPEN, draft,
         headRefOid=e62974af4f5e2cfbc65d98c3b2f028edce57d25c
 ```
 
-Stop for Sol implementation review. Do not write an
-implementation verdict.
+Re-read the body and confirm each required section. Stop for Sol
+implementation review. Do not write an implementation verdict.
 
 ---
 
@@ -472,6 +606,8 @@ This plan does not:
 - change production `os.path.realpath` compares
 - retouch the pull request 19 compile_commands repair
 - add an extra symlink alias acceptance test
+- resurrect the superseded compile_commands / extra alias /
+  pull request 17 `1196 passed` scope
 - change qualification, supplemental R2, PR 16, PR 17, PR 19, or
   PR 28
 - run CMake, a real compiler, or Boost.Math
@@ -499,9 +635,13 @@ This archival node must not start Task 1 through Task 8.
 ## Self-Review Record
 
 - Spec coverage: residual CMakeCache oracle, production realpath
-  kept, one-function write set, PR 19 and PR 28 isolation,
-  authoritative PR 28 RED.
-- Entry is fail-closed on an explicit Sol SHA and atomic
-  destination fetch.
+  kept, one-function write set, merge-base gate, pre-edit and
+  post-edit file hashes consumed by Task 1 and Task 7, PR 19 and
+  PR 28 isolation, authoritative PR 28 RED, Task 8 body and
+  `headRefOid = final HEAD`.
+- Design remains the semantic SSOT; repeated tuples are
+  executable assertions.
+- Entry is fail-closed on an explicit Sol SHA, atomic
+  destination fetch, and verbatim merge-base.
 - Incomplete-marker scan: clean.
 - Execution is not offered from this archival node.

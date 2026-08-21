@@ -127,51 +127,43 @@ or be explained and stopped for Sol review if any test fails.
 
 ---
 
-### Task 1: Confirm Integration Implementation Entry
+### Task 1: Confirm Explicit Authorization Values
 
 **Files:** read only
 
-- [ ] **Step 1: Refuse without an explicit Sol entry**
+Task 1 checks only whether Sol wrote the required grants. It must
+not treat a pre-fetch remote-tracking ref as the authoritative
+entry. A pre-fetch `rev-parse origin/...` result is diagnostic
+only and is never a pass condition.
 
-Stop unless the later node writes `INTEGRATION_IMPLEMENTATION_ENTRY`
-as a full 40-character SHA and sets
-`INTEGRATION_IMPLEMENTATION_AUTHORIZED`,
-`INTEGRATION_IMPLEMENTATION_EXECUTABLE`, and
-`LOCAL_HISTORY_INTEGRATION_AUTHORIZED` to true. Plan archival is
-not that grant. The current reviewed governance tip
-`92516bb27687f172db95a36ae75a91d07d247034` is not that later
-entry unless Sol writes that exact SHA.
+- [ ] **Step 1: Refuse without an explicit Sol entry and flags**
 
-- [ ] **Step 2: Compare the live checkout to the Sol entry**
-
-```bash
-git rev-parse --abbrev-ref HEAD
-git rev-parse HEAD
-git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
-git rev-list --left-right --count \
-  HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
-git status --porcelain
-```
-
-Required:
+Stop unless the later node writes all of the following:
 
 ```text
-branch = cursor/pr17-pr19-ci-integration-c46c
-HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-origin branch HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-ahead/behind = 0 0
-porcelain = empty
+INTEGRATION_IMPLEMENTATION_ENTRY is a Sol-written 40-character SHA.
+INTEGRATION_IMPLEMENTATION_AUTHORIZED must be true.
+INTEGRATION_IMPLEMENTATION_EXECUTABLE must be true.
+LOCAL_HISTORY_INTEGRATION_AUTHORIZED must be true.
 ```
 
-If any value differs, stop. Do not derive a replacement entry.
+Plan archival is not that grant. The current reviewed governance
+tip `92516bb27687f172db95a36ae75a91d07d247034` is not that later
+entry unless Sol writes that exact SHA. Do not fetch. Do not
+compare `HEAD` or `origin/cursor/pr17-pr19-ci-integration-c46c`
+here. Task 2 is the only authoritative entry and ref gate.
 
 ---
 
-### Task 2: Verify The Frozen Refs
+### Task 2: Post-Fetch Entry And Frozen Ref Gate
 
 **Files:** read only
 
-- [ ] **Step 1: Fetch and print the frozen identities**
+This task is the only authoritative entry and ref gate. The
+sequence is fixed: inspect porcelain, fetch, switch onto the
+existing branch, then compare every required SHA.
+
+- [ ] **Step 1: Fetch, then compare the live checkout to the Sol entry**
 
 ```bash
 export GIT_CONFIG_GLOBAL=/dev/null
@@ -179,51 +171,69 @@ export GIT_CONFIG_NOSYSTEM=1
 export GIT_CONFIG_COUNT=0
 
 git status --porcelain
+
 git fetch origin \
   main \
   cursor/pr17-pr19-ci-integration-c46c \
   cursor/supplemental-r2-path-scan-ci-repair-c46c \
   cursor/p3-compiler-alias-ci-test-repair-c46c
 
+git switch cursor/pr17-pr19-ci-integration-c46c
+
+git rev-parse --abbrev-ref HEAD
+git rev-parse HEAD
+git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
 git rev-parse origin/main
 git rev-parse origin/cursor/supplemental-r2-path-scan-ci-repair-c46c
 git rev-parse origin/cursor/p3-compiler-alias-ci-test-repair-c46c
 git merge-base HEAD origin/main
+git rev-list --left-right --count \
+  HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
+git status --porcelain
 ```
 
-Required:
+After fetch, every line must hold:
 
 ```text
+branch = cursor/pr17-pr19-ci-integration-c46c
+HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
+origin integration tip = INTEGRATION_IMPLEMENTATION_ENTRY
 origin/main = 4444061dde0159a5edd62753fe3cef2d881a308c
 PR #17 head = fb20947a102934415dd201665971a711ccc4e0d5
 PR #19 head = 3352cedb5f377b60f0aec5ff80997b2057c7fc14
 merge-base = 4444061dde0159a5edd62753fe3cef2d881a308c
+ahead/behind = 0 0
 porcelain = empty
 ```
 
-If any SHA differs or the worktree is dirty, stop. Do not reset,
-rebase, clean, or guess a new entry.
+```text
+No local history merge may run unless this post-fetch gate passed.
+A pre-fetch remote-tracking ref is never authoritative.
+```
+
+If any value differs, stop. Do not reset, rebase, clean, or guess
+a new entry. Do not fetch again after this snapshot unless a later
+task explicitly commands it. Task 2's fetch snapshot is the
+authoritative remote snapshot for the rest of this node.
 
 ---
 
-### Task 3: Enter The Existing Combination Branch
+### Task 3: Hold The Existing Combination Branch
 
 **Files:** none
 
-- [ ] **Step 1: Switch to the frozen implementation branch**
+- [ ] **Step 1: Reaffirm the Task 2 post-fetch gate**
 
-```bash
-git switch cursor/pr17-pr19-ci-integration-c46c
-```
+Do not create a branch. Do not switch to another branch. Do not
+fetch. Task 2 already placed the checkout on
+`cursor/pr17-pr19-ci-integration-c46c` after fetch.
 
-Do not create a new combination branch.
-
-- [ ] **Step 2: Confirm HEAD is the Sol entry, not main**
+Confirm the Task 2 post-fetch gate passed. Then confirm, without
+fetching:
 
 ```bash
 git rev-parse --abbrev-ref HEAD
 git rev-parse HEAD
-git merge-base HEAD origin/main
 git status --porcelain
 ```
 
@@ -232,7 +242,6 @@ Required:
 ```text
 branch = cursor/pr17-pr19-ci-integration-c46c
 HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-merge-base = 4444061dde0159a5edd62753fe3cef2d881a308c
 porcelain = empty
 ```
 
@@ -256,7 +265,32 @@ INTEGRATION_IMPLEMENTATION_EXECUTABLE=true
 LOCAL_HISTORY_INTEGRATION_AUTHORIZED=true
 ```
 
-- [ ] **Step 2: Non-fast-forward merge pull request 17**
+- [ ] **Step 2: Reconfirm the post-fetch entry gate without fetching**
+
+Immediately before the first `git merge --no-ff`, and without
+fetching again:
+
+```bash
+git rev-parse HEAD
+git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
+git rev-list --left-right --count \
+  HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
+git status --porcelain
+```
+
+Required:
+
+```text
+HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
+origin integration tip = INTEGRATION_IMPLEMENTATION_ENTRY
+ahead/behind = 0 0
+porcelain = empty
+```
+
+Task 2's fetch snapshot remains the authoritative remote snapshot.
+If this reconfirm fails, stop. Do not merge.
+
+- [ ] **Step 3: Non-fast-forward merge pull request 17**
 
 ```bash
 git merge --no-ff \
@@ -631,6 +665,31 @@ MERGE_AUTHORIZED=false
 
 ---
 
+## Stop Conditions
+
+A later implementation node must stop immediately when:
+
+- the post-fetch integration origin tip does not equal
+  `INTEGRATION_IMPLEMENTATION_ENTRY`;
+- the post-fetch ahead/behind count is not `0 0`;
+- a fetch runs after Task 2 without an explicit later-task command;
+- the first local history merge begins without reconfirming the
+  entry gate in Task 4 Step 2;
+- Sol has not written `INTEGRATION_IMPLEMENTATION_ENTRY` as a full
+  40-character SHA;
+- any of `INTEGRATION_IMPLEMENTATION_AUTHORIZED`,
+  `INTEGRATION_IMPLEMENTATION_EXECUTABLE`, or
+  `LOCAL_HISTORY_INTEGRATION_AUTHORIZED` is not true;
+- `origin/main`, pull request 17, or pull request 19 no longer match
+  the frozen SHAs;
+- a merge conflict appears;
+- the first-merge diff is not the exact 8-path set;
+- the final diff is not the exact 11-path set;
+- any required pytest command fails.
+
+Do not derive a replacement entry. Do not treat a pre-fetch
+remote-tracking ref as authoritative.
+
 ## Non-Goals
 
 This plan does not:
@@ -666,5 +725,7 @@ after Sol Spec plus Standards PASS. Pull request 28 stays draft.
   11-path sets, fail-closed Sol entry compare, four pytest gates,
   pull request 28 `baseRefName` / `headRefName` / `headRefOid`
   verification, source pull requests left unchanged.
+- Entry ordering: fetch first, then compare branch, HEAD, integration
+  origin tip, source refs, merge-base, ahead/behind, and porcelain.
 - Placeholder scan: clean.
 - Execution is not offered from this archival node.

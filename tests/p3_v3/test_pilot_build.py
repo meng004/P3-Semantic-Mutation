@@ -1296,14 +1296,31 @@ def test_collect_baseline_build_evidence_missing_frozen_include(tmp_path, monkey
 
 
 def test_compile_commands_compiler_mismatch(tmp_path, monkeypatch):
+    import json
     import p3_v3.pilot_build as pilot_build
 
-    build, env = _synthetic_build_evidence_tree(tmp_path, pilot_build, monkeypatch)
-    env = dict(env)
-    env["cxx_compiler_path"] = "/usr/bin/g++"
-    env.pop("artifact_sha256", None)
-    env = pilot_build.validate_environment_snapshot(pilot_build._self_hash(env))
-    with pytest.raises(EvidenceError, match="compiler differs"):
+    compiler_a = str((tmp_path / "compiler-a").resolve())
+    compiler_b = str((tmp_path / "compiler-b").resolve())
+    build, env = _synthetic_build_evidence_tree(
+        tmp_path,
+        pilot_build,
+        monkeypatch,
+        compiler=compiler_a,
+    )
+    assert env["cxx_compiler_path"] == compiler_a
+    cache = (build / "CMakeCache.txt").read_text(encoding="utf-8")
+    assert f"CMAKE_CXX_COMPILER:FILEPATH={compiler_a}" in cache
+    commands_path = build / "compile_commands.json"
+    payload = json.loads(commands_path.read_text(encoding="utf-8"))
+    payload[0]["arguments"][0] = compiler_b
+    commands_path.write_text(
+        json.dumps(payload) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        EvidenceError,
+        match="compile_commands compiler differs",
+    ):
         pilot_build.collect_baseline_build_evidence(build, env)
 
 

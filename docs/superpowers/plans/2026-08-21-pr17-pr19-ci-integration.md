@@ -172,11 +172,11 @@ export GIT_CONFIG_COUNT=0
 
 git status --porcelain
 
-git fetch origin \
-  main \
-  cursor/pr17-pr19-ci-integration-c46c \
-  cursor/supplemental-r2-path-scan-ci-repair-c46c \
-  cursor/p3-compiler-alias-ci-test-repair-c46c
+git fetch --atomic origin \
+  +refs/heads/main:refs/remotes/origin/main \
+  +refs/heads/cursor/pr17-pr19-ci-integration-c46c:refs/remotes/origin/cursor/pr17-pr19-ci-integration-c46c \
+  +refs/heads/cursor/supplemental-r2-path-scan-ci-repair-c46c:refs/remotes/origin/cursor/supplemental-r2-path-scan-ci-repair-c46c \
+  +refs/heads/cursor/p3-compiler-alias-ci-test-repair-c46c:refs/remotes/origin/cursor/p3-compiler-alias-ci-test-repair-c46c
 
 git switch cursor/pr17-pr19-ci-integration-c46c
 
@@ -209,12 +209,21 @@ porcelain = empty
 ```text
 No local history merge may run unless this post-fetch gate passed.
 A pre-fetch remote-tracking ref is never authoritative.
+Each command-line refspec has an explicit refs/remotes/origin/*
+destination. The fetch is atomic: either all four remote-tracking
+refs update, or none do.
+FETCH_HEAD alone is not an authoritative gate.
+The authoritative values are the four explicitly updated
+refs/remotes/origin/* destinations read after the atomic fetch.
 ```
 
-If any value differs, stop. Do not reset, rebase, clean, or guess
-a new entry. Do not fetch again after this snapshot unless a later
-task explicitly commands it. Task 2's fetch snapshot is the
-authoritative remote snapshot for the rest of this node.
+Do not use a source-only command-line refspec such as
+`git fetch origin main`. Do not rely on an unverified
+`remote.origin.fetch` mapping. If any value differs, stop. Do not
+reset, rebase, clean, or guess a new entry. Do not fetch again
+after this snapshot unless a later task explicitly commands it.
+Task 2's fetch snapshot is the authoritative remote snapshot for
+the rest of this node.
 
 ---
 
@@ -685,7 +694,11 @@ A later implementation node must stop immediately when:
 - a merge conflict appears;
 - the first-merge diff is not the exact 8-path set;
 - the final diff is not the exact 11-path set;
-- any required pytest command fails.
+- any required pytest command fails;
+- the atomic fetch fails;
+- any explicit destination ref is not updated;
+- Task 2 uses a source-only command-line refspec;
+- the gate relies only on FETCH_HEAD.
 
 Do not derive a replacement entry. Do not treat a pre-fetch
 remote-tracking ref as authoritative.
@@ -727,5 +740,8 @@ after Sol Spec plus Standards PASS. Pull request 28 stays draft.
   verification, source pull requests left unchanged.
 - Entry ordering: fetch first, then compare branch, HEAD, integration
   origin tip, source refs, merge-base, ahead/behind, and porcelain.
+- Fetch destinations: all four command-line refspecs explicitly map
+  refs/heads/* to refs/remotes/origin/*, and --atomic prevents a
+  partial remote-tracking snapshot.
 - Placeholder scan: clean.
 - Execution is not offered from this archival node.

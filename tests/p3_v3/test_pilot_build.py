@@ -1318,13 +1318,17 @@ def test_cmakecache_compiler_generator_root_drift(tmp_path, monkeypatch):
     )
     with pytest.raises(EvidenceError, match="CMAKE_GENERATOR differs"):
         pilot_build.collect_baseline_build_evidence(build, env)
+    cache_other = tmp_path / "cache-other-cxx"
     build, env = _synthetic_build_evidence_tree(
         tmp_path / "compiler",
         pilot_build,
         monkeypatch,
-        cache_compiler="/usr/bin/g++",
+        cache_compiler=str(cache_other),
     )
-    with pytest.raises(EvidenceError, match="CMakeCache compiler differs"):
+    with pytest.raises(
+        EvidenceError,
+        match="CMakeCache compiler differs",
+    ):
         pilot_build.collect_baseline_build_evidence(build, env)
     build, env = _synthetic_build_evidence_tree(
         tmp_path / "root",

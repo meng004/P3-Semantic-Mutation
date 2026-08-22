@@ -501,20 +501,443 @@ porcelain = empty
 
 **Files:** none
 
-Running `gh pr edit` is not a pass. The later executor must
-re-read pull request 28 and prove every heading, field, and
-test fact. Empty `statusCheckRollup` is not a pass.
+Running `gh pr edit` is not a pass. `assert heading in body` is
+not a pass. The later executor must extract the verifier library
+below, re-read pull request 28, parse unfenced ATX `##` headings,
+and machine-check every required section fact. Headings that
+appear only inside fenced code, in ordinary sentences, or in
+inline code are not section headings.
 
-CI states are:
+CI states remain:
 
 ```text
 A. check not yet present
-B. queued / pending / in_progress
+B. queued / pending / in_progress / waiting / requested
 C. completed + success
 D. completed + any non-success conclusion
 ```
 
-Only C passes.
+Only C passes. Empty `statusCheckRollup` is not a pass. A
+non-empty unrelated rollup is not a pass. A bounded wait is
+mandatory: `DISCOVERY_SECONDS = 600` then, after a FINAL_HEAD run
+is selected, `COMPLETION_SECONDS = 3600` on a monotonic clock.
+An unbounded `while` loop is a stop. The workflow job timeout is
+30 minutes. 3600 seconds is this plan's finite wait cap, not a
+success exemption.
+
+#### Verifier library
+
+This library is the only body, wait-budget, and rollup authority.
+Extract it from this file. Do not re-implement a heading-in-body
+check.
+
+```python
+# === VERIFIER_LIB_BEGIN ===
+import re
+import time
+
+HEADINGS = (
+    "## Motivation",
+    "## Changes",
+    "## Tests",
+    "## SSOT integrity",
+    "## Governance",
+)
+PR18_HEAD = "4b21072add365923799dccc057d4fefffd69918c"
+RED_HEAD = "e62974af4f5e2cfbc65d98c3b2f028edce57d25c"
+RED_RUN = "32449925094"
+RED_JOB = "96676383508"
+MERGE_MESSAGE = "merge: integrate residual CMakeCache CI repair"
+SOURCE_BRANCH = "cursor/p3-compiler-alias-ci-repair-c46c"
+REQUIRED_JOB = "Run pytest (Path-A cache replay smoke)"
+REQUIRED_WORKFLOW = "sanity-check"
+REPO = "meng004/P3-Semantic-Mutation"
+DISCOVERY_SECONDS = 600
+COMPLETION_SECONDS = 3600
+POLL_SECONDS = 15
+NON_SUCCESS = {
+    "failure",
+    "cancelled",
+    "canceled",
+    "timed_out",
+    "action_required",
+    "startup_failure",
+    "stale",
+    "skipped",
+    "neutral",
+}
+NON_TERMINAL = {
+    "queued",
+    "pending",
+    "in_progress",
+    "waiting",
+    "requested",
+}
+BANNED_TOKENS = re.compile(
+    r"\b(TBD|TODO|FIXME|TBA|placeholder)\b",
+    re.IGNORECASE,
+)
+WARN_COUNT = re.compile(
+    r"\bwarn(?:ing)?s?\b\s*[:=]?\s*(\d+)",
+    re.IGNORECASE,
+)
+WARN_TYPE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*Warning\b")
+RUN_JOB_URL = re.compile(r"/actions/runs/(\d+)/job/(\d+)")
+
+
+class VerifierError(Exception):
+    pass
+
+
+class RealClock:
+    def monotonic(self):
+        return time.monotonic()
+
+    def sleep(self, seconds):
+        time.sleep(seconds)
+
+
+class FakeClock:
+    def __init__(self, start=0.0):
+        self.t = float(start)
+
+    def monotonic(self):
+        return self.t
+
+    def sleep(self, seconds):
+        self.t += float(seconds)
+
+
+def iter_unfenced_lines(text):
+    in_fence = False
+    fence_token = None
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.lstrip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            token = "```" if stripped.startswith("```") else "~~~"
+            if not in_fence:
+                in_fence = True
+                fence_token = token
+            elif stripped.startswith(fence_token):
+                in_fence = False
+                fence_token = None
+            continue
+        if in_fence:
+            continue
+        yield lineno, line
+
+
+def extract_h2_sections(body):
+    found = []
+    for lineno, line in iter_unfenced_lines(body):
+        key = line.rstrip()
+        if key in HEADINGS:
+            found.append((lineno, key))
+    names = [key for _lineno, key in found]
+    if names != list(HEADINGS):
+        raise VerifierError(
+            "headings must be exact unfenced ATX H2 titles, "
+            "each once, in order; got %s" % (names,)
+        )
+    sections = {key: [] for key in HEADINGS}
+    current = None
+    for _lineno, line in iter_unfenced_lines(body):
+        key = line.rstrip()
+        if key in HEADINGS:
+            current = key
+            continue
+        if current is not None:
+            sections[current].append(line)
+    out = {}
+    for key in HEADINGS:
+        text = "\n".join(sections[key])
+        if not text.strip():
+            raise VerifierError("empty section %s" % key)
+        out[key] = text
+    return out
+
+
+def _require(section_name, text, needle, exact=False):
+    haystack = text if exact else text.lower()
+    pin = needle if exact else needle.lower()
+    if pin not in haystack:
+        raise VerifierError("%s missing %r" % (section_name, needle))
+
+
+def _require_re(section_name, text, pattern, label):
+    if re.search(pattern, text, re.IGNORECASE | re.MULTILINE) is None:
+        raise VerifierError("%s missing %s" % (section_name, label))
+
+
+def assert_pr_body(body, final_head):
+    if not re.fullmatch(r"[0-9a-f]{40}", final_head or ""):
+        raise VerifierError("FINAL_HEAD must be a 40-character lowercase SHA")
+    sections = extract_h2_sections(body)
+
+    motivation = sections["## Motivation"]
+    _require("Motivation", motivation, "authoritative")
+    _require("Motivation", motivation, "RED")
+    _require("Motivation", motivation, RED_HEAD, exact=True)
+    _require("Motivation", motivation, RED_RUN, exact=True)
+    _require("Motivation", motivation, RED_JOB, exact=True)
+    _require("Motivation", motivation, PR18_HEAD, exact=True)
+    _require("Motivation", motivation, final_head, exact=True)
+    _require_re("Motivation", motivation, r"PR\s*#?\s*28|pull request 28", "PR 28")
+
+    changes = sections["## Changes"]
+    _require("Changes", changes, "--no-ff", exact=True)
+    _require_re("Changes", changes, r"exactly one", "exactly one merge")
+    _require("Changes", changes, SOURCE_BRANCH, exact=True)
+    _require("Changes", changes, PR18_HEAD, exact=True)
+    _require("Changes", changes, MERGE_MESSAGE, exact=True)
+    _require_re("Changes", changes, r"not rewritten", "not rewritten")
+    _require_re("Changes", changes, r"\b17\b", "PR 17")
+    _require_re("Changes", changes, r"\b19\b", "PR 19")
+    for term in ("cherry-pick", "rebase", "squash", "conflict"):
+        _require("Changes", changes, term)
+    _require_re("Changes", changes, r"\b(no|not|without)\b", "negation")
+
+    tests = sections["## Tests"]
+    if BANNED_TOKENS.search(tests):
+        raise VerifierError("Tests contains a banned token")
+    _require_re("Tests", tests, r"external[^\n]*176\s+passed", "external 176 passed")
+    _require_re(
+        "Tests",
+        tests,
+        r"compile_commands[^\n]*1\s+passed",
+        "compile_commands 1 passed",
+    )
+    _require_re("Tests", tests, r"CMakeCache[^\n]*1\s+passed", "CMakeCache 1 passed")
+    _require_re("Tests", tests, r"(pilot file|test_pilot_build)[^\n]*75\s+passed", "pilot 75 passed")
+    _require_re("Tests", tests, r"collected\s+1693", "collected 1693")
+    _require_re("Tests", tests, r"passed\s+1693", "passed 1693")
+    _require_re("Tests", tests, r"failed\s+0", "failed 0")
+    _require_re("Tests", tests, r"exit\s+0", "exit 0")
+    warn = WARN_COUNT.search(tests)
+    if warn is None:
+        raise VerifierError("Tests missing numeric warning count")
+    if WARN_TYPE.search(tests) is None:
+        raise VerifierError("Tests missing warning types from the fresh run")
+
+    ssot = sections["## SSOT integrity"]
+    _require("SSOT integrity", ssot, "scripts/build_paper_numbers.py", exact=True)
+    _require("SSOT integrity", ssot, "not run")
+    _require("SSOT integrity", ssot, "not applicable")
+    _require("SSOT integrity", ssot, "history-only")
+
+    gov = sections["## Governance"]
+    _require("Governance", gov, "OPEN")
+    _require_re("Governance", gov, r"\bdraft\b", "draft")
+    for flag in (
+        "PR_READY_AUTHORIZED=false",
+        "MAIN_PR_MERGE_AUTHORIZED=false",
+        "MERGE_AUTHORIZED=false",
+        "REAL_QUALIFICATION_AUTHORIZED=false",
+        "ATTEMPT_2_AUTHORIZED=false",
+        "CLAIMS_AUTHORIZED=false",
+        "FORMAL_DENOMINATOR_MEMBERSHIP=false",
+    ):
+        if re.search(r"(?<![A-Z_])" + re.escape(flag), gov) is None:
+            raise VerifierError("Governance missing %r" % flag)
+    return sections
+
+
+def classify(item):
+    if not item:
+        return "A"
+    status = (item.get("status") or "").lower()
+    conclusion = (item.get("conclusion") or "").lower()
+    if status in NON_TERMINAL:
+        return "B"
+    if status == "completed" and conclusion == "success":
+        return "C"
+    if status == "completed":
+        return "D"
+    return "A"
+
+
+def details_url_binds(url, run_id, job_id):
+    if not url:
+        return False
+    match = RUN_JOB_URL.search(url)
+    if match is None:
+        return False
+    return match.group(1) == str(run_id) and match.group(2) == str(job_id)
+
+
+def select_newest_final_head_run(runs, final_head):
+    matched = [run for run in runs if run.get("headSha") == final_head]
+    if not matched:
+        return None
+    return sorted(matched, key=lambda run: run.get("createdAt") or "", reverse=True)[0]
+
+
+def wait_for_terminal(get_detail, run_id, final_head, clock, completion_seconds=COMPLETION_SECONDS, poll_seconds=POLL_SECONDS):
+    deadline = clock.monotonic() + float(completion_seconds)
+    detail = None
+    job = None
+    while True:
+        if clock.monotonic() >= deadline:
+            return {
+                "expired": True,
+                "detail": detail,
+                "job": job,
+                "run_id": run_id,
+                "final_head": final_head,
+            }
+        detail = get_detail(run_id)
+        if detail.get("headSha") != final_head:
+            raise VerifierError("run headSha is not FINAL_HEAD")
+        jobs = detail.get("jobs") or []
+        job = next((item for item in jobs if item.get("name") == REQUIRED_JOB), None)
+        run_state = classify(detail)
+        job_state = classify(job) if job is not None else "B"
+        if run_state == "D" or job_state == "D":
+            return {
+                "expired": False,
+                "state": "D",
+                "detail": detail,
+                "job": job,
+                "run_id": run_id,
+                "final_head": final_head,
+            }
+        if run_state == "C" and job_state == "C":
+            return {
+                "expired": False,
+                "state": "C",
+                "detail": detail,
+                "job": job,
+                "run_id": run_id,
+                "final_head": final_head,
+            }
+        clock.sleep(poll_seconds)
+
+
+def format_timeout(result):
+    detail = result.get("detail") or {}
+    job = result.get("job") or {}
+    lines = [
+        "COMPLETION_DEADLINE_EXPIRED",
+        "FINAL_HEAD %s" % result.get("final_head"),
+        "run.id %s" % result.get("run_id"),
+        "run.url %s" % detail.get("url"),
+        "run.status %s" % detail.get("status"),
+        "run.conclusion %s" % detail.get("conclusion"),
+        "job.id %s" % (job.get("databaseId") or job.get("id")),
+        "job.url %s" % job.get("url"),
+        "job.status %s" % job.get("status"),
+        "job.conclusion %s" % job.get("conclusion"),
+        "stop; do not edit, re-merge, re-push, mark-ready, or merge main",
+    ]
+    return "\n".join(lines)
+
+
+def failure_log_command(run_id, job_id):
+    return [
+        "gh",
+        "run",
+        "view",
+        str(run_id),
+        "--repo",
+        REPO,
+        "--job",
+        str(job_id),
+        "--log-failed",
+    ]
+
+
+def assert_rollup_bound(pr, final_head, run_id, job_id, job_url=None):
+    if pr.get("headRefOid") != final_head:
+        raise VerifierError("headRefOid != FINAL_HEAD")
+    rollup = pr.get("statusCheckRollup")
+    if not rollup:
+        raise VerifierError("empty statusCheckRollup")
+    required = []
+    for entry in rollup:
+        name = entry.get("name")
+        workflow = entry.get("workflowName")
+        status = (entry.get("status") or "").upper()
+        conclusion = (entry.get("conclusion") or "").upper()
+        url = entry.get("detailsUrl") or entry.get("url") or ""
+        is_required = workflow == REQUIRED_WORKFLOW and name == REQUIRED_JOB
+        if not is_required:
+            raise VerifierError("unrelated rollup entry %r / %r" % (workflow, name))
+        if status in {item.upper() for item in NON_TERMINAL}:
+            raise VerifierError("pending rollup entry")
+        if status != "COMPLETED":
+            raise VerifierError("rollup status %s" % status)
+        if conclusion != "SUCCESS":
+            raise VerifierError("rollup conclusion %s" % conclusion)
+        bound = False
+        if job_url and url == job_url:
+            bound = True
+        if details_url_binds(url, run_id, job_id):
+            bound = True
+        if not bound:
+            raise VerifierError("rollup detailsUrl is not bound to selected run/job")
+        required.append(entry)
+    if len(required) != 1:
+        raise VerifierError("required CheckRun missing or ambiguous: %s" % len(required))
+    return required[0]
+# === VERIFIER_LIB_END ===
+```
+
+Required body facts the verifier machine-checks after a fresh
+`gh pr view`. Heading presence alone does not prove them.
+
+```text
+headings = exact unfenced ATX H2, each once, in this order:
+## Motivation
+## Changes
+## Tests
+## SSOT integrity
+## Governance
+each section body is non-empty
+
+Motivation:
+authoritative
+RED
+RED head = e62974af4f5e2cfbc65d98c3b2f028edce57d25c
+RED run = 32449925094
+RED job = 96676383508
+PR18 source head = 4b21072add365923799dccc057d4fefffd69918c
+dynamically computed FINAL_HEAD
+
+Changes:
+exactly one --no-ff
+source branch = cursor/p3-compiler-alias-ci-repair-c46c
+source head = 4b21072add365923799dccc057d4fefffd69918c
+merge message = merge: integrate residual CMakeCache CI repair
+PR #17 and PR #19 histories were not rewritten
+no cherry-pick, rebase, squash or manual conflict commit
+
+Tests:
+external focused: 176 passed
+compile_commands named test: 1 passed
+CMakeCache named test: 1 passed
+pilot file: 75 passed
+planned successful root tuple:
+collected 1693, passed 1693, failed 0, exit 0
+numeric warning count
+warning types from the future fresh run
+banned tokens TBD / TODO / FIXME / TBA / placeholder fail
+
+SSOT integrity:
+scripts/build_paper_numbers.py
+not run
+not applicable to history-only integration
+
+Governance:
+PR #28 remains OPEN
+PR #28 remains draft
+PR_READY_AUTHORIZED=false
+MAIN_PR_MERGE_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+REAL_QUALIFICATION_AUTHORIZED=false
+ATTEMPT_2_AUTHORIZED=false
+CLAIMS_AUTHORIZED=false
+FORMAL_DENOMINATOR_MEMBERSHIP=false
+```
 
 - [ ] **Step 1: Freeze FINAL_HEAD and update the existing draft**
 
@@ -524,37 +947,12 @@ echo "FINAL_HEAD=$FINAL_HEAD"
 ```
 
 Keep pull request 28 OPEN and draft. Do not mark-ready. Do not
-merge. Do not edit pull request 17, 18, or 19.
+merge. Do not edit pull request 17, 18, or 19. Write the five
+unfenced headings and every required fact above, including the
+dynamic `FINAL_HEAD` value in Motivation and the fresh root
+warning count and warning types in Tests.
 
-The body must contain these exact headings:
-
-```text
-## Motivation
-## Changes
-## Tests
-## SSOT integrity
-## Governance
-```
-
-Required body facts:
-
-- Motivation: current pull request 28 authoritative RED, pull
-  request 18 as the third-history source, and the final
-  integration head
-- Changes: exactly one `--no-ff` merge of the complete pull
-  request 18 history; pull request 17 and 19 histories were not
-  rewritten
-- Tests: external focused 176 passed; compile_commands named 1
-  passed; CMakeCache named 1 passed; pilot file 75 passed; the
-  real root collected, passed, failed, exit, and warning counts
-- SSOT integrity: `scripts/build_paper_numbers.py` was not run
-  and is not applicable to a history-only integration
-- Governance: pull request 28 remains OPEN draft; mark-ready,
-  main merge, qualification, and claims remain unauthorized
-
-A missing heading, field, or real test fact is a stop.
-
-- [ ] **Step 2: Re-read pull request 28 and verify metadata plus body**
+- [ ] **Step 2: Re-read pull request 28 and run the body verifier**
 
 ```bash
 gh pr view 28 \
@@ -562,7 +960,7 @@ gh pr view 28 \
   --json number,state,isDraft,baseRefName,headRefName,headRefOid,body,url,statusCheckRollup
 ```
 
-Required:
+Required metadata:
 
 ```text
 number = 28
@@ -571,23 +969,23 @@ isDraft = true
 baseRefName = main
 headRefName = cursor/pr17-pr19-ci-integration-c46c
 headRefOid = FINAL_HEAD
-body contains exact headings:
-## Motivation
-## Changes
-## Tests
-## SSOT integrity
-## Governance
 ```
 
 ```bash
 FINAL_HEAD="$(git rev-parse HEAD)"
 export FINAL_HEAD
-/usr/bin/python3 - <<PY
+/usr/bin/python3 - <<'PY'
 import json
 import os
 import subprocess
+from pathlib import Path
 
 final_head = os.environ["FINAL_HEAD"]
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+start = plan.index("# === VERIFIER_LIB_BEGIN ===")
+end = plan.index("# === VERIFIER_LIB_END ===") + len("# === VERIFIER_LIB_END ===")
+ns = {}
+exec(plan[start:end], ns)
 raw = subprocess.check_output(
     [
         "gh",
@@ -601,30 +999,23 @@ raw = subprocess.check_output(
     ]
 )
 pr = json.loads(raw)
-body = pr["body"]
 assert pr["number"] == 28
 assert pr["state"] == "OPEN"
 assert pr["isDraft"] is True
 assert pr["baseRefName"] == "main"
 assert pr["headRefName"] == "cursor/pr17-pr19-ci-integration-c46c"
 assert pr["headRefOid"] == final_head
-for heading in (
-    "## Motivation",
-    "## Changes",
-    "## Tests",
-    "## SSOT integrity",
-    "## Governance",
-):
-    assert heading in body, heading
-print("PR28_BODY_AND_HEAD_OK")
+ns["assert_pr_body"](pr["body"], final_head)
+print("PR28_BODY_FACTS_OK")
 print("FINAL_HEAD", final_head)
 print("headRefOid", pr["headRefOid"])
 PY
 ```
 
-`headRefOid != FINAL_HEAD` is a stop.
+`headRefOid != FINAL_HEAD` is a stop. A body that only has the
+five headings is a stop.
 
-- [ ] **Step 3: Discover and wait for the FINAL_HEAD sanity-check**
+- [ ] **Step 3: Discover, wait with a completion deadline, and bind rollup**
 
 Select the newest `sanity-check` run whose `headSha` equals
 `FINAL_HEAD`. Do not accept a green run from any other commit,
@@ -633,30 +1024,26 @@ including run `32539725403` if it belongs to an earlier head.
 ```bash
 FINAL_HEAD="$(git rev-parse HEAD)"
 export FINAL_HEAD
-
 /usr/bin/python3 - <<'PY'
 import json
+import os
 import subprocess
 import sys
-import time
+from pathlib import Path
 
-REPO = "meng004/P3-Semantic-Mutation"
-FINAL_HEAD = subprocess.check_output(
-    ["git", "rev-parse", "HEAD"], text=True
-).strip()
-DISCOVERY_SECONDS = 600
-POLL_SECONDS = 15
-JOB_NAME = "Run pytest (Path-A cache replay smoke)"
-NON_SUCCESS = {
-    "failure",
-    "cancelled",
-    "timed_out",
-    "action_required",
-    "startup_failure",
-    "stale",
-    "skipped",
-    "neutral",
-}
+final_head = os.environ["FINAL_HEAD"]
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+start = plan.index("# === VERIFIER_LIB_BEGIN ===")
+end = plan.index("# === VERIFIER_LIB_END ===") + len("# === VERIFIER_LIB_END ===")
+ns = {}
+exec(plan[start:end], ns)
+
+REPO = ns["REPO"]
+JOB_NAME = ns["REQUIRED_JOB"]
+DISCOVERY_SECONDS = ns["DISCOVERY_SECONDS"]
+COMPLETION_SECONDS = ns["COMPLETION_SECONDS"]
+POLL_SECONDS = ns["POLL_SECONDS"]
+clock = ns["RealClock"]()
 
 
 def list_runs():
@@ -670,15 +1057,14 @@ def list_runs():
             "--workflow",
             "sanity-check",
             "--commit",
-            FINAL_HEAD,
+            final_head,
             "--limit",
             "20",
             "--json",
             "databaseId,headSha,status,conclusion,createdAt,url",
         ]
     )
-    runs = json.loads(raw)
-    return [r for r in runs if r.get("headSha") == FINAL_HEAD]
+    return json.loads(raw)
 
 
 def view_run(run_id):
@@ -697,84 +1083,72 @@ def view_run(run_id):
     return json.loads(raw)
 
 
-def classify(run):
-    status = (run.get("status") or "").lower()
-    conclusion = (run.get("conclusion") or "").lower()
-    if status in {"queued", "pending", "in_progress", "waiting", "requested"}:
-        return "B"
-    if status == "completed" and conclusion == "success":
-        return "C"
-    if status == "completed":
-        return "D"
-    return "A"
-
-
-deadline = time.time() + DISCOVERY_SECONDS
+discovery_deadline = clock.monotonic() + DISCOVERY_SECONDS
 selected = None
-while time.time() < deadline and selected is None:
-    runs = list_runs()
-    if runs:
-        selected = sorted(runs, key=lambda r: r.get("createdAt") or "", reverse=True)[0]
-        break
-    print("CI_STATE=A no FINAL_HEAD sanity-check yet")
-    time.sleep(POLL_SECONDS)
+while clock.monotonic() < discovery_deadline and selected is None:
+    selected = ns["select_newest_final_head_run"](list_runs(), final_head)
+    if selected is None:
+        print("CI_STATE=A no FINAL_HEAD sanity-check yet")
+        clock.sleep(POLL_SECONDS)
 
 if selected is None:
     print("CI_STATE=A discovery window expired")
-    print("FINAL_HEAD", FINAL_HEAD)
+    print("FINAL_HEAD", final_head)
     sys.exit(2)
 
 run_id = selected["databaseId"]
 print("DISCOVERED_RUN", run_id, selected.get("url"))
-print("CI_STATE", classify(selected))
+print("CI_STATE", ns["classify"](selected))
 
-detail = view_run(run_id)
-if detail.get("headSha") != FINAL_HEAD:
-    print("viewed run is not bound to FINAL_HEAD")
-    sys.exit(3)
+result = ns["wait_for_terminal"](
+    view_run,
+    run_id,
+    final_head,
+    clock,
+    completion_seconds=COMPLETION_SECONDS,
+    poll_seconds=POLL_SECONDS,
+)
+if result.get("expired"):
+    print(ns["format_timeout"](result))
+    sys.exit(7)
 
-while classify(detail) == "B":
-    print("CI_STATE=B waiting for terminal run", run_id)
-    time.sleep(POLL_SECONDS)
-    detail = view_run(run_id)
-    if detail.get("headSha") != FINAL_HEAD:
-        print("run headSha drifted from FINAL_HEAD")
-        sys.exit(3)
+detail = result["detail"]
+job = result["job"]
+if job is None:
+    print("required job missing after wait")
+    print("FINAL_HEAD", final_head)
+    print("run.id", run_id)
+    print("run.url", detail.get("url"))
+    print("run.status", detail.get("status"))
+    print("run.conclusion", detail.get("conclusion"))
+    sys.exit(4)
 
-state = classify(detail)
-print("CI_STATE", state)
+job_id = job.get("databaseId") or job.get("id")
+print("CI_STATE", result["state"])
 print("run.status", detail.get("status"))
 print("run.conclusion", detail.get("conclusion"))
 print("run.headSha", detail.get("headSha"))
 print("run.url", detail.get("url"))
-
-jobs = detail.get("jobs") or []
-job = next((j for j in jobs if j.get("name") == JOB_NAME), None)
-if job is None:
-    print("required job missing")
-    sys.exit(4)
 print("job.name", job.get("name"))
 print("job.status", job.get("status"))
 print("job.conclusion", job.get("conclusion"))
 print("job.url", job.get("url"))
 
-if state != "C":
+if result["state"] != "C":
     print("CI_STATE=D or non-success terminal")
     print("run.id", run_id)
     print("run.url", detail.get("url"))
-    print("job.id", job.get("databaseId") or job.get("id"))
+    print("job.id", job_id)
     print("job.url", job.get("url"))
-    print("stop; do not edit code, re-merge, or re-push")
-    sys.exit(5)
-if (detail.get("status") or "").lower() != "completed":
-    sys.exit(5)
-if (detail.get("conclusion") or "").lower() != "success":
-    sys.exit(5)
-if (job.get("status") or "").lower() != "completed":
-    sys.exit(5)
-if (job.get("conclusion") or "").lower() != "success":
-    sys.exit(5)
-if (detail.get("conclusion") or "").lower() in NON_SUCCESS:
+    cmd = ns["failure_log_command"](run_id, job_id)
+    print("EVIDENCE_CMD", " ".join(cmd))
+    try:
+        log = subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
+        print(log)
+    except subprocess.CalledProcessError as exc:
+        print(exc.output)
+    print("record first failure and collected/passed/failed/exit/warning counts")
+    print("stop; do not edit, re-merge, re-push, mark-ready, or merge main")
     sys.exit(5)
 
 raw_pr = subprocess.check_output(
@@ -790,15 +1164,21 @@ raw_pr = subprocess.check_output(
     ]
 )
 pr = json.loads(raw_pr)
-if pr.get("headRefOid") != FINAL_HEAD:
-    print("headRefOid drifted from FINAL_HEAD")
-    sys.exit(3)
-rollup = pr.get("statusCheckRollup") or []
-if not rollup:
-    print("empty statusCheckRollup is not a pass")
+try:
+    ns["assert_rollup_bound"](
+        pr,
+        final_head,
+        run_id,
+        job_id,
+        job_url=job.get("url"),
+    )
+except ns["VerifierError"] as exc:
+    print("ROLLUP_BIND_FAILED", exc)
     sys.exit(6)
+
 print("FINAL_HEAD_CI_OK")
 print("RUN_ID", run_id)
+print("JOB_ID", job_id)
 PY
 ```
 
@@ -811,6 +1191,13 @@ run.headSha = FINAL_HEAD
 job.name = Run pytest (Path-A cache replay smoke)
 job.status = completed
 job.conclusion = success
+headRefOid = FINAL_HEAD
+exactly one rollup CheckRun:
+workflowName = sanity-check
+name = Run pytest (Path-A cache replay smoke)
+status = COMPLETED
+conclusion = SUCCESS
+detailsUrl bound to /actions/runs/{run_id}/job/{job_id}
 ```
 
 Any of these conclusions is a stop:
@@ -827,14 +1214,23 @@ neutral
 or any other non-success value
 ```
 
-On failure record run id and URL, job id and URL, head SHA,
-status, conclusion, the first failure, and collected, passed,
-and failed counts when available. Then stop. Do not modify
-code, re-merge, or re-push.
+On a non-success terminal run the executor must run:
 
-Only after pull-request metadata, body facts, and FINAL_HEAD CI
-state C all pass may the later executor stop for Sol
-implementation review. Do not write an implementation verdict.
+```bash
+gh run view "$RUN_ID" \
+  --repo meng004/P3-Semantic-Mutation \
+  --job "$JOB_ID" \
+  --log-failed
+```
+
+and return the first failure plus collected, passed, failed, exit,
+and warning counts. Then stop. Do not modify code, re-merge,
+re-push, mark-ready, or merge main.
+
+Only after pull-request metadata, structured body facts, FINAL_HEAD
+CI state C, and a rollup bound to that run and job all pass may
+the later executor stop for Sol implementation review. Do not
+write an implementation verdict.
 
 ---
 
@@ -843,18 +1239,33 @@ implementation review. Do not write an implementation verdict.
 A later implementation node must stop immediately when:
 
 - the isolated alias `IMPLEMENTATION_ENTRY` still appears;
-- any required pull request 28 body heading or field is missing;
-- pull request 28 `headRefOid` is not `FINAL_HEAD`;
-- no FINAL_HEAD `sanity-check` run appears before the 10-minute
-  discovery window ends;
-- the FINAL_HEAD check is still non-terminal;
-- the FINAL_HEAD run or job has any non-success terminal
-  conclusion;
-- `statusCheckRollup` is empty or contains only results for an
-  older head;
-- the executor cannot prove the run and job bind `FINAL_HEAD`;
 - parent 1 is not the Sol-written
   `INTEGRATION_IMPLEMENTATION_ENTRY`;
+- pull request 28 body headings are missing, duplicated, out of
+  order, only inside a fence, or only proven by
+  `assert heading in body`;
+- any required section body is empty;
+- any required Motivation, Changes, Tests, SSOT, or Governance
+  fact is missing;
+- Tests omit the planned root tuple
+  `collected 1693, passed 1693, failed 0, exit 0`;
+- Tests omit a numeric warning count or warning types from the
+  fresh run, or use a banned token;
+- pull request 28 `headRefOid` is not `FINAL_HEAD`;
+- no FINAL_HEAD `sanity-check` run appears before
+  `DISCOVERY_SECONDS = 600`;
+- the selected FINAL_HEAD run or required job is still
+  non-terminal when `COMPLETION_SECONDS = 3600` expires;
+- the wait loop has no completion deadline;
+- the FINAL_HEAD run or job has any non-success terminal
+  conclusion;
+- `statusCheckRollup` is empty;
+- `statusCheckRollup` is non-empty but unrelated, duplicate and
+  ambiguous, pending, failed, cancelled, stale, skipped, or bound
+  to an older run or job;
+- the executor cannot prove the run, job, pull-request head, and
+  rollup `detailsUrl` all bind `FINAL_HEAD` and the selected
+  `run_id` / `job_id`;
 - a merge conflict appears;
 - the post-merge path set is not the exact 13-path set;
 - any required pytest command fails.
@@ -883,6 +1294,10 @@ LOCAL_HISTORY_INTEGRATION_AUTHORIZED=false
 PR_READY_AUTHORIZED=false
 MAIN_PR_MERGE_AUTHORIZED=false
 MERGE_AUTHORIZED=false
+REAL_QUALIFICATION_AUTHORIZED=false
+ATTEMPT_2_AUTHORIZED=false
+CLAIMS_AUTHORIZED=false
+FORMAL_DENOMINATOR_MEMBERSHIP=false
 ```
 
 Archiving this plan does not authorize implementation. A later
@@ -891,30 +1306,43 @@ user node must still grant the three local-history flags and write
 PASS.
 
 Pull request 28 stays draft. Pull requests 17, 18, and 19 stay
-untouched. Merge stays unauthorized.
+untouched. Merge stays unauthorized. Local-history permission
+stays separate from main-PR merge permission.
 
 This archival node must not start Task 1 through Task 9.
 
 ## Self-Review Record
 
-- Finding 1 is closed. Task 1, Task 4 Post-Merge Required,
-  Stop Conditions, and Governance Stop use
+- Finding 1 remains closed. Task 1, Task 4 Post-Merge Required,
+  Stop Conditions, and Governance Stop still use
   `INTEGRATION_IMPLEMENTATION_ENTRY` as the only future-entry
   name. Isolated `IMPLEMENTATION_ENTRY` is a stop. `parent 1`
   must equal the Sol-written SHA verbatim. `parent 2` remains
   `4b21072add365923799dccc057d4fefffd69918c`.
-- Finding 2 is closed. Task 9 Required verifies the five exact
-  body headings (`## Motivation`, `## Changes`, `## Tests`,
-  `## SSOT integrity`, `## Governance`) and the Motivation /
-  Changes / Tests / SSOT / Governance facts after a fresh
-  `gh pr view`. Running `gh pr edit` alone is not a pass.
-- Finding 3 is closed. Task 9 classifies final-head
-  `sanity-check` as A / B / C / D and accepts only C
-  (`completed` + `success` on `headSha = FINAL_HEAD`). Empty
-  rollup, pending, discovery timeout, and any non-success
-  terminal conclusion are stops. The wait loop pins one run id
-  and selects the newest `headSha == FINAL_HEAD` run. It does
-  not reuse older-head green runs.
+- Body-fact finding is closed. Task 9, Stop Conditions, and this
+  Self-Review now require the extractable section parser. Five
+  exact unfenced ATX H2 titles must appear once in order with
+  non-empty bodies. Motivation, Changes, Tests, SSOT, and
+  Governance facts are machine-checked. `assert heading in body`
+  is not a pass.
+- Completion-deadline finding is closed. Discovery stays
+  `DISCOVERY_SECONDS = 600`. After the newest FINAL_HEAD run is
+  selected, a new monotonic `COMPLETION_SECONDS = 3600` deadline
+  bounds queued, pending, in_progress, waiting, and requested
+  polling. Timeout prints FINAL_HEAD, run, and job evidence and
+  stops. An unbounded wait is a stop. 3600 seconds is not a
+  success exemption.
+- Rollup-binding finding is closed. `FINAL_HEAD_CI_OK` requires
+  run C, required job C, `headRefOid = FINAL_HEAD`, and exactly
+  one `sanity-check` / `Run pytest (Path-A cache replay smoke)`
+  CheckRun whose `detailsUrl` binds the selected `run_id` and
+  `job_id`. Empty, unrelated, pending, failed, cancelled, stale,
+  skipped, duplicate, or old-URL rollups fail.
+- Kept contracts: atomic five-destination fetch, merge-base
+  gate, PR17/PR18/PR19 source-head gates, 11 to 13 path set,
+  current and combined test blobs, exactly one `--no-ff` merge,
+  pull request 28 OPEN draft on `main`, design as semantic SSOT,
+  and local-history versus main-PR merge separation.
 - Spec coverage: reuse of pull request 28, one remaining
   `--no-ff` merge, pre-merge 11-path and post-merge 13-path
   sets, current and combined test hashes, three-ancestor
@@ -923,5 +1351,4 @@ This archival node must not start Task 1 through Task 9.
 - Design remains the semantic SSOT.
 - Entry is fail-closed on an explicit Sol SHA and atomic
   five-destination fetch.
-- Incomplete-marker scan: clean.
 - Execution is not offered from this archival node.

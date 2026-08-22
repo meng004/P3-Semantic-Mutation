@@ -1,4 +1,4 @@
-# PR #17 and PR #19 Combined CI Integration Implementation Plan
+# Residual CMakeCache Third-History Integration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:executing-plans only after Sol writes a 40-character
@@ -8,53 +8,58 @@
 > `LOCAL_HISTORY_INTEGRATION_AUTHORIZED` to true. This archival
 > node forbids starting any Task.
 
-**Goal:** Integrate the complete histories of pull request 17 and
-pull request 19 onto the existing draft pull request 28 branch
-while keeping both provenances and both source pull requests
-unchanged.
+**Goal:** Add the complete history of pull request 18 onto the
+existing draft pull request 28 branch without rewriting pull
+request 17 or 19.
 
-**Architecture:** Design choice A. Reuse
-`cursor/pr17-pr19-ci-integration-c46c` and pull request 28.
-Non-fast-forward merge pull request 17 first, then
-non-fast-forward merge pull request 19. Do not squash, rebase,
-cherry-pick, rewrite either repair, or create a second combination
+**Architecture:** Design choice A.
+`EXTEND_EXISTING_INTEGRATION_WITH_COMPLETE_PR18_HISTORY`. Reuse
+`cursor/pr17-pr19-ci-integration-c46c` and pull request 28. Run
+exactly one later `--no-ff` merge of
+`origin/cursor/p3-compiler-alias-ci-repair-c46c`. Do not
+cherry-pick, copy, squash, rebase, or create a second combination
 branch or pull request.
 
 **Tech Stack:** Git non-fast-forward merge, `/usr/bin/python3`,
 pytest already present in the Cursor VM user site.
 
-```text
-The design document is the semantic SSOT.
-Repeated SHAs, path sets, results, and flags in this plan are
-executable fail-closed assertions. Any mismatch is a stop.
-```
-
-The current reviewed governance tip at the start of this
-remediation is `92516bb27687f172db95a36ae75a91d07d247034`. A later
-`INTEGRATION_IMPLEMENTATION_ENTRY` is the exact Sol-written SHA of
-the reviewed tip of `cursor/pr17-pr19-ci-integration-c46c`
-immediately before the two local history merges.
+The design file identified by SHA-256
+`8ad616cb43204f630e0397f99c68ec4c8a69add28111bef83b3fab50bc13f6b4`
+is the semantic SSOT. This plan repeats only frozen values, exact
+commands, and fail-closed assertions that a later executor must
+consume. Those repeated items are executable assertions, not a
+second semantic definition. If this plan conflicts with the
+design, the executor must stop and return the conflict to Sol.
 
 ## Global Constraints
 
 - Implement against
-  `docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md`.
-- Classification is `MUTUALLY_SHADOWED_INDEPENDENT_CI_REPAIRS`.
+  `docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md`
+  with SHA-256
+  `8ad616cb43204f630e0397f99c68ec4c8a69add28111bef83b3fab50bc13f6b4`.
+- Classification is
+  `RESIDUAL_CMAKECACHE_THIRD_HISTORY_INTEGRATION`.
 - Frozen `origin/main` is `4444061dde0159a5edd62753fe3cef2d881a308c`.
 - Frozen pull request 17 head is
   `fb20947a102934415dd201665971a711ccc4e0d5`.
 - Frozen pull request 19 head is
   `3352cedb5f377b60f0aec5ff80997b2057c7fc14`.
+- Frozen pull request 18 head is
+  `4b21072add365923799dccc057d4fefffd69918c`.
 - Implementation branch is
   `cursor/pr17-pr19-ci-integration-c46c`.
 - Implementation pull request is 28.
+- Current pull request 28 `test_pilot_build.py` SHA-256 is
+  `3278fbce1d0c017d219f450cea76eeb2c962f8d8bdca6b71fc9afad2fb5a0dd6`.
+- Approved combined `test_pilot_build.py` SHA-256 is
+  `b1af86f556614b28cd41a204255c47a7c0e4b27cd4812c9cd6491b0c3c824e90`.
 - Do not modify pull request 16, 17, 18, or 19.
 - Do not mark any pull request ready.
 - Do not merge any pull request into main.
 - Do not run `gh pr merge`.
 - `MAIN_PR_MERGE_AUTHORIZED=false`.
 - `MERGE_AUTHORIZED=false` is an alias for main-PR merge only.
-- The two local `git merge --no-ff` operations are permitted only
+- The one remaining local `git merge --no-ff` is permitted only
   when:
   `INTEGRATION_IMPLEMENTATION_AUTHORIZED=true`
   `INTEGRATION_IMPLEMENTATION_EXECUTABLE=true`
@@ -64,42 +69,27 @@ immediately before the two local history merges.
 - Do not edit production code or tests by hand.
 - Use `/usr/bin/python3` only. Do not use `rtk`.
 - Do not install, upgrade, or delete dependencies.
-- Do not create or modify a venv or pip-target.
 - Do not run a real compiler, CMake, ninja, make, Boost.Math, or
   `scripts/build_paper_numbers.py`.
 - `INTEGRATION_IMPLEMENTATION_ENTRY` must be the full 40-character
-  SHA Sol writes in a later implementation instruction after PASS.
-  If it is omitted, stop. Do not derive it from origin tip, branch,
+  SHA Sol writes after this revised plan is reviewed. If it is
+  omitted, stop. Do not derive it from origin tip, branch,
   merge-base, pull request `headRefOid`, or clock time.
 
 ---
 
 ## File Structure
 
-After the first local history merge, `origin/main...HEAD` must
-contain exactly these 8 paths:
+Current `origin/main...HEAD` must remain exactly these 11 paths
+until the future merge:
 
 ```text
-docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
-docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
-docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
-docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
-scripts/external_slice/check_supplemental_r2_admission.py
-scripts/external_slice/check_supplemental_r2_handoff_hashes.py
-scripts/external_slice/mine_supplemental_r2.py
-tests/external_slice/test_check_supplemental_r2_admission.py
-```
-
-After the second local history merge, `origin/main...HEAD` must
-contain exactly these 11 paths:
-
-```text
-docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
-docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
-docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
-docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
 docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-test-repair.md
+docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
+docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
 docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-test-repair-design.md
+docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
+docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
 scripts/external_slice/check_supplemental_r2_admission.py
 scripts/external_slice/check_supplemental_r2_handoff_hashes.py
 scripts/external_slice/mine_supplemental_r2.py
@@ -107,34 +97,69 @@ tests/external_slice/test_check_supplemental_r2_admission.py
 tests/p3_v3/test_pilot_build.py
 ```
 
-Do not create helper modules. Do not edit workflows.
+After the future pull request 18 merge, `origin/main...HEAD` must
+contain exactly these 13 paths:
 
-## Frozen Replay Evidence
+```text
+docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-repair.md
+docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-test-repair.md
+docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
+docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
+docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-repair-design.md
+docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-test-repair-design.md
+docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
+docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
+scripts/external_slice/check_supplemental_r2_admission.py
+scripts/external_slice/check_supplemental_r2_handoff_hashes.py
+scripts/external_slice/mine_supplemental_r2.py
+tests/external_slice/test_check_supplemental_r2_admission.py
+tests/p3_v3/test_pilot_build.py
+```
 
-| Item | Value |
-|---|---|
-| Collected | 1693 |
-| Passed | 1693 |
-| Failed | 0 |
-| Warnings | 10 |
-| Duration | 1429.77 seconds |
-| external_slice focused | 176 passed |
-| compiler-alias focused | 1 passed |
-| `test_pilot_build.py` | 75 passed |
+A fourteenth path is a stop. Do not create helper modules. Do not
+edit workflows.
 
-Duration need not be reproduced. Collection count must match 1693
-or be explained and stopped for Sol review if any test fails.
+## Frozen Evidence
+
+These tuples are executable assertions, not a second semantic
+definition.
+
+```text
+PR18_IMPLEMENTATION_REVIEWED=true
+PR18_IMPLEMENTATION_REVIEW_PASS=true
+PR18 head=4b21072add365923799dccc057d4fefffd69918c
+PR18 focused=1 passed
+PR18 file=75 passed
+PR18 standalone root/CI run=32475544774
+PR18 standalone job=96750989039
+PR18 standalone collected=1689
+PR18 standalone first failure=
+tests/external_slice/test_check_supplemental_r2_admission.py::
+test_positive_admission_check
+PR18 standalone result=1 failed, 81 passed
+PR18 standalone classification=
+known independent supplemental-R2 blocker
+
+PR28 authoritative RED head=
+e62974af4f5e2cfbc65d98c3b2f028edce57d25c
+PR28 run=32449925094
+PR28 job=96676383508
+PR28 collected=1693
+PR28 passed before failure=1197
+PR28 failure=
+test_cmakecache_compiler_generator_root_drift
+DID NOT RAISE EvidenceError
+```
 
 ---
 
-### Task 1: Confirm Explicit Authorization Values
+### Task 1: Confirm Explicit Entry And Local-History Grants
 
 **Files:** read only
 
-Task 1 checks only whether Sol wrote the required grants. It must
-not treat a pre-fetch remote-tracking ref as the authoritative
-entry. A pre-fetch `rev-parse origin/...` result is diagnostic
-only and is never a pass condition.
+Task 1 checks only whether Sol wrote the required grants. A
+pre-fetch remote-tracking ref is diagnostic only and is never a
+pass condition.
 
 - [ ] **Step 1: Refuse without an explicit Sol entry and flags**
 
@@ -147,23 +172,9 @@ INTEGRATION_IMPLEMENTATION_EXECUTABLE must be true.
 LOCAL_HISTORY_INTEGRATION_AUTHORIZED must be true.
 ```
 
-Plan archival is not that grant. The current reviewed governance
-tip `92516bb27687f172db95a36ae75a91d07d247034` is not that later
-entry unless Sol writes that exact SHA. Do not fetch. Do not
-compare `HEAD` or `origin/cursor/pr17-pr19-ci-integration-c46c`
-here. Task 2 is the only authoritative entry and ref gate.
+Plan archival is not that grant.
 
----
-
-### Task 2: Post-Fetch Entry And Frozen Ref Gate
-
-**Files:** read only
-
-This task is the only authoritative entry and ref gate. The
-sequence is fixed: inspect porcelain, fetch, switch onto the
-existing branch, then compare every required SHA.
-
-- [ ] **Step 1: Fetch, then compare the live checkout to the Sol entry**
+- [ ] **Step 2: Atomic five-destination fetch, then compare**
 
 ```bash
 export GIT_CONFIG_GLOBAL=/dev/null
@@ -174,9 +185,10 @@ git status --porcelain
 
 git fetch --atomic origin \
   +refs/heads/main:refs/remotes/origin/main \
-  +refs/heads/cursor/pr17-pr19-ci-integration-c46c:refs/remotes/origin/cursor/pr17-pr19-ci-integration-c46c \
   +refs/heads/cursor/supplemental-r2-path-scan-ci-repair-c46c:refs/remotes/origin/cursor/supplemental-r2-path-scan-ci-repair-c46c \
-  +refs/heads/cursor/p3-compiler-alias-ci-test-repair-c46c:refs/remotes/origin/cursor/p3-compiler-alias-ci-test-repair-c46c
+  +refs/heads/cursor/p3-compiler-alias-ci-test-repair-c46c:refs/remotes/origin/cursor/p3-compiler-alias-ci-test-repair-c46c \
+  +refs/heads/cursor/p3-compiler-alias-ci-repair-c46c:refs/remotes/origin/cursor/p3-compiler-alias-ci-repair-c46c \
+  +refs/heads/cursor/pr17-pr19-ci-integration-c46c:refs/remotes/origin/cursor/pr17-pr19-ci-integration-c46c
 
 git switch cursor/pr17-pr19-ci-integration-c46c
 
@@ -186,212 +198,58 @@ git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
 git rev-parse origin/main
 git rev-parse origin/cursor/supplemental-r2-path-scan-ci-repair-c46c
 git rev-parse origin/cursor/p3-compiler-alias-ci-test-repair-c46c
+git rev-parse origin/cursor/p3-compiler-alias-ci-repair-c46c
 git merge-base HEAD origin/main
 git rev-list --left-right --count \
   HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
 git status --porcelain
 ```
 
-After fetch, every line must hold:
+Required:
 
 ```text
 branch = cursor/pr17-pr19-ci-integration-c46c
 HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-origin integration tip = INTEGRATION_IMPLEMENTATION_ENTRY
+origin PR28 tip = INTEGRATION_IMPLEMENTATION_ENTRY
 origin/main = 4444061dde0159a5edd62753fe3cef2d881a308c
+merge-base =
+4444061dde0159a5edd62753fe3cef2d881a308c
 PR #17 head = fb20947a102934415dd201665971a711ccc4e0d5
 PR #19 head = 3352cedb5f377b60f0aec5ff80997b2057c7fc14
-merge-base = 4444061dde0159a5edd62753fe3cef2d881a308c
+PR #18 head = 4b21072add365923799dccc057d4fefffd69918c
 ahead/behind = 0 0
 porcelain = empty
 ```
 
-```text
-No local history merge may run unless this post-fetch gate passed.
-A pre-fetch remote-tracking ref is never authoritative.
-Each command-line refspec has an explicit refs/remotes/origin/*
-destination. The fetch is atomic: either all four remote-tracking
-refs update, or none do.
-FETCH_HEAD alone is not an authoritative gate.
-The authoritative values are the four explicitly updated
-refs/remotes/origin/* destinations read after the atomic fetch.
-```
+`git merge-base HEAD origin/main` must equal
+`4444061dde0159a5edd62753fe3cef2d881a308c` verbatim. Executing the
+command without comparing that printed SHA is not a pass.
 
-Do not use a source-only command-line refspec such as
-`git fetch origin main`. Do not rely on an unverified
-`remote.origin.fetch` mapping. If any value differs, stop. Do not
-reset, rebase, clean, or guess a new entry. Do not fetch again
-after this snapshot unless a later task explicitly commands it.
-Task 2's fetch snapshot is the authoritative remote snapshot for
-the rest of this node.
+- [ ] **Step 3: Confirm the design digest**
+
+```bash
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+p = Path(
+    "docs/superpowers/specs/"
+    "2026-08-21-pr17-pr19-ci-integration-design.md"
+)
+digest = sha256(p.read_bytes()).hexdigest()
+print(digest)
+assert digest == (
+    "8ad616cb43204f630e0397f99c68ec4c8a69add28111bef83b3fab50bc13f6b4"
+)
+PY
+```
 
 ---
 
-### Task 3: Hold The Existing Combination Branch
+### Task 2: Prove Pre-Merge Topology And Current Scope
 
-**Files:** none
+**Files:** read only
 
-- [ ] **Step 1: Reaffirm the Task 2 post-fetch gate**
-
-Do not create a branch. Do not switch to another branch. Do not
-fetch. Task 2 already placed the checkout on
-`cursor/pr17-pr19-ci-integration-c46c` after fetch.
-
-Confirm the Task 2 post-fetch gate passed. Then confirm, without
-fetching:
-
-```bash
-git rev-parse --abbrev-ref HEAD
-git rev-parse HEAD
-git status --porcelain
-```
-
-Required:
-
-```text
-branch = cursor/pr17-pr19-ci-integration-c46c
-HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-porcelain = empty
-```
-
-`HEAD` must still be the Sol-written
-`INTEGRATION_IMPLEMENTATION_ENTRY`. It must not be
-`4444061dde0159a5edd62753fe3cef2d881a308c`.
-
----
-
-### Task 4: Merge Pull Request 17 History
-
-**Files:** introduced only by the merge
-
-- [ ] **Step 1: Re-assert the three local-history flags**
-
-Stop unless all three are true:
-
-```text
-INTEGRATION_IMPLEMENTATION_AUTHORIZED=true
-INTEGRATION_IMPLEMENTATION_EXECUTABLE=true
-LOCAL_HISTORY_INTEGRATION_AUTHORIZED=true
-```
-
-- [ ] **Step 2: Reconfirm the post-fetch entry gate without fetching**
-
-Immediately before the first `git merge --no-ff`, and without
-fetching again:
-
-```bash
-git rev-parse HEAD
-git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
-git rev-list --left-right --count \
-  HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
-git status --porcelain
-```
-
-Required:
-
-```text
-HEAD = INTEGRATION_IMPLEMENTATION_ENTRY
-origin integration tip = INTEGRATION_IMPLEMENTATION_ENTRY
-ahead/behind = 0 0
-porcelain = empty
-```
-
-Task 2's fetch snapshot remains the authoritative remote snapshot.
-If this reconfirm fails, stop. Do not merge.
-
-- [ ] **Step 3: Non-fast-forward merge pull request 17**
-
-```bash
-git merge --no-ff \
-  origin/cursor/supplemental-r2-path-scan-ci-repair-c46c \
-  -m "merge: integrate supplemental R2 path-scan repair"
-```
-
-This command constructs commit topology on
-`cursor/pr17-pr19-ci-integration-c46c` only. It does not merge any
-pull request into `main`, does not equal `gh pr merge`, and does
-not change the head or draft state of pull request 17 or 19.
-
-Do not use `--ff-only`, `--squash`, cherry-pick, or rebase.
-
-If Git reports a conflict, stop and return the conflict list. Do not
-resolve by rewriting the repair.
-
----
-
-### Task 5: Verify The First Merge
-
-**Files:** read only after the merge
-
-- [ ] **Step 1: Confirm ancestry and the exact 8-path set**
-
-```bash
-git merge-base --is-ancestor \
-  fb20947a102934415dd201665971a711ccc4e0d5 HEAD
-echo "PR17_ANCESTOR_EXIT=$?"
-
-git log --oneline \
-  4444061dde0159a5edd62753fe3cef2d881a308c..HEAD
-git diff --name-only \
-  4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
-```
-
-Required: `PR17_ANCESTOR_EXIT=0`. The names must equal exactly:
-
-```text
-docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
-docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
-docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
-docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
-scripts/external_slice/check_supplemental_r2_admission.py
-scripts/external_slice/check_supplemental_r2_handoff_hashes.py
-scripts/external_slice/mine_supplemental_r2.py
-tests/external_slice/test_check_supplemental_r2_admission.py
-```
-
-Any missing or extra path is a stop.
-
----
-
-### Task 6: Merge Pull Request 19 History
-
-**Files:** introduced only by the merge
-
-- [ ] **Step 1: Re-assert the three local-history flags**
-
-Stop unless all three are true:
-
-```text
-INTEGRATION_IMPLEMENTATION_AUTHORIZED=true
-INTEGRATION_IMPLEMENTATION_EXECUTABLE=true
-LOCAL_HISTORY_INTEGRATION_AUTHORIZED=true
-```
-
-- [ ] **Step 2: Non-fast-forward merge pull request 19**
-
-```bash
-git merge --no-ff \
-  origin/cursor/p3-compiler-alias-ci-test-repair-c46c \
-  -m "merge: integrate compiler-alias CI test repair"
-```
-
-This command constructs commit topology on
-`cursor/pr17-pr19-ci-integration-c46c` only. It does not merge any
-pull request into `main`, does not equal `gh pr merge`, and does
-not change the head or draft state of pull request 17 or 19.
-
-Do not use `--ff-only`, `--squash`, cherry-pick, or rebase.
-
-If Git reports a conflict, stop and return the conflict list. Do not
-resolve by rewriting the repair.
-
----
-
-### Task 7: Verify The Second Merge
-
-**Files:** read only after the merge
-
-- [ ] **Step 1: Confirm both ancestries**
+- [ ] **Step 1: Prove ancestors and the current 11-path set**
 
 ```bash
 git merge-base --is-ancestor \
@@ -402,54 +260,127 @@ git merge-base --is-ancestor \
   3352cedb5f377b60f0aec5ff80997b2057c7fc14 HEAD
 echo "PR19_ANCESTOR_EXIT=$?"
 
-git log --oneline --graph --decorate \
-  4444061dde0159a5edd62753fe3cef2d881a308c..HEAD
+git merge-base --is-ancestor \
+  4b21072add365923799dccc057d4fefffd69918c HEAD
+echo "PR18_ANCESTOR_EXIT=$?"
+
+git diff --name-only \
+  4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
+
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+digest = sha256(Path("tests/p3_v3/test_pilot_build.py").read_bytes()).hexdigest()
+print(digest)
+assert digest == (
+    "3278fbce1d0c017d219f450cea76eeb2c962f8d8bdca6b71fc9afad2fb5a0dd6"
+)
+assert digest != (
+    "b1af86f556614b28cd41a204255c47a7c0e4b27cd4812c9cd6491b0c3c824e90"
+)
+PY
 ```
 
-Required: both ancestor exits are 0. The graph must show two
-non-fast-forward merge commits, not a rewritten linear history.
+Required:
+
+```text
+PR17_ANCESTOR_EXIT=0
+PR19_ANCESTOR_EXIT=0
+PR18_ANCESTOR_EXIT=1
+current test blob =
+3278fbce1d0c017d219f450cea76eeb2c962f8d8bdca6b71fc9afad2fb5a0dd6
+path set = the exact current 11-path set
+```
+
+If pull request 18 is already an ancestor, stop. If pull request
+17 or 19 is not an ancestor, stop. Do not merge.
 
 ---
 
-### Task 8: Verify The Combined Diff
+### Task 3: Merge Pull Request 18 History Once
 
-**Files:** the exact 11-path set
+**Files:** introduced only by the merge
 
-- [ ] **Step 1: Name-only and whitespace check**
+- [ ] **Step 1: Re-assert the three local-history flags**
+
+Stop unless all three are true.
+
+- [ ] **Step 2: Non-fast-forward merge pull request 18**
 
 ```bash
+git merge --no-ff \
+  origin/cursor/p3-compiler-alias-ci-repair-c46c \
+  -m "merge: integrate residual CMakeCache CI repair"
+```
+
+This command constructs topology on
+`cursor/pr17-pr19-ci-integration-c46c` only.
+
+Do not use `--ff-only`, `--squash`, cherry-pick, or rebase.
+
+If Git reports a conflict, stop and return the conflict list. Do
+not resolve it by hand. Do not abort, reset, or clean. Do not
+widen the write set.
+
+---
+
+### Task 4: Prove Post-Merge Topology And Combined Blob
+
+**Files:** read only after the merge
+
+- [ ] **Step 1: Confirm parents, three ancestors, 13 paths, and hash**
+
+```bash
+git log -1 --format='%H%n%P'
+git merge-base --is-ancestor \
+  fb20947a102934415dd201665971a711ccc4e0d5 HEAD
+echo "PR17_ANCESTOR_EXIT=$?"
+git merge-base --is-ancestor \
+  3352cedb5f377b60f0aec5ff80997b2057c7fc14 HEAD
+echo "PR19_ANCESTOR_EXIT=$?"
+git merge-base --is-ancestor \
+  4b21072add365923799dccc057d4fefffd69918c HEAD
+echo "PR18_ANCESTOR_EXIT=$?"
 git diff --check \
   4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
 git diff --name-only \
   4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
 git status --porcelain
+
+/usr/bin/python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+digest = sha256(Path("tests/p3_v3/test_pilot_build.py").read_bytes()).hexdigest()
+print(digest)
+assert digest == (
+    "b1af86f556614b28cd41a204255c47a7c0e4b27cd4812c9cd6491b0c3c824e90"
+)
+PY
 ```
 
-The names must equal exactly:
+Required:
 
 ```text
-docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
-docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
-docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
-docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
-docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-test-repair.md
-docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-test-repair-design.md
-scripts/external_slice/check_supplemental_r2_admission.py
-scripts/external_slice/check_supplemental_r2_handoff_hashes.py
-scripts/external_slice/mine_supplemental_r2.py
-tests/external_slice/test_check_supplemental_r2_admission.py
-tests/p3_v3/test_pilot_build.py
+parent 1 = IMPLEMENTATION_ENTRY
+parent 2 = 4b21072add365923799dccc057d4fefffd69918c
+PR17_ANCESTOR_EXIT=0
+PR19_ANCESTOR_EXIT=0
+PR18_ANCESTOR_EXIT=0
+porcelain = empty
+combined test blob =
+b1af86f556614b28cd41a204255c47a7c0e4b27cd4812c9cd6491b0c3c824e90
+path set = the exact 13-path set
 ```
 
-Any extra or missing path is a stop. Porcelain must be empty.
+A hand-written conflict-resolution commit is a stop.
 
 ---
 
-### Task 9: Run Pull Request 17 Focused Tests
+### Task 5: Supplemental R2 Focused Gate
 
 **Files:** none
 
-- [ ] **Step 1: Run the supplemental R2 admission file**
+- [ ] **Step 1: Run the admission file**
 
 ```bash
 PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
@@ -458,34 +389,33 @@ PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
 
 Expected: 176 passed, exit 0.
 
-If the command fails, record the first failure and stop. Do not
-edit tests.
+Any failure is a stop. Do not edit tests.
 
 ---
 
-### Task 10: Run Pull Request 19 Focused Test
+### Task 6: P3 Focused And File Gates
 
 **Files:** none
 
-- [ ] **Step 1: Run the named compiler-mismatch test**
+- [ ] **Step 1: Run the compile_commands named test**
 
 ```bash
 PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
   tests/p3_v3/test_pilot_build.py::test_compile_commands_compiler_mismatch
 ```
 
-Expected: 1 collected, 1 passed, exit 0.
+Expected: 1 passed, exit 0.
 
-If the command fails, record the full failure and stop. Do not edit
-tests.
+- [ ] **Step 2: Run the CMakeCache named test**
 
----
+```bash
+PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
+  tests/p3_v3/test_pilot_build.py::test_cmakecache_compiler_generator_root_drift
+```
 
-### Task 11: Run The Pilot Build File
+Expected: 1 passed, exit 0.
 
-**Files:** none
-
-- [ ] **Step 1: Run the whole file**
+- [ ] **Step 3: Run the whole file**
 
 ```bash
 PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
@@ -494,61 +424,46 @@ PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1 \
 
 Expected: 75 passed, exit 0.
 
-If the command fails, record the first failure and stop. Do not
-edit tests.
+Any failure is a stop. Do not expand scope.
 
 ---
 
-### Task 12: Run The Root Suite
+### Task 7: Root Gate
 
 **Files:** none
 
-- [ ] **Step 1: Run the Actions pytest command**
+- [ ] **Step 1: Reproduce the Actions pytest command**
 
 ```bash
 PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1
 ```
 
-Expected reference: 1693 passed, 0 failed, 10 warnings.
+Frozen expectation:
 
-Record collected, passed, failed, warnings, duration, and exit
-code. If collected is not 1693, explain the new count and stop for
-Sol review unless the suite is otherwise green and Sol already
-accepted a new denominator. Any failure is a stop.
-
-Do not interpret a green root suite as `MAIN_PR_MERGE_AUTHORIZED`
-or `MERGE_AUTHORIZED`.
-
----
-
-### Task 13: Recheck Diff, Topology, And Worktree
-
-**Files:** read only
-
-- [ ] **Step 1: Repeat the 11-path and ancestry checks**
-
-```bash
-git diff --check \
-  4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
-git diff --name-only \
-  4444061dde0159a5edd62753fe3cef2d881a308c...HEAD
-git merge-base --is-ancestor \
-  fb20947a102934415dd201665971a711ccc4e0d5 HEAD
-git merge-base --is-ancestor \
-  3352cedb5f377b60f0aec5ff80997b2057c7fc14 HEAD
-git status --porcelain
+```text
+collected = 1693
+passed = 1693
+failed = 0
+exit = 0
 ```
 
-Required: the exact 11-path set, both ancestries present, porcelain
-empty, no extra tracked edits from tests.
+Warnings are allowed. Record the exact warning count and types.
+Any failure is a stop. Do not widen scope. Do not interpret a
+green root suite as `MAIN_PR_MERGE_AUTHORIZED` or
+`MERGE_AUTHORIZED`.
+
+- [ ] **Step 2: Do not run SSOT or live builds**
+
+Do not run `scripts/build_paper_numbers.py`.
+Do not run CMake, ninja, make, a real compiler, or Boost.Math.
 
 ---
 
-### Task 14: Push The Existing Combination Branch
+### Task 8: Push The Existing Integration Branch
 
 **Files:** none
 
-- [ ] **Step 1: Push the frozen implementation branch**
+- [ ] **Step 1: Push without force**
 
 ```bash
 git push origin cursor/pr17-pr19-ci-integration-c46c
@@ -563,46 +478,56 @@ git rev-parse HEAD
 git rev-parse origin/cursor/pr17-pr19-ci-integration-c46c
 git rev-list --left-right --count \
   HEAD...origin/cursor/pr17-pr19-ci-integration-c46c
+git status --porcelain
 ```
 
 Required:
 
 ```text
-HEAD = origin branch HEAD
+HEAD = origin integration tip
 ahead/behind = 0 0
+porcelain = empty
 ```
 
 ---
 
-### Task 15: Update And Verify Pull Request 28
+### Task 9: Update Pull Request 28 And Read Bound CI
 
 **Files:** none
 
-- [ ] **Step 1: Update the existing draft, do not create a new PR**
+- [ ] **Step 1: Update the existing draft**
 
-Keep pull request 28 OPEN and draft. Update its description so the
-body contains at least:
+Keep pull request 28 OPEN and draft. The body must contain:
 
-- Motivation: two mutually shadowed independent CI repairs;
-- Changes: complete histories of pull request 17 and pull request
-  19, with no hand rewrite;
-- Tests: 176 passed, 1 passed, 75 passed, and root 1693 passed;
-- SSOT: `scripts/build_paper_numbers.py` was not run and its
-  related files were not modified;
-- Governance: pull request 28 stays draft; ready and main-PR merge
-  remain unauthorized;
-- Source PRs: pull request 17 and pull request 19 were not
-  modified.
+```text
+## Motivation
+## Changes
+## Tests
+## SSOT integrity
+## Governance
+```
 
-Do not mark it ready. Do not run `gh pr merge`. Passing tests do
-not change those rules.
+The implementation body must record:
 
-- [ ] **Step 2: Verify pull request 28 fields**
+- Motivation: pull request 28 authoritative RED plus the third
+  history supplied by pull request 18;
+- Changes: one `--no-ff` merge of the complete pull request 18
+  history, with no rewrite of pull request 17 or 19;
+- Tests: the real focused, file, and root results;
+- SSOT integrity: `scripts/build_paper_numbers.py` was not run
+  and is not applicable;
+- Governance: OPEN draft; mark-ready, main merge,
+  qualification, and claims remain unauthorized.
+
+Do not mark-ready. Do not merge. Do not edit pull request 17,
+18, or 19.
+
+- [ ] **Step 2: Confirm fields and wait for GitHub sanity-check**
 
 ```bash
 gh pr view 28 \
   --repo meng004/P3-Semantic-Mutation \
-  --json number,state,isDraft,baseRefName,headRefName,headRefOid,body,url
+  --json number,state,isDraft,baseRefName,headRefName,headRefOid,body,url,statusCheckRollup
 ```
 
 Required:
@@ -613,108 +538,30 @@ state = OPEN
 isDraft = true
 baseRefName = main
 headRefName = cursor/pr17-pr19-ci-integration-c46c
-headRefOid = final implementation HEAD
+headRefOid = final HEAD
 ```
 
-The body must contain motivation, changes, the four test results,
-SSOT, and governance state. If any field differs, stop and record
-the actual value. Do not create a second pull request.
+The GitHub sanity-check must bind that final HEAD. If CI fails,
+record the run, job, and first failure, then stop. Do not modify
+code or re-push.
+
+Stop for Sol implementation review. Do not write an
+implementation verdict.
 
 ---
-
-### Task 16: Read-Only Confirmation Of Source Pull Requests
-
-**Files:** none
-
-- [ ] **Step 1: View pull requests 17 and 19 without editing**
-
-```bash
-gh pr view 17 \
-  --repo meng004/P3-Semantic-Mutation \
-  --json state,isDraft,headRefOid,url
-
-gh pr view 19 \
-  --repo meng004/P3-Semantic-Mutation \
-  --json state,isDraft,headRefOid,url
-```
-
-Expected unless Sol records a later drift:
-
-```text
-PR #17: OPEN, draft, head fb20947a102934415dd201665971a711ccc4e0d5
-PR #19: OPEN, draft, head 3352cedb5f377b60f0aec5ff80997b2057c7fc14
-```
-
-If either value differs, record the actual value. Do not correct
-those pull requests from the combination node.
-
----
-
-### Task 17: Stop For Sol Implementation Review
-
-**Files:** none
-
-- [ ] **Step 1: Leave pull request 28 draft and stop**
-
-Stop after pull request 28 remains draft, its `headRefOid` is the
-final implementation HEAD, and pull requests 17 and 19 are
-unchanged. Do not write an implementation verdict. Do not upgrade
-claims. Do not start attempt-2. Do not mark ready. Do not merge
-into `main`.
-
-Required stop flags:
-
-```text
-LOCAL_HISTORY_INTEGRATION_COMPLETE=true
-INTEGRATION_IMPLEMENTATION_REVIEWED=false
-PR_READY_AUTHORIZED=false
-MAIN_PR_MERGE_AUTHORIZED=false
-MERGE_AUTHORIZED=false
-```
-
----
-
-## Stop Conditions
-
-A later implementation node must stop immediately when:
-
-- the post-fetch integration origin tip does not equal
-  `INTEGRATION_IMPLEMENTATION_ENTRY`;
-- the post-fetch ahead/behind count is not `0 0`;
-- a fetch runs after Task 2 without an explicit later-task command;
-- the first local history merge begins without reconfirming the
-  entry gate in Task 4 Step 2;
-- Sol has not written `INTEGRATION_IMPLEMENTATION_ENTRY` as a full
-  40-character SHA;
-- any of `INTEGRATION_IMPLEMENTATION_AUTHORIZED`,
-  `INTEGRATION_IMPLEMENTATION_EXECUTABLE`, or
-  `LOCAL_HISTORY_INTEGRATION_AUTHORIZED` is not true;
-- `origin/main`, pull request 17, or pull request 19 no longer match
-  the frozen SHAs;
-- a merge conflict appears;
-- the first-merge diff is not the exact 8-path set;
-- the final diff is not the exact 11-path set;
-- any required pytest command fails;
-- the atomic fetch fails;
-- any explicit destination ref is not updated;
-- Task 2 uses a source-only command-line refspec;
-- the gate relies only on FETCH_HEAD.
-
-Do not derive a replacement entry. Do not treat a pre-fetch
-remote-tracking ref as authoritative.
 
 ## Non-Goals
 
 This plan does not:
 
-- change production realpath compares
-- rewrite the supplemental R2 path scan
-- monkeypatch `os.path.realpath`
-- change the workflow, skip, or xfail
-- modify pull request 16, 17, 18, or 19
+- re-merge pull request 17 or 19
+- cherry-pick or copy `4b21072a`
 - create a second combination branch or pull request
-- merge any pull request into `main`
-- treat plan archival as an executable grant
+- change `.github/workflows` or skip tests
+- change production `os.path.realpath` compares
+- run CMake, a real compiler, qualification, or Boost.Math
+- run `scripts/build_paper_numbers.py`
+- treat plan archival as an executable implementation grant
 
 ## Governance Stop
 
@@ -722,26 +569,29 @@ This plan does not:
 INTEGRATION_IMPLEMENTATION_AUTHORIZED=false
 INTEGRATION_IMPLEMENTATION_EXECUTABLE=false
 LOCAL_HISTORY_INTEGRATION_AUTHORIZED=false
-MAIN_PR_MERGE_AUTHORIZED=false
 PR_READY_AUTHORIZED=false
+MAIN_PR_MERGE_AUTHORIZED=false
 MERGE_AUTHORIZED=false
 ```
 
-A later user node must still write `INTEGRATION_IMPLEMENTATION_ENTRY`
-after Sol Spec plus Standards PASS. Pull request 28 stays draft.
+Archiving this plan does not authorize implementation. A later
+user node must still grant the three local-history flags and write
+`INTEGRATION_IMPLEMENTATION_ENTRY` after Sol Spec plus Standards
+PASS.
+
+Pull request 28 stays draft. Pull requests 17, 18, and 19 stay
+untouched. Merge stays unauthorized.
+
+This archival node must not start Task 1 through Task 9.
 
 ## Self-Review Record
 
-- Spec coverage: reuse of
-  `cursor/pr17-pr19-ci-integration-c46c` and pull request 28,
-  local-history versus main-PR authority split, exact 8-path then
-  11-path sets, fail-closed Sol entry compare, four pytest gates,
-  pull request 28 `baseRefName` / `headRefName` / `headRefOid`
-  verification, source pull requests left unchanged.
-- Entry ordering: fetch first, then compare branch, HEAD, integration
-  origin tip, source refs, merge-base, ahead/behind, and porcelain.
-- Fetch destinations: all four command-line refspecs explicitly map
-  refs/heads/* to refs/remotes/origin/*, and --atomic prevents a
-  partial remote-tracking snapshot.
-- Placeholder scan: clean.
+- Spec coverage: reuse of pull request 28, one remaining
+  `--no-ff` merge, pre-merge 11-path and post-merge 13-path
+  sets, current and combined test hashes, three-ancestor
+  contract, four pytest gates plus root 1693, draft stop.
+- Design remains the semantic SSOT.
+- Entry is fail-closed on an explicit Sol SHA and atomic
+  five-destination fetch.
+- Incomplete-marker scan: clean.
 - Execution is not offered from this archival node.

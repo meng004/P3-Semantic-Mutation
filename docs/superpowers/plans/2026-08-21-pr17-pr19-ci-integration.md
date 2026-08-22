@@ -446,9 +446,18 @@ export FINAL_HEAD
 echo "FINAL_HEAD=$FINAL_HEAD"
 ```
 
-The raw and parsed evidence paths must contain `FINAL_HEAD`, must
-not already exist, and must be created with `O_CREAT|O_EXCL`.
-Reusing an older head's output is a stop.
+Evidence is a bundle directory
+`/tmp/pr28-task7-{FINAL_HEAD}-{nonce}/` containing exclusive-created
+`raw.txt` and `manifest.json`. The directory must not exist before
+`os.mkdir`. Files are created with `O_CREAT|O_EXCL`. Symlinked
+bundles or files are a stop. A later attempt on the same
+`FINAL_HEAD` must use a new nonce and must not be blocked by the
+earlier bundle. Any partial failure must delete the new bundle so
+it is absent. The manifest binds `final_head`, `nonce`,
+`raw_sha256`, `raw_size`, collected, passed, failed, exit,
+`warning_count`, and `warning_types`. Task 9 loads that bundle
+through `TASK7_BUNDLE` and compares Tests keys to the verified
+manifest.
 
 - [ ] **Step 2: Reproduce the Actions pytest command and keep its exit**
 
@@ -470,7 +479,6 @@ start = plan.index(begin)
 end = plan.index(end_mark) + len(end_mark)
 ns = {}
 exec(plan[start:end], ns)
-raw_path, parsed_path = ns["task7_evidence_paths"](final_head)
 cmd = [
     "/usr/bin/python3",
     "-m",
@@ -488,11 +496,16 @@ proc = subprocess.run(
     text=True,
 )
 output = (proc.stdout or "") + (proc.stderr or "")
-ns["write_exclusive"](raw_path, output)
-evidence = ns["parse_pytest_output"](output, proc.returncode, final_head)
-ns["write_exclusive"](parsed_path, json.dumps(evidence, indent=2, sort_keys=True) + "\n")
-print("TASK7_RAW", raw_path)
-print("TASK7_PARSED", parsed_path)
+try:
+    bundle, manifest = ns["create_task7_bundle"](
+        final_head, output, proc.returncode
+    )
+except Exception:
+    print("TASK7_BUNDLE_FAILED")
+    raise
+print("TASK7_BUNDLE", bundle)
+print("TASK7_NONCE", manifest["nonce"])
+evidence = ns["load_task7_evidence"](bundle, final_head)
 print(json.dumps(evidence, sort_keys=True))
 if (
     evidence["collected"] != 1693
@@ -567,8 +580,13 @@ porcelain = empty
 Running `gh pr edit` is not a pass. `assert heading in body` is
 not a pass. The later executor must extract the verifier library
 below, run `run_verifier_self_test()` first, then re-read pull
-request 28. The H2 parser collects every unfenced line-start ATX
-H2 and requires that exact sequence:
+request 28. The H2 parser collects every unfenced column-0 ATX H2,
+including bare `##` and `##` plus tab text. Fence openers of
+three or more backticks or tildes close only with the same
+character and a mark at least as long as the opener. A
+four-backtick opener is not closed by three backticks. Content
+after an unclosed fence stays fenced. The required heading
+sequence is:
 
 ```text
 ## Motivation
@@ -613,9 +631,11 @@ evidence, and self-test authority. Extract it from this file.
 
 ```python
 # === VERIFIER_LIB_BEGIN ===
+import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import time
 
@@ -656,8 +676,21 @@ NON_TERMINAL = {
     "waiting",
     "requested",
 }
-ATX_H2 = re.compile(r"^## [^#].*$")
+ATX_H2 = re.compile(r"^##(?:$|[ \t].*)$")
+FENCE_MARK = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 FACT_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_.]*)\s*=\s*(.*?)\s*$")
+MANIFEST_FIELDS = (
+    "final_head",
+    "nonce",
+    "raw_sha256",
+    "raw_size",
+    "collected",
+    "passed",
+    "failed",
+    "exit",
+    "warning_count",
+    "warning_types",
+)
 BANNED_TOKENS = re.compile(
     r"\b(TBD|TODO|FIXME|TBA|placeholder)\b",
     re.IGNORECASE,
@@ -720,16 +753,41 @@ class FakeClock:
         self.t += float(seconds)
 
 
-def task7_evidence_paths(final_head):
-    raw = "/tmp/pr28-task7-%s.raw" % final_head
-    parsed = "/tmp/pr28-task7-%s.json" % final_head
-    return raw, parsed
+def new_nonce():
+    return os.urandom(8).hex()
 
 
-def write_exclusive(path, text):
-    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    with os.fdopen(fd, "w") as handle:
+def task7_bundle_dir(final_head, nonce):
+    return "/tmp/pr28-task7-%s-%s" % (final_head, nonce)
+
+
+def write_exclusive(path, text, mode="w"):
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    fd = os.open(path, flags, 0o600)
+    with os.fdopen(fd, mode) as handle:
         handle.write(text)
+
+
+def reject_symlink(path, label):
+    if os.path.islink(path):
+        raise VerifierError("symlink %s" % label)
+
+
+def cleanup_task7_bundle(bundle):
+    if os.path.islink(bundle):
+        os.unlink(bundle)
+        return
+    if os.path.isdir(bundle):
+        shutil.rmtree(bundle)
+
+
+def _manifest_object(pairs):
+    seen = {}
+    for key, value in pairs:
+        if key in seen:
+            raise VerifierError("duplicate manifest field %s" % key)
+        seen[key] = value
+    return seen
 
 
 def format_warning_types(types):
@@ -761,38 +819,117 @@ def parse_pytest_output(text, exit_code, final_head):
     }
 
 
-def load_task7_evidence(final_head):
-    _raw, parsed = task7_evidence_paths(final_head)
-    if not os.path.exists(parsed):
-        raise VerifierError("missing Task 7 evidence %s" % parsed)
-    evidence = json.loads(Path_read(parsed))
-    if evidence.get("final_head") != final_head:
-        raise VerifierError("Task 7 evidence FINAL_HEAD mismatch")
-    return evidence
+def sample_task7_raw():
+    return (
+        "collected 1693 items\n"
+        "===== 1693 passed, 10 warnings in 1.23s =====\n"
+        "PytestCollectionWarning: demo\n"
+    )
 
 
-def Path_read(path):
-    with open(path, "r") as handle:
-        return handle.read()
+def create_task7_bundle(final_head, raw_text, exit_code, nonce=None, fail_after=None):
+    nonce = nonce or new_nonce()
+    bundle = task7_bundle_dir(final_head, nonce)
+    created = False
+    try:
+        reject_symlink(bundle, "bundle")
+        os.mkdir(bundle)
+        created = True
+        raw_path = os.path.join(bundle, "raw.txt")
+        man_path = os.path.join(bundle, "manifest.json")
+        raw_bytes = raw_text.encode("utf-8")
+        write_exclusive(raw_path, raw_text)
+        if fail_after == "raw":
+            raise VerifierError("injected failure after raw")
+        parsed = parse_pytest_output(raw_text, exit_code, final_head)
+        manifest = {
+            "final_head": final_head,
+            "nonce": nonce,
+            "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "raw_size": len(raw_bytes),
+            "collected": parsed["collected"],
+            "passed": parsed["passed"],
+            "failed": parsed["failed"],
+            "exit": parsed["exit"],
+            "warning_count": parsed["warning_count"],
+            "warning_types": list(parsed["warning_types"]),
+        }
+        write_exclusive(man_path, json.dumps(manifest, sort_keys=True) + "\n")
+        return bundle, manifest
+    except Exception:
+        if created:
+            cleanup_task7_bundle(bundle)
+        raise
+
+
+def load_task7_evidence(bundle_dir, expected_final_head):
+    reject_symlink(bundle_dir, "bundle")
+    if not os.path.isdir(bundle_dir):
+        raise VerifierError("missing Task 7 bundle %s" % bundle_dir)
+    raw_path = os.path.join(bundle_dir, "raw.txt")
+    man_path = os.path.join(bundle_dir, "manifest.json")
+    for path, label in ((raw_path, "raw"), (man_path, "manifest")):
+        reject_symlink(path, label)
+        if not os.path.isfile(path):
+            raise VerifierError("missing %s" % label)
+    raw_bytes = open(raw_path, "rb").read()
+    raw_text = raw_bytes.decode("utf-8")
+    manifest = json.loads(open(man_path, "r").read(), object_pairs_hook=_manifest_object)
+    extra = set(manifest) - set(MANIFEST_FIELDS)
+    missing = set(MANIFEST_FIELDS) - set(manifest)
+    if extra or missing:
+        raise VerifierError(
+            "manifest fields missing=%s extra=%s" % (sorted(missing), sorted(extra))
+        )
+    if manifest["final_head"] != expected_final_head:
+        raise VerifierError("wrong FINAL_HEAD")
+    digest = hashlib.sha256(raw_bytes).hexdigest()
+    if manifest["raw_sha256"] != digest:
+        raise VerifierError("wrong raw_sha256")
+    if int(manifest["raw_size"]) != len(raw_bytes):
+        raise VerifierError("wrong raw_size")
+    parsed = parse_pytest_output(raw_text, manifest["exit"], expected_final_head)
+    for key in ("collected", "passed", "failed", "exit", "warning_count"):
+        if parsed[key] != manifest[key] and parsed[key] != int(manifest[key]):
+            raise VerifierError("manifest %s does not match raw" % key)
+    if list(parsed["warning_types"]) != list(manifest["warning_types"]):
+        raise VerifierError("manifest warning_types does not match raw")
+    parsed["nonce"] = manifest["nonce"]
+    parsed["raw_sha256"] = manifest["raw_sha256"]
+    parsed["raw_size"] = manifest["raw_size"]
+    return parsed
 
 
 def iter_unfenced_lines(text):
     in_fence = False
-    fence_token = None
+    fence_char = None
+    fence_len = 0
     for lineno, line in enumerate(text.splitlines(), 1):
-        stripped = line.lstrip()
-        if stripped.startswith("```") or stripped.startswith("~~~"):
-            token = "```" if stripped.startswith("```") else "~~~"
+        match = FENCE_MARK.match(line)
+        if match:
+            mark = match.group(1)
+            char = mark[0]
+            length = len(mark)
+            rest = line[match.end():]
             if not in_fence:
                 in_fence = True
-                fence_token = token
-            elif stripped.startswith(fence_token):
+                fence_char = char
+                fence_len = length
+                continue
+            if (
+                char == fence_char
+                and length >= fence_len
+                and rest.strip() == ""
+            ):
                 in_fence = False
-                fence_token = None
-            continue
+                fence_char = None
+                fence_len = 0
+                continue
         if in_fence:
             continue
         yield lineno, line
+
+
 
 
 def extract_h2_sections(body):
@@ -827,9 +964,13 @@ def extract_h2_sections(body):
 def parse_canonical_facts(section_name, text, expected):
     facts = {}
     for line in text.splitlines():
+        if line.strip() == "":
+            continue
         match = FACT_RE.match(line.strip())
         if match is None:
-            continue
+            raise VerifierError(
+                "%s non-canonical line %r" % (section_name, line)
+            )
         key, value = match.group(1), match.group(2)
         if key in facts:
             raise VerifierError("%s duplicate key %s" % (section_name, key))
@@ -1078,6 +1219,24 @@ def assert_rollup_bound(pr, final_head, run_id, job_id, job_url=None):
     return required[0]
 
 
+def _reordered_body(final_head, evidence):
+    sections = extract_h2_sections(_valid_body(final_head, evidence))
+    order = (
+        "## Changes",
+        "## Motivation",
+        "## Tests",
+        "## SSOT integrity",
+        "## Governance",
+    )
+    parts = []
+    for heading in order:
+        parts.append(heading)
+        parts.append("")
+        parts.append(sections[heading].strip())
+        parts.append("")
+    return "\n".join(parts)
+
+
 def _valid_evidence(final_head):
     return {
         "final_head": final_head,
@@ -1215,12 +1374,17 @@ def run_verifier_self_test():
         ),
     )
     expect_fail(
-        "duplicate_or_reordered_headings",
+        "duplicate_heading",
         lambda: assert_pr_body(
-            _valid_body(final_head, evidence).replace("## Tests", "## Changes", 1),
+            _valid_body(final_head, evidence) + "\n## Motivation\nmore\n",
             final_head,
             evidence,
         ),
+    )
+    reordered = _reordered_body(final_head, evidence)
+    expect_fail(
+        "reordered_headings",
+        lambda: assert_pr_body(reordered, final_head, evidence),
     )
     missing = _valid_body(final_head, evidence).replace(
         "external_focused_passed = 176\n", ""
@@ -1407,6 +1571,196 @@ def run_verifier_self_test():
         ),
     )
 
+    expect_fail(
+        "bare_h2",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence) + "\n##\n",
+            final_head,
+            evidence,
+        ),
+    )
+    expect_fail(
+        "tab_extra_h2",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence) + "\n##\tExtra\n",
+            final_head,
+            evidence,
+        ),
+    )
+    four_open = "````\n" + _valid_body(final_head, evidence) + "\n```\n"
+    expect_fail(
+        "four_backtick_open_three_close",
+        lambda: assert_pr_body(four_open, final_head, evidence),
+    )
+    expect_fail(
+        "unclosed_backtick_fence",
+        lambda: assert_pr_body("```\n" + _valid_body(final_head, evidence), final_head, evidence),
+    )
+    expect_fail(
+        "unclosed_tilde_fence",
+        lambda: assert_pr_body("~~~\n" + _valid_body(final_head, evidence), final_head, evidence),
+    )
+    changes_plus_prose = (
+        "\n".join("%s = %s" % item for item in CHANGES_FACTS.items())
+        + "\nrebase was used.\nmanual conflict commit was used.\n"
+    )
+    expect_fail(
+        "canonical_changes_plus_contradictory_prose",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, changes=changes_plus_prose),
+            final_head,
+            evidence,
+        ),
+    )
+    prose_tests = _valid_body(final_head, evidence).replace(
+        "root_warning_types = PytestCollectionWarning\n",
+        "root_warning_types = PytestCollectionWarning\nwarnings were 999 InventedWarning.\n",
+    )
+    expect_fail(
+        "canonical_tests_plus_invented_warning_prose",
+        lambda: assert_pr_body(prose_tests, final_head, evidence),
+    )
+
+    raw = sample_task7_raw()
+    bundles = []
+
+    def _write_manifest(bundle, manifest):
+        man_path = os.path.join(bundle, "manifest.json")
+        os.remove(man_path)
+        write_exclusive(man_path, json.dumps(manifest, sort_keys=True) + "\n")
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    raw_path = os.path.join(bundle, "raw.txt")
+    with open(raw_path, "ab") as handle:
+        handle.write(b"\\nTAMPER\\n")
+    expect_fail(
+        "raw_changed_manifest_unchanged",
+        lambda: load_task7_evidence(bundle, final_head),
+    )
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    tampered = dict(manifest)
+    tampered["warning_count"] = 999
+    tampered["warning_types"] = ["InventedWarning"]
+    _write_manifest(bundle, tampered)
+    expect_fail(
+        "manifest_warning_changed_raw_unchanged",
+        lambda: load_task7_evidence(bundle, final_head),
+    )
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    bad_hash = dict(manifest)
+    bad_hash["raw_sha256"] = "0" * 64
+    _write_manifest(bundle, bad_hash)
+    expect_fail("wrong_raw_sha256", lambda: load_task7_evidence(bundle, final_head))
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    bad_size = dict(manifest)
+    bad_size["raw_size"] = int(manifest["raw_size"]) + 7
+    _write_manifest(bundle, bad_size)
+    expect_fail("wrong_raw_size", lambda: load_task7_evidence(bundle, final_head))
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    expect_fail(
+        "wrong_final_head",
+        lambda: load_task7_evidence(bundle, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+    )
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    bundles.append(bundle)
+    missing_field = dict(manifest)
+    del missing_field["nonce"]
+    _write_manifest(bundle, missing_field)
+    expect_fail("missing_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    extra_field = dict(manifest)
+    extra_field["unexpected"] = "x"
+    _write_manifest(bundle, extra_field)
+    expect_fail("duplicate_or_extra_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    dup_json = (
+        '{"final_head":"%s","final_head":"%s","nonce":"%s",'
+        '"raw_sha256":"%s","raw_size":%s,"collected":1693,"passed":1693,'
+        '"failed":0,"exit":0,"warning_count":10,'
+        '"warning_types":["PytestCollectionWarning"]}'
+        % (
+            final_head,
+            final_head,
+            manifest["nonce"],
+            manifest["raw_sha256"],
+            manifest["raw_size"],
+        )
+    )
+    man_path = os.path.join(bundle, "manifest.json")
+    os.remove(man_path)
+    write_exclusive(man_path, dup_json + "\n")
+    expect_fail("duplicate_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    cleanup_task7_bundle(bundle)
+    bundles.pop()
+
+    staging = "/tmp/pr28-task7-symlink-staging-%s" % new_nonce()
+    os.mkdir(staging)
+    real_bundle, _man = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
+    link_bundle = staging + "-link"
+    os.symlink(real_bundle, link_bundle)
+    expect_fail("symlink_bundle", lambda: load_task7_evidence(link_bundle, final_head))
+    raw_real = os.path.join(real_bundle, "raw.txt")
+    raw_backup = raw_real + ".bak"
+    os.rename(raw_real, raw_backup)
+    os.symlink(raw_backup, raw_real)
+    expect_fail("symlink_file", lambda: load_task7_evidence(real_bundle, final_head))
+    os.unlink(raw_real)
+    os.rename(raw_backup, raw_real)
+    cleanup_task7_bundle(real_bundle)
+    os.unlink(link_bundle)
+    os.rmdir(staging)
+
+    injected_nonce = new_nonce()
+    injected_bundle = task7_bundle_dir(final_head, injected_nonce)
+    try:
+        create_task7_bundle(final_head, raw, 0, nonce=injected_nonce, fail_after="raw")
+        failures.append("partial_failure_cleanup")
+        print("UNEXPECTED_ACCEPT partial_failure_cleanup")
+    except VerifierError:
+        if os.path.exists(injected_bundle):
+            failures.append("partial_failure_cleanup")
+            print("UNEXPECTED_ACCEPT partial_failure_cleanup still present")
+        else:
+            print("REJECT partial_failure_cleanup: bundle absent")
+            print("CLEANUP_ABSENT")
+
+    first, first_man = create_task7_bundle(final_head, raw, 0)
+    second, second_man = create_task7_bundle(final_head, raw, 0)
+    if first == second or first_man["nonce"] == second_man["nonce"]:
+        failures.append("same_head_retry_nonce")
+        print("UNEXPECTED_REJECT same_head_retry_nonce")
+    else:
+        load_task7_evidence(first, final_head)
+        load_task7_evidence(second, final_head)
+        print("ACCEPT same_head_retry_nonce")
+    cleanup_task7_bundle(first)
+    cleanup_task7_bundle(second)
+
+    round_bundle, _round_man = create_task7_bundle(final_head, raw, 0)
+    expect_ok(
+        "valid_raw_manifest_round_trip",
+        lambda: load_task7_evidence(round_bundle, final_head),
+    )
+    cleanup_task7_bundle(round_bundle)
+
     expect_ok(
         "valid_body_and_evidence",
         lambda: assert_pr_body(_valid_body(final_head, evidence), final_head, evidence),
@@ -1478,7 +1832,8 @@ RED job = 96676383508
 PR18 source head = 4b21072add365923799dccc057d4fefffd69918c
 dynamically computed FINAL_HEAD
 
-Changes canonical keys, each once, exact values:
+Changes section may contain only blank lines and these
+canonical keys, each once, exact values. Any other line fails:
 merge.count = 1
 merge.mode = --no-ff
 merge.source_branch = cursor/p3-compiler-alias-ci-repair-c46c
@@ -1491,7 +1846,8 @@ rebase_used = false
 squash_used = false
 manual_conflict_commit_used = false
 
-Tests canonical keys, each once:
+Tests section may contain only blank lines and these
+canonical keys, each once. Any other line fails:
 external_focused_passed = 176
 compile_commands_passed = 1
 cmakecache_passed = 1
@@ -1593,7 +1949,8 @@ start = plan.index(begin)
 end = plan.index(end_mark) + len(end_mark)
 ns = {}
 exec(plan[start:end], ns)
-evidence = ns["load_task7_evidence"](final_head)
+bundle = os.environ["TASK7_BUNDLE"]
+evidence = ns["load_task7_evidence"](bundle, final_head)
 raw = subprocess.check_output(
     [
         "gh",
@@ -1863,8 +2220,16 @@ A later implementation node must stop immediately when:
 - headings are only inside a fence or only proven by
   `assert heading in body`;
 - any required section body is empty;
+- Changes or Tests contain any non-blank line that is not a
+  known canonical `key = value` fact, including contradictory
+  prose such as `rebase was used.` or
+  `warnings were 999 InventedWarning.`;
 - Changes lacks a canonical key, repeats a key, or uses a value
   other than the frozen false/exact merge facts;
+- Task 7 evidence bundle is a symlink, a reused path, a wrong
+  `raw_sha256` / `raw_size` / `FINAL_HEAD`, a tampered raw or
+  manifest, or is not exclusive-created with a unique nonce;
+- a partial Task 7 failure leaves a bundle behind;
 - PR17 and PR19 rewritten flags are not independently `false`;
 - cherry-pick, rebase, squash, or manual conflict flags are not
   independently `false`;
@@ -1952,11 +2317,23 @@ This archival node must not start Task 1 through Task 9.
   manual conflict are independently `false`. The prose fixture
   `PR17 not rewritten; PR19 rewritten; no cherry-pick; rebase,
   squash and manual conflict resolution performed.` is a reject.
+- Fence-length finding is closed. Openers of three or more
+  backticks or tildes close only on the same character with at
+  least that length and no info string. A four-backtick opener
+  is not closed by three backticks. Unclosed fences keep later
+  headings fenced. Bare `##` and `##\tExtra` are extra H2
+  titles. Required headings are documented outside any
+  four-backtick fence.
+- Canonical-only finding is closed. Changes and Tests reject
+  any non-blank non-`key = value` line, including
+  `rebase was used.` and `warnings were 999 InventedWarning.`
+  even when the legal keys are also present.
 - Warning-evidence finding is closed. Task 7 exclusive-creates
-  FINAL_HEAD-named raw and parsed files, keeps the pytest exit,
-  and parses collected/passed/failed/exit/warning fields. Task 9
-  compares Tests canonical keys to that evidence. Invented
-  `999 InventedWarning` fails unless evidence matches.
+  a `{FINAL_HEAD}-{nonce}` bundle with `raw.txt` plus a
+  manifest. Load verifies sha256, size, FINAL_HEAD, and
+  raw-vs-manifest fields. Tamper, symlink, missing/duplicate
+  fields, and leftover partial bundles fail. Same-HEAD retry
+  uses a new nonce.
 - Duplicate-job finding is closed. `wait_for_terminal` collects
   all `REQUIRED_JOB` matches. `len > 1` raises. Terminal
   `len == 0` raises. Non-terminal `len == 0` may wait. Only one
@@ -1964,9 +2341,13 @@ This archival node must not start Task 1 through Task 9.
   count check is gone.
 - Self-test finding is closed. Task 9 Step 0 runs
   `run_verifier_self_test()` on `FakeClock` before live PR/CI.
-  The listed negative fixtures must REJECT and one complete
-  fixture must ACCEPT. `NON_SUCCESS` feeds
-  `is_non_success_conclusion` for rollup D-state conclusions.
+  Existing negatives remain. New fixtures cover bare H2, tab
+  H2, four-backtick/three-backtick mismatch, unclosed fences,
+  true reorder, canonical-plus-prose, raw/manifest tamper,
+  symlink, partial cleanup, and same-HEAD nonce retry.
+  `duplicate_heading` and `reordered_headings` are separate.
+  `VERIFIER_SELF_TEST_OK` requires every expected REJECT, the
+  valid fixtures ACCEPT, and the cleanup fixture absent.
 - Kept contracts: `DISCOVERY_SECONDS = 600`,
   `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, four-way
   run/job/headRefOid/detailsUrl bind, atomic five-destination

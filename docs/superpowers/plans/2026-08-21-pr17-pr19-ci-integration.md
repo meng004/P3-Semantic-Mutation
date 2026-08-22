@@ -487,7 +487,11 @@ warning_count
 warning_types
 raw_sha256
 raw_size
+bundle_path
 ```
+
+`bundle_path` must be the exact `mkdtemp` return. It is hashed
+into `manifest.json`, so the manifest SHA-256 binds that path.
 
 `command` must equal:
 
@@ -508,17 +512,45 @@ a new private directory. A failed attempt must not block the
 next attempt. Deleting a fixed path is not an unlock.
 
 On success the bundle stays until Task 9 finishes body, run,
-job, and rollup verification. Task 7 must print the exact
-bundle path, `raw_sha256`, and the manifest SHA-256. Task 9
-must consume that returned path and must perform the final
-safe cleanup of that exact directory, then prove it absent.
-Raw output must not remain indefinitely.
+job, and rollup verification. The Task 7 child must write one
+strict JSON handoff object to stdout. The parent shell captures
+that object into `TASK7_HANDOFF_JSON` and exports it. The object
+contains exactly:
+
+```text
+bundle_path
+attempt_nonce
+raw_sha256
+manifest_sha256
+final_head
+```
+
+Do not use `eval`, glob, latest-mtime, directory scanning,
+guessed paths, fixed symlinks, or manually retyped values.
+Task 9 parses the captured object and passes every field to
+the loader as a separate expected value. Mutual consistency
+between a path and its own manifest is not enough.
+
+A later same-`FINAL_HEAD` attempt must emit a new handoff with
+a new nonce and path. The previous handoff must not load the
+new bundle.
+
+Task 9 must run final safe cleanup from a `finally` / `trap`
+path after body, run, job, and rollup verification, and on
+every failure or `SystemExit`. Cleanup uses only the captured
+handoff path plus the expected nonce and head. It must not
+delete `/tmp`, a guessed path, a relocated path, or an
+unverified directory. After cleanup the exact path must be
+absent. A failed cleanup is a stop and must not widen
+deletion. Raw output must not remain indefinitely.
 
 - [ ] **Step 2: Reproduce the Actions pytest command and keep its exit**
 
 ```bash
 FINAL_HEAD="$(git rev-parse HEAD)"
 export FINAL_HEAD
+set +e
+TASK7_HANDOFF_JSON="$(
 /usr/bin/python3 - <<'PY'
 import json
 import os
@@ -556,15 +588,17 @@ try:
         final_head, output, proc.returncode
     )
 except Exception:
-    print("TASK7_BUNDLE_FAILED")
+    print("TASK7_BUNDLE_FAILED", file=sys.stderr)
     raise
-print("TASK7_BUNDLE", bundle)
-print("TASK7_ATTEMPT_NONCE", manifest["attempt_nonce"])
-print("TASK7_RAW_SHA256", manifest["raw_sha256"])
-man_bytes = open(os.path.join(bundle, "manifest.json"), "rb").read()
-print("TASK7_MANIFEST_SHA256", ns["hashlib"].sha256(man_bytes).hexdigest())
-evidence = ns["load_task7_evidence"](bundle, final_head)
-print(json.dumps(evidence, sort_keys=True))
+handoff = ns["make_task7_handoff"](bundle, manifest)
+evidence = ns["load_task7_evidence"](
+    handoff["bundle_path"],
+    handoff["final_head"],
+    handoff["attempt_nonce"],
+    handoff["raw_sha256"],
+    handoff["manifest_sha256"],
+    handoff["bundle_path"],
+)
 tuple_ok = (
     evidence["collected"] == 1693
     and evidence["passed"] == 1693
@@ -574,16 +608,31 @@ tuple_ok = (
 )
 if not tuple_ok:
     ns["cleanup_task7_bundle"](
-        bundle, final_head, evidence["attempt_nonce"]
+        bundle,
+        final_head,
+        evidence["attempt_nonce"],
+        expected_path=bundle,
     )
     if os.path.exists(bundle):
-        print("CLEANUP_LEFT_BUNDLE")
+        print("CLEANUP_LEFT_BUNDLE", file=sys.stderr)
         sys.exit(1)
-    print("root tuple is not the planned 1693/1693/0/0 success")
+    print(
+        "root tuple is not the planned 1693/1693/0/0 success",
+        file=sys.stderr,
+    )
     sys.exit(proc.returncode if proc.returncode != 0 else 1)
-print("TASK9_MUST_CONSUME_EXACT_BUNDLE", bundle)
+print(json.dumps(evidence, sort_keys=True), file=sys.stderr)
+sys.stdout.write(json.dumps(handoff, sort_keys=True) + "\n")
 sys.exit(0)
 PY
+)"
+task7_rc=$?
+set -e
+if [ "$task7_rc" -ne 0 ] || [ -z "${TASK7_HANDOFF_JSON}" ]; then
+  echo "TASK7_HANDOFF_FAILED"
+  exit 1
+fi
+export TASK7_HANDOFF_JSON
 ```
 
 Frozen success tuple:
@@ -773,7 +822,27 @@ MANIFEST_FIELDS = (
     "warning_types",
     "raw_sha256",
     "raw_size",
+    "bundle_path",
 )
+HANDOFF_FIELDS = (
+    "bundle_path",
+    "attempt_nonce",
+    "raw_sha256",
+    "manifest_sha256",
+    "final_head",
+)
+INT_FIELDS = (
+    "exit",
+    "collected",
+    "passed",
+    "failed",
+    "warning_count",
+    "raw_size",
+)
+HEAD_RE = re.compile(r"^[0-9a-f]{40}$")
+NONCE_RE = re.compile(r"^[0-9a-f]{32}$")
+SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+BUNDLE_ENTRIES = (MANIFEST_NAME, RAW_NAME)
 BANNED_TOKENS = re.compile(
     r"\b(TBD|TODO|FIXME|TBA|placeholder)\b",
     re.IGNORECASE,
@@ -888,8 +957,12 @@ def _chmod_if_exists(path, mode):
         os.chmod(path, mode)
 
 
-def cleanup_task7_bundle(bundle, final_head, nonce):
+def cleanup_task7_bundle(bundle, final_head, nonce, expected_path=None):
     abs_path = assert_safe_bundle_path(bundle, final_head, nonce)
+    if expected_path is not None:
+        expected_abs = os.path.abspath(expected_path)
+        if expected_abs != abs_path:
+            raise VerifierError("cleanup path is not the captured handoff path")
     if os.path.isdir(abs_path) and not os.path.islink(abs_path):
         _chmod_if_exists(abs_path, 0o700)
         for name in (RAW_NAME, MANIFEST_NAME):
@@ -965,6 +1038,7 @@ def create_task7_bundle(final_head, raw_text, exit_code, nonce=None, fail_after=
         if fail_after == "raw":
             raise VerifierError("injected failure after raw")
         parsed = parse_pytest_output(raw_bytes.decode("utf-8"), exit_code, final_head)
+        bundle_path = os.path.abspath(bundle)
         manifest = {
             "schema_version": SCHEMA_VERSION,
             "final_head": final_head,
@@ -978,6 +1052,7 @@ def create_task7_bundle(final_head, raw_text, exit_code, nonce=None, fail_after=
             "warning_types": list(parsed["warning_types"]),
             "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
             "raw_size": len(raw_bytes),
+            "bundle_path": bundle_path,
         }
         write_exclusive_bytes(
             man_path, (json.dumps(manifest, sort_keys=True) + "\n").encode("utf-8")
@@ -987,10 +1062,12 @@ def create_task7_bundle(final_head, raw_text, exit_code, nonce=None, fail_after=
         os.chmod(man_path, 0o444)
         os.chmod(bundle, 0o500)
         success = True
-        return bundle, manifest
+        return bundle_path, manifest
     finally:
         if bundle and not success:
-            cleanup_task7_bundle(bundle, final_head, nonce)
+            cleanup_task7_bundle(
+                bundle, final_head, nonce, expected_path=bundle
+            )
 
 
 def _check_owned_mode(path, label, expected_mode, want_dir):
@@ -1006,54 +1083,165 @@ def _check_owned_mode(path, label, expected_mode, want_dir):
         raise VerifierError("wrong %s mode" % label)
 
 
-def load_task7_evidence(bundle_dir, expected_final_head):
-    _check_owned_mode(bundle_dir, "bundle", 0o500, True)
-    raw_path = os.path.join(bundle_dir, RAW_NAME)
-    man_path = os.path.join(bundle_dir, MANIFEST_NAME)
-    _check_owned_mode(raw_path, "raw", 0o444, False)
-    _check_owned_mode(man_path, "manifest", 0o444, False)
-    raw_bytes = open(raw_path, "rb").read()
-    man_bytes = open(man_path, "rb").read()
-    manifest = json.loads(
-        man_bytes.decode("utf-8"), object_pairs_hook=_manifest_object
-    )
+def _require_hex(value, regex, label):
+    if type(value) is not str or regex.fullmatch(value) is None:
+        raise VerifierError("malformed %s" % label)
+
+
+def validate_manifest_schema(manifest):
     extra = set(manifest) - set(MANIFEST_FIELDS)
     missing = set(MANIFEST_FIELDS) - set(manifest)
     if extra or missing:
         raise VerifierError(
             "manifest fields missing=%s extra=%s" % (sorted(missing), sorted(extra))
         )
-    assert_safe_bundle_path(
-        bundle_dir, manifest["final_head"], manifest["attempt_nonce"]
-    )
     if manifest["schema_version"] != SCHEMA_VERSION:
         raise VerifierError("wrong schema_version")
-    if manifest["final_head"] != expected_final_head:
-        raise VerifierError("wrong FINAL_HEAD")
     if manifest["command"] != TASK7_COMMAND:
         raise VerifierError("wrong command")
+    _require_hex(manifest["final_head"], HEAD_RE, "FINAL_HEAD")
+    _require_hex(manifest["attempt_nonce"], NONCE_RE, "nonce")
+    _require_hex(manifest["raw_sha256"], SHA_RE, "raw_sha256")
+    if type(manifest["bundle_path"]) is not str:
+        raise VerifierError("bundle_path must be a string")
+    for key in INT_FIELDS:
+        if type(manifest[key]) is not int:
+            raise VerifierError("%s must be int" % key)
+    warning_types = manifest["warning_types"]
+    if type(warning_types) is not list:
+        raise VerifierError("warning_types must be a JSON array of strings")
+    if any(type(item) is not str for item in warning_types):
+        raise VerifierError("warning_types must be a JSON array of strings")
+
+
+def make_task7_handoff(bundle, manifest):
+    man_path = os.path.join(bundle, MANIFEST_NAME)
+    man_bytes = open(man_path, "rb").read()
+    return {
+        "bundle_path": os.path.abspath(bundle),
+        "attempt_nonce": manifest["attempt_nonce"],
+        "raw_sha256": manifest["raw_sha256"],
+        "manifest_sha256": hashlib.sha256(man_bytes).hexdigest(),
+        "final_head": manifest["final_head"],
+    }
+
+
+def parse_task7_handoff(text, expected_final_head):
+    if type(text) is not str or not text.strip():
+        raise VerifierError("empty Task 7 handoff")
+    handoff = json.loads(text, object_pairs_hook=_manifest_object)
+    extra = set(handoff) - set(HANDOFF_FIELDS)
+    missing = set(HANDOFF_FIELDS) - set(handoff)
+    if extra or missing:
+        raise VerifierError(
+            "handoff fields missing=%s extra=%s" % (sorted(missing), sorted(extra))
+        )
+    _require_hex(handoff["final_head"], HEAD_RE, "FINAL_HEAD")
+    _require_hex(handoff["attempt_nonce"], NONCE_RE, "nonce")
+    _require_hex(handoff["raw_sha256"], SHA_RE, "raw_sha256")
+    _require_hex(handoff["manifest_sha256"], SHA_RE, "manifest_sha256")
+    if type(handoff["bundle_path"]) is not str:
+        raise VerifierError("bundle_path must be a string")
+    if handoff["final_head"] != expected_final_head:
+        raise VerifierError("handoff FINAL_HEAD mismatch")
+    return handoff
+
+
+def load_task7_evidence(
+    bundle_dir,
+    expected_final_head,
+    expected_nonce,
+    expected_raw_sha256,
+    expected_manifest_sha256,
+    expected_bundle_path,
+):
+    if bundle_dir != expected_bundle_path:
+        raise VerifierError("bundle_dir != handed-off path")
+    _require_hex(expected_final_head, HEAD_RE, "FINAL_HEAD")
+    _require_hex(expected_nonce, NONCE_RE, "nonce")
+    _require_hex(expected_raw_sha256, SHA_RE, "raw_sha256")
+    _require_hex(expected_manifest_sha256, SHA_RE, "manifest_sha256")
+    abs_dir = assert_safe_bundle_path(
+        bundle_dir, expected_final_head, expected_nonce
+    )
+    if abs_dir != os.path.abspath(expected_bundle_path):
+        raise VerifierError("loaded path != handed-off path")
+    _check_owned_mode(abs_dir, "bundle", 0o500, True)
+    names = sorted(os.listdir(abs_dir))
+    if names != list(BUNDLE_ENTRIES):
+        raise VerifierError(
+            "bundle entries must be exactly root.raw and manifest.json"
+        )
+    raw_path = os.path.join(abs_dir, RAW_NAME)
+    man_path = os.path.join(abs_dir, MANIFEST_NAME)
+    _check_owned_mode(raw_path, "raw", 0o444, False)
+    _check_owned_mode(man_path, "manifest", 0o444, False)
+    raw_bytes = open(raw_path, "rb").read()
+    man_bytes = open(man_path, "rb").read()
     digest = hashlib.sha256(raw_bytes).hexdigest()
+    man_digest = hashlib.sha256(man_bytes).hexdigest()
+    if digest != expected_raw_sha256:
+        raise VerifierError("handed-off raw_sha256 does not match bytes")
+    if man_digest != expected_manifest_sha256:
+        raise VerifierError("handed-off manifest_sha256 does not match bytes")
+    manifest = json.loads(
+        man_bytes.decode("utf-8"), object_pairs_hook=_manifest_object
+    )
+    validate_manifest_schema(manifest)
+    if manifest["final_head"] != expected_final_head:
+        raise VerifierError("wrong FINAL_HEAD")
+    if manifest["attempt_nonce"] != expected_nonce:
+        raise VerifierError("wrong nonce")
     if manifest["raw_sha256"] != digest:
         raise VerifierError("wrong raw_sha256")
-    if int(manifest["raw_size"]) != len(raw_bytes):
+    if manifest["raw_size"] != len(raw_bytes):
         raise VerifierError("wrong raw_size")
+    if manifest["bundle_path"] != expected_bundle_path:
+        raise VerifierError("manifest bundle_path != handed-off path")
+    if manifest["bundle_path"] != abs_dir:
+        raise VerifierError("manifest bundle_path != loaded path")
     parsed = parse_pytest_output(
         raw_bytes.decode("utf-8"), manifest["exit"], expected_final_head
     )
     for key in ("collected", "passed", "failed", "exit", "warning_count", "final_head"):
-        left = parsed[key]
-        right = manifest[key]
-        if left != right and left != (int(right) if key != "final_head" else right):
+        if parsed[key] != manifest[key]:
             raise VerifierError("manifest %s does not match raw" % key)
     if list(parsed["warning_types"]) != list(manifest["warning_types"]):
         raise VerifierError("manifest warning_types does not match raw")
     parsed["schema_version"] = manifest["schema_version"]
     parsed["attempt_nonce"] = manifest["attempt_nonce"]
     parsed["command"] = manifest["command"]
+    parsed["bundle_path"] = manifest["bundle_path"]
     parsed["raw_sha256"] = digest
-    parsed["raw_size"] = len(raw_bytes)
-    parsed["manifest_sha256"] = hashlib.sha256(man_bytes).hexdigest()
+    parsed["raw_size"] = manifest["raw_size"]
+    parsed["manifest_sha256"] = man_digest
     return parsed
+
+
+def run_task9_with_handoff_cleanup(handoff_json, expected_final_head, work):
+    handoff = parse_task7_handoff(handoff_json, expected_final_head)
+    pending = None
+    try:
+        return work(handoff)
+    except BaseException as exc:
+        pending = exc
+        raise
+    finally:
+        try:
+            cleanup_task7_bundle(
+                handoff["bundle_path"],
+                handoff["final_head"],
+                handoff["attempt_nonce"],
+                expected_path=handoff["bundle_path"],
+            )
+        except Exception as cleanup_exc:
+            if pending is None:
+                raise VerifierError("cleanup failed: %s" % cleanup_exc)
+            raise
+        if os.path.exists(handoff["bundle_path"]) or os.path.lexists(
+            handoff["bundle_path"]
+        ):
+            raise VerifierError("bundle still present after cleanup")
 
 
 def normalize_h2(line):
@@ -1561,7 +1749,10 @@ def run_verifier_self_test():
     missing = _valid_body(final_head, evidence).replace(
         "external_focused_passed = 176\n", ""
     )
-    expect_fail("missing_required_fact", lambda: assert_pr_body(missing, final_head, evidence))
+    expect_fail(
+        "missing_required_fact",
+        lambda: assert_pr_body(missing, final_head, evidence),
+    )
     adversarial = (
         "PR17 not rewritten; PR19 rewritten;\n"
         "no cherry-pick; rebase, squash and manual conflict resolution performed."
@@ -1820,12 +2011,40 @@ def run_verifier_self_test():
         _relock(bundle)
 
     def _drop(bundle, nonce):
-        cleanup_task7_bundle(bundle, final_head, nonce)
+        cleanup_task7_bundle(
+            bundle, final_head, nonce, expected_path=bundle
+        )
         if bundle in live:
             live.remove(bundle)
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    def _fresh():
+        bundle, manifest = create_task7_bundle(
+            final_head, raw, 0, nonce=new_nonce()
+        )
+        handoff = make_task7_handoff(bundle, manifest)
+        live.append(bundle)
+        return bundle, manifest, handoff
+
+    def _load(bundle, handoff, **overrides):
+        return load_task7_evidence(
+            overrides.get("bundle_dir", bundle),
+            overrides.get("final_head", handoff["final_head"]),
+            overrides.get("attempt_nonce", handoff["attempt_nonce"]),
+            overrides.get("raw_sha256", handoff["raw_sha256"]),
+            overrides.get("manifest_sha256", handoff["manifest_sha256"]),
+            overrides.get("bundle_path", handoff["bundle_path"]),
+        )
+
+    def _schema_fail(name, mutate):
+        bundle, manifest, handoff = _fresh()
+        bad = dict(manifest)
+        mutate(bad)
+        _write_manifest(bundle, bad)
+        current = make_task7_handoff(bundle, bad)
+        expect_fail(name, lambda: _load(bundle, current))
+        _drop(bundle, manifest["attempt_nonce"])
+
+    bundle, manifest, handoff = _fresh()
     raw_path = os.path.join(bundle, RAW_NAME)
     _unlock(bundle)
     with open(raw_path, "ab") as handle:
@@ -1833,70 +2052,71 @@ def run_verifier_self_test():
     _relock(bundle)
     expect_fail(
         "raw_changed_manifest_unchanged",
-        lambda: load_task7_evidence(bundle, final_head),
+        lambda: _load(bundle, handoff),
     )
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     tampered = dict(manifest)
     tampered["warning_count"] = 999
     tampered["warning_types"] = ["InventedWarning"]
     _write_manifest(bundle, tampered)
     expect_fail(
         "manifest_warning_changed_raw_unchanged",
-        lambda: load_task7_evidence(bundle, final_head),
+        lambda: _load(bundle, handoff),
     )
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     bad_hash = dict(manifest)
     bad_hash["raw_sha256"] = "0" * 64
     _write_manifest(bundle, bad_hash)
-    expect_fail("wrong_raw_sha256", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("wrong_raw_sha256", lambda: _load(bundle, handoff))
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     bad_size = dict(manifest)
     bad_size["raw_size"] = int(manifest["raw_size"]) + 7
     _write_manifest(bundle, bad_size)
-    expect_fail("wrong_raw_size", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("wrong_raw_size", lambda: _load(bundle, handoff))
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     expect_fail(
         "wrong_final_head",
-        lambda: load_task7_evidence(bundle, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+        lambda: _load(
+            bundle,
+            handoff,
+            final_head="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ),
     )
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     bad_nonce = dict(manifest)
     bad_nonce["attempt_nonce"] = "0" * 32
     _write_manifest(bundle, bad_nonce)
-    expect_fail("wrong_nonce", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("wrong_nonce", lambda: _load(bundle, handoff))
     _drop(bundle, manifest["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     missing_field = dict(manifest)
     del missing_field["attempt_nonce"]
     _write_manifest(bundle, missing_field)
-    expect_fail("missing_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("missing_manifest_field", lambda: _load(bundle, handoff))
     extra_field = dict(manifest)
     extra_field["unexpected"] = "x"
     _write_manifest(bundle, extra_field)
-    expect_fail("duplicate_or_extra_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail(
+        "duplicate_or_extra_manifest_field",
+        lambda: _load(bundle, handoff),
+    )
     dup_json = (
         '{"schema_version":"1","final_head":"%s","final_head":"%s",'
         '"attempt_nonce":"%s","command":"%s","exit":0,"collected":1693,'
         '"passed":1693,"failed":0,"warning_count":10,'
         '"warning_types":["PytestCollectionWarning"],'
-        '"raw_sha256":"%s","raw_size":%s}'
+        '"raw_sha256":"%s","raw_size":%s,"bundle_path":"%s"}'
         % (
             final_head,
             final_head,
@@ -1904,6 +2124,7 @@ def run_verifier_self_test():
             TASK7_COMMAND,
             manifest["raw_sha256"],
             manifest["raw_size"],
+            bundle,
         )
     )
     _unlock(bundle)
@@ -1911,14 +2132,21 @@ def run_verifier_self_test():
     os.remove(man_path)
     write_exclusive_bytes(man_path, (dup_json + "\n").encode("utf-8"))
     _relock(bundle)
-    expect_fail("duplicate_manifest_field", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("duplicate_manifest_field", lambda: _load(bundle, handoff))
     _drop(bundle, manifest["attempt_nonce"])
 
-    real_bundle, real_man = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(real_bundle)
+    real_bundle, real_man, real_h = _fresh()
     link_bundle = "/tmp/pr28-task7-link-%s" % new_nonce()
     os.symlink(real_bundle, link_bundle)
-    expect_fail("symlink_bundle", lambda: load_task7_evidence(link_bundle, final_head))
+    expect_fail(
+        "symlink_bundle",
+        lambda: _load(
+            link_bundle,
+            real_h,
+            bundle_dir=link_bundle,
+            bundle_path=link_bundle,
+        ),
+    )
     if os.path.islink(link_bundle):
         os.unlink(link_bundle)
     raw_real = os.path.join(real_bundle, RAW_NAME)
@@ -1927,20 +2155,128 @@ def run_verifier_self_test():
     os.rename(raw_real, raw_backup)
     os.symlink(raw_backup, raw_real)
     os.chmod(real_bundle, 0o500)
-    expect_fail("symlink_file", lambda: load_task7_evidence(real_bundle, final_head))
+    expect_fail("symlink_file", lambda: _load(real_bundle, real_h))
     os.chmod(real_bundle, 0o700)
     os.unlink(raw_real)
     os.rename(raw_backup, raw_real)
     _relock(real_bundle)
     _drop(real_bundle, real_man["attempt_nonce"])
 
-    bundle, manifest = create_task7_bundle(final_head, raw, 0, nonce=new_nonce())
-    live.append(bundle)
+    bundle, manifest, handoff = _fresh()
     os.chmod(bundle, 0o700)
     os.chmod(os.path.join(bundle, RAW_NAME), 0o644)
     os.chmod(bundle, 0o500)
-    expect_fail("wrong_mode", lambda: load_task7_evidence(bundle, final_head))
+    expect_fail("wrong_mode", lambda: _load(bundle, handoff))
     _drop(bundle, manifest["attempt_nonce"])
+
+    _schema_fail("numeric_string_exit", lambda bad: bad.__setitem__("exit", "0"))
+    _schema_fail(
+        "bool_integer_collected",
+        lambda bad: bad.__setitem__("collected", True),
+    )
+    _schema_fail(
+        "object_warning_types",
+        lambda bad: bad.__setitem__("warning_types", {"W": 1}),
+    )
+    _schema_fail(
+        "string_warning_types",
+        lambda bad: bad.__setitem__("warning_types", "PytestCollectionWarning"),
+    )
+    _schema_fail(
+        "mixed_warning_types",
+        lambda bad: bad.__setitem__(
+            "warning_types", ["PytestCollectionWarning", 1]
+        ),
+    )
+    _schema_fail(
+        "malformed_nonce",
+        lambda bad: bad.__setitem__("attempt_nonce", "xyz"),
+    )
+    _schema_fail(
+        "malformed_raw_sha256",
+        lambda bad: bad.__setitem__("raw_sha256", "0" * 63),
+    )
+    _schema_fail(
+        "malformed_final_head",
+        lambda bad: bad.__setitem__("final_head", "A" * 40),
+    )
+    _schema_fail(
+        "wrong_command",
+        lambda bad: bad.__setitem__("command", "wrong"),
+    )
+    _schema_fail(
+        "wrong_schema_version",
+        lambda bad: bad.__setitem__("schema_version", "9"),
+    )
+
+    bundle, manifest, handoff = _fresh()
+    reloc = "/tmp/pr28-task7-%s-%s-reloc" % (
+        final_head,
+        manifest["attempt_nonce"],
+    )
+    _unlock(bundle)
+    os.rename(bundle, reloc)
+    os.chmod(reloc, 0o500)
+    expect_fail(
+        "relocated_bundle",
+        lambda: _load(reloc, handoff, bundle_dir=reloc),
+    )
+    _drop(reloc, manifest["attempt_nonce"])
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, manifest, handoff = _fresh()
+    coord = dict(manifest)
+    coord["attempt_nonce"] = new_nonce()
+    coord["bundle_path"] = "/tmp/pr28-task7-%s-%s-coord" % (
+        final_head,
+        coord["attempt_nonce"],
+    )
+    _write_manifest(bundle, coord)
+    expect_fail(
+        "coordinated_nonce_path_tamper",
+        lambda: _load(bundle, handoff),
+    )
+    _drop(bundle, manifest["attempt_nonce"])
+
+    bundle, manifest, handoff = _fresh()
+    _unlock(bundle)
+    write_exclusive_bytes(os.path.join(bundle, "extra.txt"), b"x\n")
+    _relock(bundle)
+    expect_fail("extra_directory_entry", lambda: _load(bundle, handoff))
+    _unlock(bundle)
+    extra_path = os.path.join(bundle, "extra.txt")
+    if os.path.isfile(extra_path):
+        os.chmod(extra_path, 0o600)
+        os.remove(extra_path)
+    _drop(bundle, manifest["attempt_nonce"])
+
+    bundle, manifest, handoff = _fresh()
+    _unlock(bundle)
+    os.remove(os.path.join(bundle, RAW_NAME))
+    os.chmod(bundle, 0o500)
+    expect_fail("missing_directory_entry", lambda: _load(bundle, handoff))
+    _drop(bundle, manifest["attempt_nonce"])
+
+    bundle, manifest, handoff = _fresh()
+    decoy = "/tmp/pr28-task7-%s-%s-decoy" % (
+        final_head,
+        manifest["attempt_nonce"],
+    )
+    os.mkdir(decoy, 0o700)
+    cleanup_task7_bundle(
+        bundle, final_head, manifest["attempt_nonce"], expected_path=bundle
+    )
+    if os.path.isdir(decoy) and not os.path.exists(bundle):
+        print("ACCEPT decoy_not_deleted")
+        os.rmdir(decoy)
+        if bundle in live:
+            live.remove(bundle)
+    else:
+        failures.append("decoy_not_deleted")
+        print("UNEXPECTED_REJECT decoy_not_deleted")
+        if os.path.isdir(decoy):
+            os.rmdir(decoy)
 
     injected_nonce = new_nonce()
     created_before = set(os.listdir("/tmp"))
@@ -1948,7 +2284,6 @@ def run_verifier_self_test():
         create_task7_bundle(final_head, raw, 0, nonce=injected_nonce, fail_after="raw")
         failures.append("partial_failure_cleanup")
         print("UNEXPECTED_ACCEPT partial_failure_cleanup")
-        injected_bundle = None
     except VerifierError:
         created_after = set(os.listdir("/tmp"))
         leftovers = [
@@ -1963,38 +2298,127 @@ def run_verifier_self_test():
             print("REJECT partial_failure_cleanup: bundle absent")
             print("CLEANUP_ABSENT")
 
-    first, first_man = create_task7_bundle(final_head, raw, 0)
-    second, second_man = create_task7_bundle(final_head, raw, 0)
+    first, first_man, first_h = _fresh()
+    second, second_man, second_h = _fresh()
     if (
         first == second
-        or first_man["attempt_nonce"] == second_man["attempt_nonce"]
+        or first_h["attempt_nonce"] == second_h["attempt_nonce"]
         or os.path.basename(first) == os.path.basename(second)
     ):
         failures.append("same_head_retry_nonce")
         print("UNEXPECTED_REJECT same_head_retry_nonce")
     else:
-        load_task7_evidence(first, final_head)
-        load_task7_evidence(second, final_head)
+        _load(first, first_h)
+        _load(second, second_h)
         print("ACCEPT same_head_retry_nonce")
-    cleanup_task7_bundle(first, final_head, first_man["attempt_nonce"])
-    cleanup_task7_bundle(second, final_head, second_man["attempt_nonce"])
+    expect_fail(
+        "old_handoff_rejects_new_bundle",
+        lambda: load_task7_evidence(
+            second_h["bundle_path"],
+            first_h["final_head"],
+            first_h["attempt_nonce"],
+            first_h["raw_sha256"],
+            first_h["manifest_sha256"],
+            first_h["bundle_path"],
+        ),
+    )
+    _drop(first, first_man["attempt_nonce"])
+    _drop(second, second_man["attempt_nonce"])
     if os.path.exists(first) or os.path.exists(second):
         failures.append("same_head_retry_cleanup")
         print("UNEXPECTED_ACCEPT same_head_retry_cleanup still present")
     else:
         print("CLEANUP_ABSENT")
 
-    round_bundle, round_man = create_task7_bundle(final_head, raw, 0)
+    round_bundle, round_man, round_h = _fresh()
+    text = json.dumps(round_h, sort_keys=True)
+    parsed = parse_task7_handoff(text, final_head)
     expect_ok(
         "valid_raw_manifest_round_trip",
-        lambda: load_task7_evidence(round_bundle, final_head),
+        lambda: load_task7_evidence(
+            parsed["bundle_path"],
+            parsed["final_head"],
+            parsed["attempt_nonce"],
+            parsed["raw_sha256"],
+            parsed["manifest_sha256"],
+            parsed["bundle_path"],
+        ),
     )
-    cleanup_task7_bundle(round_bundle, final_head, round_man["attempt_nonce"])
+    expect_ok(
+        "handoff_through_task9_load",
+        lambda: load_task7_evidence(
+            parsed["bundle_path"],
+            parsed["final_head"],
+            parsed["attempt_nonce"],
+            parsed["raw_sha256"],
+            parsed["manifest_sha256"],
+            parsed["bundle_path"],
+        ),
+    )
+    if os.path.isdir(round_bundle):
+        print("ACCEPT success_retained_until_consumption")
+    else:
+        failures.append("success_retained_until_consumption")
+        print("UNEXPECTED_REJECT success_retained_until_consumption")
+
+    def _consume(h):
+        return load_task7_evidence(
+            h["bundle_path"],
+            h["final_head"],
+            h["attempt_nonce"],
+            h["raw_sha256"],
+            h["manifest_sha256"],
+            h["bundle_path"],
+        )
+
+    run_task9_with_handoff_cleanup(text, final_head, _consume)
     if os.path.exists(round_bundle):
-        failures.append("round_trip_cleanup")
-        print("UNEXPECTED_ACCEPT round_trip_cleanup still present")
+        failures.append("success_final_cleanup")
+        print("UNEXPECTED_ACCEPT success_final_cleanup still present")
     else:
         print("CLEANUP_ABSENT")
+        if round_bundle in live:
+            live.remove(round_bundle)
+
+    def _inject(name, work):
+        bundle, _manifest, hon = _fresh()
+        payload = json.dumps(hon, sort_keys=True)
+        try:
+            run_task9_with_handoff_cleanup(payload, final_head, work)
+            failures.append(name)
+            print("UNEXPECTED_ACCEPT %s" % name)
+        except (VerifierError, SystemExit):
+            if os.path.exists(bundle):
+                failures.append(name)
+                print("UNEXPECTED_ACCEPT %s still present" % name)
+            else:
+                print("REJECT %s: bundle absent" % name)
+                print("CLEANUP_ABSENT")
+        if bundle in live:
+            live.remove(bundle)
+
+    def _boom(message):
+        def _work(_handoff):
+            raise VerifierError(message)
+
+        return _work
+
+    _inject("body_failure_cleanup", _boom("body failed"))
+    _inject("discovery_timeout_cleanup", _boom("discovery timeout"))
+    _inject("wait_failure_cleanup", _boom("wait failed"))
+    _inject("d_state_cleanup", _boom("CI_STATE=D"))
+    _inject("rollup_failure_cleanup", _boom("rollup failed"))
+    _inject(
+        "loader_failure_cleanup",
+        lambda h: load_task7_evidence(
+            h["bundle_path"],
+            h["final_head"],
+            "0" * 32,
+            h["raw_sha256"],
+            h["manifest_sha256"],
+            h["bundle_path"],
+        ),
+    )
 
     tab_motivation = _valid_body(final_head, evidence).replace(
         "## Motivation\n", "##\tMotivation\n", 1
@@ -2049,6 +2473,10 @@ def run_verifier_self_test():
             2,
         ),
     )
+    leftovers = [path for path in live if os.path.exists(path)]
+    if leftovers:
+        failures.append("self_test_leftover_bundles")
+        print("UNEXPECTED_ACCEPT leftover %s" % leftovers)
     if failures:
         print("VERIFIER_SELF_TEST_FAILED", ",".join(failures))
         raise SystemExit(1)
@@ -2184,64 +2612,10 @@ headRefOid = FINAL_HEAD
 ```bash
 FINAL_HEAD="$(git rev-parse HEAD)"
 export FINAL_HEAD
-/usr/bin/python3 - <<'PY'
-import json
-import os
-import subprocess
-from pathlib import Path
-
-final_head = os.environ["FINAL_HEAD"]
-plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
-begin = "#" + " === VERIFIER_LIB_BEGIN ==="
-end_mark = "#" + " === VERIFIER_LIB_END ==="
-start = plan.index(begin)
-end = plan.index(end_mark) + len(end_mark)
-ns = {}
-exec(plan[start:end], ns)
-bundle = os.environ["TASK7_BUNDLE"]
-if not bundle:
-    raise SystemExit("TASK7_BUNDLE missing; do not glob or guess")
-evidence = ns["load_task7_evidence"](bundle, final_head)
-if evidence["final_head"] != final_head:
-    raise SystemExit("evidence.final_head != FINAL_HEAD")
-raw = subprocess.check_output(
-    [
-        "gh",
-        "pr",
-        "view",
-        "28",
-        "--repo",
-        "meng004/P3-Semantic-Mutation",
-        "--json",
-        "number,state,isDraft,baseRefName,headRefName,headRefOid,body,url,statusCheckRollup",
-    ]
-)
-pr = json.loads(raw)
-assert pr["number"] == 28
-assert pr["state"] == "OPEN"
-assert pr["isDraft"] is True
-assert pr["baseRefName"] == "main"
-assert pr["headRefName"] == "cursor/pr17-pr19-ci-integration-c46c"
-assert pr["headRefOid"] == final_head
-ns["assert_pr_body"](pr["body"], final_head, evidence)
-print("PR28_BODY_FACTS_OK")
-print("FINAL_HEAD", final_head)
-print("headRefOid", pr["headRefOid"])
-PY
-```
-
-`headRefOid != FINAL_HEAD` is a stop. Missing Task 7 evidence is
-a stop. A body that only has the five headings is a stop.
-
-- [ ] **Step 3: Discover, wait with a completion deadline, and bind rollup**
-
-Select the newest `sanity-check` run whose `headSha` equals
-`FINAL_HEAD`. Do not accept a green run from any other commit,
-including run `32539725403` if it belongs to an earlier head.
-
-```bash
-FINAL_HEAD="$(git rev-parse HEAD)"
-export FINAL_HEAD
+if [ -z "${TASK7_HANDOFF_JSON:-}" ]; then
+  echo "TASK7_HANDOFF_JSON missing; do not glob or guess"
+  exit 1
+fi
 /usr/bin/python3 - <<'PY'
 import json
 import os
@@ -2257,6 +2631,117 @@ start = plan.index(begin)
 end = plan.index(end_mark) + len(end_mark)
 ns = {}
 exec(plan[start:end], ns)
+handoff = ns["parse_task7_handoff"](
+    os.environ["TASK7_HANDOFF_JSON"], final_head
+)
+try:
+    evidence = ns["load_task7_evidence"](
+        handoff["bundle_path"],
+        handoff["final_head"],
+        handoff["attempt_nonce"],
+        handoff["raw_sha256"],
+        handoff["manifest_sha256"],
+        handoff["bundle_path"],
+    )
+    raw = subprocess.check_output(
+        [
+            "gh",
+            "pr",
+            "view",
+            "28",
+            "--repo",
+            "meng004/P3-Semantic-Mutation",
+            "--json",
+            "number,state,isDraft,baseRefName,headRefName,headRefOid,body,url,statusCheckRollup",
+        ]
+    )
+    pr = json.loads(raw)
+    assert pr["number"] == 28
+    assert pr["state"] == "OPEN"
+    assert pr["isDraft"] is True
+    assert pr["baseRefName"] == "main"
+    assert pr["headRefName"] == "cursor/pr17-pr19-ci-integration-c46c"
+    assert pr["headRefOid"] == final_head
+    ns["assert_pr_body"](pr["body"], final_head, evidence)
+    print("PR28_BODY_FACTS_OK")
+    print("FINAL_HEAD", final_head)
+    print("headRefOid", pr["headRefOid"])
+except BaseException:
+    ns["cleanup_task7_bundle"](
+        handoff["bundle_path"],
+        handoff["final_head"],
+        handoff["attempt_nonce"],
+        expected_path=handoff["bundle_path"],
+    )
+    if os.path.exists(handoff["bundle_path"]):
+        print("CLEANUP_LEFT_BUNDLE")
+        sys.exit(1)
+    raise
+PY
+```
+
+`headRefOid != FINAL_HEAD` is a stop. Missing Task 7 evidence is
+a stop. A body that only has the five headings is a stop.
+
+- [ ] **Step 3: Discover, wait with a completion deadline, and bind rollup**
+
+Select the newest `sanity-check` run whose `headSha` equals
+`FINAL_HEAD`. Do not accept a green run from any other commit,
+including run `32539725403` if it belongs to an earlier head.
+
+```bash
+FINAL_HEAD="$(git rev-parse HEAD)"
+export FINAL_HEAD
+if [ -z "${TASK7_HANDOFF_JSON:-}" ]; then
+  echo "TASK7_HANDOFF_JSON missing; do not glob or guess"
+  exit 1
+fi
+task9_cleanup() {
+  /usr/bin/python3 - <<'PY'
+import os
+from pathlib import Path
+
+final_head = os.environ["FINAL_HEAD"]
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
+ns = {}
+exec(plan[start:end], ns)
+handoff = ns["parse_task7_handoff"](
+    os.environ["TASK7_HANDOFF_JSON"], final_head
+)
+ns["cleanup_task7_bundle"](
+    handoff["bundle_path"],
+    handoff["final_head"],
+    handoff["attempt_nonce"],
+    expected_path=handoff["bundle_path"],
+)
+if os.path.exists(handoff["bundle_path"]):
+    raise SystemExit("CLEANUP_LEFT_BUNDLE")
+print("TASK7_CLEANED")
+PY
+}
+trap task9_cleanup EXIT
+/usr/bin/python3 - <<'PY'
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+final_head = os.environ["FINAL_HEAD"]
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
+ns = {}
+exec(plan[start:end], ns)
+handoff = ns["parse_task7_handoff"](
+    os.environ["TASK7_HANDOFF_JSON"], final_head
+)
 
 REPO = ns["REPO"]
 DISCOVERY_SECONDS = ns["DISCOVERY_SECONDS"]
@@ -2401,19 +2886,17 @@ except ns["VerifierError"] as exc:
     print("ROLLUP_BIND_FAILED", exc)
     sys.exit(6)
 
-bundle = os.environ.get("TASK7_BUNDLE")
-if not bundle:
-    print("TASK7_BUNDLE missing after rollup; do not glob or guess")
-    sys.exit(6)
-evidence = ns["load_task7_evidence"](bundle, final_head)
-print("TASK7_BUNDLE", bundle)
+evidence = ns["load_task7_evidence"](
+    handoff["bundle_path"],
+    handoff["final_head"],
+    handoff["attempt_nonce"],
+    handoff["raw_sha256"],
+    handoff["manifest_sha256"],
+    handoff["bundle_path"],
+)
+print("TASK7_BUNDLE", evidence["bundle_path"])
 print("TASK7_RAW_SHA256", evidence["raw_sha256"])
 print("TASK7_MANIFEST_SHA256", evidence["manifest_sha256"])
-ns["cleanup_task7_bundle"](bundle, final_head, evidence["attempt_nonce"])
-if os.path.exists(bundle):
-    print("CLEANUP_LEFT_BUNDLE")
-    sys.exit(6)
-print("TASK7_CLEANED")
 print("FINAL_HEAD_CI_OK")
 print("RUN_ID", run_id)
 print("JOB_ID", job_id)
@@ -2496,23 +2979,39 @@ A later implementation node must stop immediately when:
   private directory whose prefix contains `FINAL_HEAD`;
 - Task 7 evidence uses glob, latest-mtime, a fixed symlink, or
   a guessed directory instead of the exact returned path;
-- Task 7 evidence is missing `root.raw` or `manifest.json`;
+- Task 7 evidence is missing `root.raw` or `manifest.json`, or
+  the directory contains any other name;
 - `manifest.json` lacks, repeats, or invents fields outside
   `schema_version`, `final_head`, `attempt_nonce`, `command`,
   `exit`, `collected`, `passed`, `failed`, `warning_count`,
-  `warning_types`, `raw_sha256`, and `raw_size`;
+  `warning_types`, `raw_sha256`, `raw_size`, and `bundle_path`;
+- any integer field is a numeric string or bool, or
+  `warning_types` is not a JSON array of strings;
+- `FINAL_HEAD`, nonce, or SHA-256 values are not lowercase hex
+  of the required length;
 - `command` is not
   `PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1`;
 - Task 7 evidence bundle or file is a symlink, has the wrong
   owner or mode, or is not read-only after create;
-- raw bytes, SHA-256, size, parsed tuples, and manifest fields
-  do not all bind one another and `FINAL_HEAD`;
-- Task 9 consumes a bundle from another `FINAL_HEAD` or nonce;
+- the parent shell has no `TASK7_HANDOFF_JSON` object with
+  exactly `bundle_path`, `attempt_nonce`, `raw_sha256`,
+  `manifest_sha256`, and `final_head`;
+- Task 9 loads from a path or nonce that is only self-consistent
+  with its own manifest and is not the independently captured
+  handoff;
+- raw bytes, SHA-256, size, parsed tuples, handed-off values,
+  and manifest fields do not all bind one another and
+  `FINAL_HEAD`;
+- Task 9 consumes a bundle from another `FINAL_HEAD` or nonce,
+  a relocated path, or an old same-HEAD handoff;
 - a partial Task 7 failure leaves its exact `mkdtemp` directory
-  behind, or cleanup uses glob, an empty path, `/tmp`, or a
-  wide recursive delete;
-- a same-`FINAL_HEAD` retry reuses a nonce or directory, or a
-  failed attempt blocks a new attempt;
+  behind, or cleanup uses glob, an empty path, `/tmp`, a
+  relocated path, or a wide recursive delete;
+- Task 9 body, discovery, wait, D-state, rollup, load, success,
+  or any exception/`SystemExit` skips the `finally` / `trap`
+  cleanup of the exact captured path;
+- a same-`FINAL_HEAD` retry reuses a nonce, directory, or
+  handoff, or a failed attempt blocks a new attempt;
 - PR17 and PR19 rewritten flags are not independently `false`;
 - cherry-pick, rebase, squash, or manual conflict flags are not
   independently `false`;
@@ -2616,16 +3115,16 @@ This archival node must not start Task 1 through Task 9.
 - Warning-evidence finding is closed. Task 7 creates one
   `tempfile.mkdtemp(dir="/tmp")` private directory whose prefix
   contains `FINAL_HEAD` and an unpredictable `attempt_nonce`.
-  Mode is `0700` then read-only. The bundle is `root.raw` plus
-  `manifest.json`. Manifest fields include `schema_version`,
-  `command`, SHA-256, and size. Load re-reads raw bytes,
-  recomputes digest/size, re-parses, and compares every field.
-  Tamper, wrong SHA/size/head/nonce, missing or duplicate
-  fields, symlink, and wrong mode fail. Partial failure
-  deletes only the exact directory and proves it absent.
-  Same-HEAD retry uses a new nonce and directory. Task 9
-  consumes the exact returned path and performs the final
-  cleanup after body/run/job/rollup verification.
+  The successful child writes one JSON handoff object to stdout.
+  The parent captures it into `TASK7_HANDOFF_JSON`. Manifest
+  includes `bundle_path`, so the manifest SHA-256 binds the
+  exact path. Task 9 parses that object and passes every field
+  to the loader as a separate expected value. Integer fields
+  require `type(value) is int`. Directory entries must be
+  exactly `root.raw` and `manifest.json`. Relocated paths,
+  coordinated nonce/path tampers, extra files, and old
+  same-HEAD handoffs fail. Task 9 `finally` / `trap` cleanup
+  uses only the captured path and proves it absent.
 - Duplicate-job finding is closed. `wait_for_terminal` collects
   all `REQUIRED_JOB` matches. `len > 1` raises. Terminal
   `len == 0` raises. Non-terminal `len == 0` may wait. Only one
@@ -2633,18 +3132,18 @@ This archival node must not start Task 1 through Task 9.
   count check is gone.
 - Self-test finding is closed. Task 9 Step 0 runs
   `run_verifier_self_test()` on `FakeClock` before live PR/CI.
-  Existing negatives remain. Independent fixtures now cover
-  bare `##`, tab H2, four-backtick opener with a three-backtick
-  false closer, unclosed backtick and tilde fences, a true
-  five-heading reorder, canonical Changes plus contradictory
-  prose, canonical Tests plus invented-warning prose,
-  raw/manifest tamper, wrong SHA/size/head/nonce, missing or
-  duplicate manifest fields, symlink, wrong mode, partial
-  cleanup, and two same-HEAD attempts with distinct nonces.
-  `duplicate_heading` and `reordered_headings` are separate.
-  Valid raw/manifest round-trip ACCEPTS. `VERIFIER_SELF_TEST_OK`
-  requires every expected REJECT, every valid fixture ACCEPT,
-  and cleanup paths absent.
+  Existing H2, fence, reorder, and canonical-only tests remain.
+  New fixtures reject numeric-string and bool integers, object
+  or mixed `warning_types`, malformed nonce/SHA/head, wrong
+  command/schema, relocated bundles, coordinated nonce/path
+  tamper, extra or missing directory entries, and old same-HEAD
+  handoffs. The Task 7 handoff object is parsed and loaded by
+  Task 9. Success is retained until final consumption. Body,
+  discovery, wait, D-state, rollup, and loader failures each
+  prove the exact path absent. A non-mkdtemp decoy directory
+  is not deleted. `VERIFIER_SELF_TEST_OK` requires every
+  expected REJECT, every valid fixture ACCEPT, and cleanup
+  paths absent.
 - Kept contracts: `DISCOVERY_SECONDS = 600`,
   `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, four-way
   run/job/headRefOid/detailsUrl bind, atomic five-destination

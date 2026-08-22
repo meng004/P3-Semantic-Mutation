@@ -438,13 +438,75 @@ Any failure is a stop. Do not expand scope.
 
 **Files:** none
 
-- [ ] **Step 1: Reproduce the Actions pytest command**
+- [ ] **Step 1: Freeze FINAL_HEAD and exclusive-create evidence files**
 
 ```bash
-PYTHONPATH=src /usr/bin/python3 -m pytest -q --maxfail=1
+FINAL_HEAD="$(git rev-parse HEAD)"
+export FINAL_HEAD
+echo "FINAL_HEAD=$FINAL_HEAD"
 ```
 
-Frozen expectation:
+The raw and parsed evidence paths must contain `FINAL_HEAD`, must
+not already exist, and must be created with `O_CREAT|O_EXCL`.
+Reusing an older head's output is a stop.
+
+- [ ] **Step 2: Reproduce the Actions pytest command and keep its exit**
+
+```bash
+FINAL_HEAD="$(git rev-parse HEAD)"
+export FINAL_HEAD
+/usr/bin/python3 - <<'PY'
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+final_head = os.environ["FINAL_HEAD"]
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
+ns = {}
+exec(plan[start:end], ns)
+raw_path, parsed_path = ns["task7_evidence_paths"](final_head)
+cmd = [
+    "/usr/bin/python3",
+    "-m",
+    "pytest",
+    "-q",
+    "--maxfail=1",
+]
+env = os.environ.copy()
+env["PYTHONPATH"] = "src"
+proc = subprocess.run(
+    cmd,
+    env=env,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+)
+output = (proc.stdout or "") + (proc.stderr or "")
+ns["write_exclusive"](raw_path, output)
+evidence = ns["parse_pytest_output"](output, proc.returncode, final_head)
+ns["write_exclusive"](parsed_path, json.dumps(evidence, indent=2, sort_keys=True) + "\n")
+print("TASK7_RAW", raw_path)
+print("TASK7_PARSED", parsed_path)
+print(json.dumps(evidence, sort_keys=True))
+if (
+    evidence["collected"] != 1693
+    or evidence["passed"] != 1693
+    or evidence["failed"] != 0
+    or evidence["exit"] != 0
+):
+    print("root tuple is not the planned 1693/1693/0/0 success")
+    sys.exit(proc.returncode if proc.returncode != 0 else 1)
+sys.exit(proc.returncode)
+PY
+```
+
+Frozen success tuple:
 
 ```text
 collected = 1693
@@ -453,12 +515,13 @@ failed = 0
 exit = 0
 ```
 
-Warnings are allowed. Record the exact warning count and types.
-Any failure is a stop. Do not widen scope. Do not interpret a
-green root suite as `MAIN_PR_MERGE_AUTHORIZED` or
-`MERGE_AUTHORIZED`.
+Warnings are allowed only as values parsed from this fresh
+output. Record `warning_count` and `warning_types` from the same
+file. Any failure is a stop. Do not widen scope. Do not interpret
+a green root suite as `MAIN_PR_MERGE_AUTHORIZED` or
+`MERGE_AUTHORIZED`. The pytest exit code is propagated unchanged.
 
-- [ ] **Step 2: Do not run SSOT or live builds**
+- [ ] **Step 3: Do not run SSOT or live builds**
 
 Do not run `scripts/build_paper_numbers.py`.
 Do not run CMake, ninja, make, a real compiler, or Boost.Math.
@@ -503,10 +566,23 @@ porcelain = empty
 
 Running `gh pr edit` is not a pass. `assert heading in body` is
 not a pass. The later executor must extract the verifier library
-below, re-read pull request 28, parse unfenced ATX `##` headings,
-and machine-check every required section fact. Headings that
-appear only inside fenced code, in ordinary sentences, or in
-inline code are not section headings.
+below, run `run_verifier_self_test()` first, then re-read pull
+request 28. The H2 parser collects every unfenced line-start ATX
+H2 and requires that exact sequence:
+
+```text
+## Motivation
+## Changes
+## Tests
+## SSOT integrity
+## Governance
+```
+
+Extra unfenced H2 titles fail. Headings that appear only inside
+fenced code, in ordinary sentences, or in inline code are not
+section headings. Changes and Tests use unique canonical keys,
+not natural-language heuristics. Tests warning fields must equal
+the Task 7 parsed evidence for this `FINAL_HEAD`.
 
 CI states remain:
 
@@ -525,15 +601,22 @@ An unbounded `while` loop is a stop. The workflow job timeout is
 30 minutes. 3600 seconds is this plan's finite wait cap, not a
 success exemption.
 
+`wait_for_terminal` collects every job named `REQUIRED_JOB`.
+Two matches are a stop. A terminal run with zero matches is a
+stop. A non-terminal run with zero matches may wait inside the
+completion deadline. Only the unique match may be used.
+
 #### Verifier library
 
-This library is the only body, wait-budget, and rollup authority.
-Extract it from this file. Do not re-implement a heading-in-body
-check.
+This library is the only body, wait-budget, rollup, Task 7
+evidence, and self-test authority. Extract it from this file.
 
 ```python
 # === VERIFIER_LIB_BEGIN ===
+import json
+import os
 import re
+import sys
 import time
 
 HEADINGS = (
@@ -573,16 +656,45 @@ NON_TERMINAL = {
     "waiting",
     "requested",
 }
+ATX_H2 = re.compile(r"^## [^#].*$")
+FACT_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_.]*)\s*=\s*(.*?)\s*$")
 BANNED_TOKENS = re.compile(
     r"\b(TBD|TODO|FIXME|TBA|placeholder)\b",
     re.IGNORECASE,
 )
-WARN_COUNT = re.compile(
-    r"\bwarn(?:ing)?s?\b\s*[:=]?\s*(\d+)",
-    re.IGNORECASE,
-)
-WARN_TYPE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*Warning\b")
 RUN_JOB_URL = re.compile(r"/actions/runs/(\d+)/job/(\d+)")
+CHANGES_FACTS = {
+    "merge.count": "1",
+    "merge.mode": "--no-ff",
+    "merge.source_branch": SOURCE_BRANCH,
+    "merge.source_head": PR18_HEAD,
+    "merge.message": MERGE_MESSAGE,
+    "pr17_history_rewritten": "false",
+    "pr19_history_rewritten": "false",
+    "cherry_pick_used": "false",
+    "rebase_used": "false",
+    "squash_used": "false",
+    "manual_conflict_commit_used": "false",
+}
+FROZEN_TEST_FACTS = {
+    "external_focused_passed": "176",
+    "compile_commands_passed": "1",
+    "cmakecache_passed": "1",
+    "pilot_file_passed": "75",
+    "root_collected": "1693",
+    "root_passed": "1693",
+    "root_failed": "0",
+    "root_exit": "0",
+}
+GOVERNANCE_FLAGS = (
+    "PR_READY_AUTHORIZED=false",
+    "MAIN_PR_MERGE_AUTHORIZED=false",
+    "MERGE_AUTHORIZED=false",
+    "REAL_QUALIFICATION_AUTHORIZED=false",
+    "ATTEMPT_2_AUTHORIZED=false",
+    "CLAIMS_AUTHORIZED=false",
+    "FORMAL_DENOMINATOR_MEMBERSHIP=false",
+)
 
 
 class VerifierError(Exception):
@@ -608,6 +720,62 @@ class FakeClock:
         self.t += float(seconds)
 
 
+def task7_evidence_paths(final_head):
+    raw = "/tmp/pr28-task7-%s.raw" % final_head
+    parsed = "/tmp/pr28-task7-%s.json" % final_head
+    return raw, parsed
+
+
+def write_exclusive(path, text):
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(text)
+
+
+def format_warning_types(types):
+    return ",".join(types) if types else "-"
+
+
+def parse_pytest_output(text, exit_code, final_head):
+    collected_m = re.search(r"\bcollected\s+(\d+)\b", text)
+    passed_m = re.search(r"\b(\d+)\s+passed\b", text)
+    failed_m = re.search(r"\b(\d+)\s+failed\b", text)
+    warn_m = re.search(r"\b(\d+)\s+warnings?\b", text)
+    types = []
+    seen = set()
+    for match in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*Warning)\b", text):
+        name = match.group(1)
+        if name not in seen:
+            seen.add(name)
+            types.append(name)
+    if collected_m is None or passed_m is None:
+        raise VerifierError("Task 7 output missing collected/passed")
+    return {
+        "final_head": final_head,
+        "collected": int(collected_m.group(1)),
+        "passed": int(passed_m.group(1)),
+        "failed": int(failed_m.group(1)) if failed_m else 0,
+        "exit": int(exit_code),
+        "warning_count": int(warn_m.group(1)) if warn_m else 0,
+        "warning_types": types,
+    }
+
+
+def load_task7_evidence(final_head):
+    _raw, parsed = task7_evidence_paths(final_head)
+    if not os.path.exists(parsed):
+        raise VerifierError("missing Task 7 evidence %s" % parsed)
+    evidence = json.loads(Path_read(parsed))
+    if evidence.get("final_head") != final_head:
+        raise VerifierError("Task 7 evidence FINAL_HEAD mismatch")
+    return evidence
+
+
+def Path_read(path):
+    with open(path, "r") as handle:
+        return handle.read()
+
+
 def iter_unfenced_lines(text):
     in_fence = False
     fence_token = None
@@ -631,19 +799,18 @@ def extract_h2_sections(body):
     found = []
     for lineno, line in iter_unfenced_lines(body):
         key = line.rstrip()
-        if key in HEADINGS:
+        if ATX_H2.match(key):
             found.append((lineno, key))
     names = [key for _lineno, key in found]
     if names != list(HEADINGS):
         raise VerifierError(
-            "headings must be exact unfenced ATX H2 titles, "
-            "each once, in order; got %s" % (names,)
+            "unfenced H2 sequence must equal HEADINGS exactly; got %s" % (names,)
         )
     sections = {key: [] for key in HEADINGS}
     current = None
     for _lineno, line in iter_unfenced_lines(body):
         key = line.rstrip()
-        if key in HEADINGS:
+        if ATX_H2.match(key):
             current = key
             continue
         if current is not None:
@@ -655,6 +822,29 @@ def extract_h2_sections(body):
             raise VerifierError("empty section %s" % key)
         out[key] = text
     return out
+
+
+def parse_canonical_facts(section_name, text, expected):
+    facts = {}
+    for line in text.splitlines():
+        match = FACT_RE.match(line.strip())
+        if match is None:
+            continue
+        key, value = match.group(1), match.group(2)
+        if key in facts:
+            raise VerifierError("%s duplicate key %s" % (section_name, key))
+        if key not in expected:
+            raise VerifierError("%s unknown key %s" % (section_name, key))
+        facts[key] = value
+    for key, expected_value in expected.items():
+        if key not in facts:
+            raise VerifierError("%s missing key %s" % (section_name, key))
+        if facts[key] != expected_value:
+            raise VerifierError(
+                "%s %s expected %r got %r"
+                % (section_name, key, expected_value, facts[key])
+            )
+    return facts
 
 
 def _require(section_name, text, needle, exact=False):
@@ -669,9 +859,13 @@ def _require_re(section_name, text, pattern, label):
         raise VerifierError("%s missing %s" % (section_name, label))
 
 
-def assert_pr_body(body, final_head):
+def assert_pr_body(body, final_head, evidence):
     if not re.fullmatch(r"[0-9a-f]{40}", final_head or ""):
         raise VerifierError("FINAL_HEAD must be a 40-character lowercase SHA")
+    if not evidence:
+        raise VerifierError("Task 7 evidence is required")
+    if evidence.get("final_head") != final_head:
+        raise VerifierError("evidence.final_head != FINAL_HEAD")
     sections = extract_h2_sections(body)
 
     motivation = sections["## Motivation"]
@@ -684,40 +878,20 @@ def assert_pr_body(body, final_head):
     _require("Motivation", motivation, final_head, exact=True)
     _require_re("Motivation", motivation, r"PR\s*#?\s*28|pull request 28", "PR 28")
 
-    changes = sections["## Changes"]
-    _require("Changes", changes, "--no-ff", exact=True)
-    _require_re("Changes", changes, r"exactly one", "exactly one merge")
-    _require("Changes", changes, SOURCE_BRANCH, exact=True)
-    _require("Changes", changes, PR18_HEAD, exact=True)
-    _require("Changes", changes, MERGE_MESSAGE, exact=True)
-    _require_re("Changes", changes, r"not rewritten", "not rewritten")
-    _require_re("Changes", changes, r"\b17\b", "PR 17")
-    _require_re("Changes", changes, r"\b19\b", "PR 19")
-    for term in ("cherry-pick", "rebase", "squash", "conflict"):
-        _require("Changes", changes, term)
-    _require_re("Changes", changes, r"\b(no|not|without)\b", "negation")
+    parse_canonical_facts("Changes", sections["## Changes"], CHANGES_FACTS)
 
     tests = sections["## Tests"]
     if BANNED_TOKENS.search(tests):
         raise VerifierError("Tests contains a banned token")
-    _require_re("Tests", tests, r"external[^\n]*176\s+passed", "external 176 passed")
-    _require_re(
-        "Tests",
-        tests,
-        r"compile_commands[^\n]*1\s+passed",
-        "compile_commands 1 passed",
+    expected_tests = dict(FROZEN_TEST_FACTS)
+    expected_tests["root_warning_count"] = str(evidence["warning_count"])
+    expected_tests["root_warning_types"] = format_warning_types(
+        evidence.get("warning_types") or []
     )
-    _require_re("Tests", tests, r"CMakeCache[^\n]*1\s+passed", "CMakeCache 1 passed")
-    _require_re("Tests", tests, r"(pilot file|test_pilot_build)[^\n]*75\s+passed", "pilot 75 passed")
-    _require_re("Tests", tests, r"collected\s+1693", "collected 1693")
-    _require_re("Tests", tests, r"passed\s+1693", "passed 1693")
-    _require_re("Tests", tests, r"failed\s+0", "failed 0")
-    _require_re("Tests", tests, r"exit\s+0", "exit 0")
-    warn = WARN_COUNT.search(tests)
-    if warn is None:
-        raise VerifierError("Tests missing numeric warning count")
-    if WARN_TYPE.search(tests) is None:
-        raise VerifierError("Tests missing warning types from the fresh run")
+    for key in ("collected", "passed", "failed", "exit"):
+        if str(evidence[key]) != expected_tests["root_%s" % key]:
+            raise VerifierError("evidence root_%s mismatch" % key)
+    parse_canonical_facts("Tests", tests, expected_tests)
 
     ssot = sections["## SSOT integrity"]
     _require("SSOT integrity", ssot, "scripts/build_paper_numbers.py", exact=True)
@@ -728,15 +902,7 @@ def assert_pr_body(body, final_head):
     gov = sections["## Governance"]
     _require("Governance", gov, "OPEN")
     _require_re("Governance", gov, r"\bdraft\b", "draft")
-    for flag in (
-        "PR_READY_AUTHORIZED=false",
-        "MAIN_PR_MERGE_AUTHORIZED=false",
-        "MERGE_AUTHORIZED=false",
-        "REAL_QUALIFICATION_AUTHORIZED=false",
-        "ATTEMPT_2_AUTHORIZED=false",
-        "CLAIMS_AUTHORIZED=false",
-        "FORMAL_DENOMINATOR_MEMBERSHIP=false",
-    ):
+    for flag in GOVERNANCE_FLAGS:
         if re.search(r"(?<![A-Z_])" + re.escape(flag), gov) is None:
             raise VerifierError("Governance missing %r" % flag)
     return sections
@@ -756,6 +922,10 @@ def classify(item):
     return "A"
 
 
+def is_non_success_conclusion(conclusion):
+    return (conclusion or "").lower() in NON_SUCCESS
+
+
 def details_url_binds(url, run_id, job_id):
     if not url:
         return False
@@ -770,6 +940,10 @@ def select_newest_final_head_run(runs, final_head):
     if not matched:
         return None
     return sorted(matched, key=lambda run: run.get("createdAt") or "", reverse=True)[0]
+
+
+def _job_id(job):
+    return job.get("databaseId") or job.get("id")
 
 
 def wait_for_terminal(get_detail, run_id, final_head, clock, completion_seconds=COMPLETION_SECONDS, poll_seconds=POLL_SECONDS):
@@ -789,9 +963,32 @@ def wait_for_terminal(get_detail, run_id, final_head, clock, completion_seconds=
         if detail.get("headSha") != final_head:
             raise VerifierError("run headSha is not FINAL_HEAD")
         jobs = detail.get("jobs") or []
-        job = next((item for item in jobs if item.get("name") == REQUIRED_JOB), None)
+        matching_jobs = [
+            item for item in jobs if item.get("name") == REQUIRED_JOB
+        ]
+        if len(matching_jobs) > 1:
+            raise VerifierError(
+                "duplicate required jobs: "
+                + "; ".join(
+                    "id=%s url=%s status=%s conclusion=%s"
+                    % (
+                        _job_id(item),
+                        item.get("url"),
+                        item.get("status"),
+                        item.get("conclusion"),
+                    )
+                    for item in matching_jobs
+                )
+            )
         run_state = classify(detail)
-        job_state = classify(job) if job is not None else "B"
+        if len(matching_jobs) == 0:
+            if run_state in {"C", "D"}:
+                raise VerifierError("required job missing on terminal run")
+            job = None
+            job_state = "B"
+        else:
+            job = matching_jobs[0]
+            job_state = classify(job)
         if run_state == "D" or job_state == "D":
             return {
                 "expired": False,
@@ -823,7 +1020,7 @@ def format_timeout(result):
         "run.url %s" % detail.get("url"),
         "run.status %s" % detail.get("status"),
         "run.conclusion %s" % detail.get("conclusion"),
-        "job.id %s" % (job.get("databaseId") or job.get("id")),
+        "job.id %s" % _job_id(job),
         "job.url %s" % job.get("url"),
         "job.status %s" % job.get("status"),
         "job.conclusion %s" % job.get("conclusion"),
@@ -866,7 +1063,7 @@ def assert_rollup_bound(pr, final_head, run_id, job_id, job_url=None):
             raise VerifierError("pending rollup entry")
         if status != "COMPLETED":
             raise VerifierError("rollup status %s" % status)
-        if conclusion != "SUCCESS":
+        if is_non_success_conclusion(conclusion) or conclusion != "SUCCESS":
             raise VerifierError("rollup conclusion %s" % conclusion)
         bound = False
         if job_url and url == job_url:
@@ -879,20 +1076,398 @@ def assert_rollup_bound(pr, final_head, run_id, job_id, job_url=None):
     if len(required) != 1:
         raise VerifierError("required CheckRun missing or ambiguous: %s" % len(required))
     return required[0]
+
+
+def _valid_evidence(final_head):
+    return {
+        "final_head": final_head,
+        "collected": 1693,
+        "passed": 1693,
+        "failed": 0,
+        "exit": 0,
+        "warning_count": 10,
+        "warning_types": ["PytestCollectionWarning"],
+    }
+
+
+def _valid_body(final_head, evidence, extra_h2=None, changes=None, tests_overlay=None):
+    warning_types = format_warning_types(evidence.get("warning_types") or [])
+    change_lines = "\n".join(
+        "%s = %s" % (key, value) for key, value in CHANGES_FACTS.items()
+    )
+    if changes:
+        change_lines = changes
+    test_facts = dict(FROZEN_TEST_FACTS)
+    test_facts["root_warning_count"] = str(evidence["warning_count"])
+    test_facts["root_warning_types"] = warning_types
+    if tests_overlay:
+        test_facts.update(tests_overlay)
+    test_lines = "\n".join("%s = %s" % (key, value) for key, value in test_facts.items())
+    body = """## Motivation
+
+Authoritative pull request 28 RED.
+RED head %s
+RED run %s
+RED job %s
+PR #18 source head %s
+FINAL_HEAD %s
+
+## Changes
+
+%s
+
+## Tests
+
+%s
+
+## SSOT integrity
+
+scripts/build_paper_numbers.py was not run
+and is not applicable to history-only integration
+
+## Governance
+
+PR #28 remains OPEN
+PR #28 remains draft
+PR_READY_AUTHORIZED=false
+MAIN_PR_MERGE_AUTHORIZED=false
+MERGE_AUTHORIZED=false
+REAL_QUALIFICATION_AUTHORIZED=false
+ATTEMPT_2_AUTHORIZED=false
+CLAIMS_AUTHORIZED=false
+FORMAL_DENOMINATOR_MEMBERSHIP=false
+""" % (
+        RED_HEAD,
+        RED_RUN,
+        RED_JOB,
+        PR18_HEAD,
+        final_head,
+        change_lines,
+        test_lines,
+    )
+    if extra_h2:
+        body += "\n%s\nextra\n" % extra_h2
+    return body
+
+
+def _required_job(job_id, status, conclusion):
+    return {
+        "name": REQUIRED_JOB,
+        "databaseId": job_id,
+        "id": job_id,
+        "status": status,
+        "conclusion": conclusion,
+        "url": "https://github.com/%s/actions/runs/1/job/%s" % (REPO, job_id),
+    }
+
+
+def _required_rollup(run_id, job_id, status="COMPLETED", conclusion="SUCCESS"):
+    return {
+        "workflowName": REQUIRED_WORKFLOW,
+        "name": REQUIRED_JOB,
+        "status": status,
+        "conclusion": conclusion,
+        "detailsUrl": "https://github.com/%s/actions/runs/%s/job/%s"
+        % (REPO, run_id, job_id),
+    }
+
+
+def run_verifier_self_test():
+    final_head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    evidence = _valid_evidence(final_head)
+    failures = []
+
+    def expect_fail(name, fn):
+        try:
+            fn()
+        except VerifierError as exc:
+            print("REJECT %s: %s" % (name, exc))
+            return
+        failures.append(name)
+        print("UNEXPECTED_ACCEPT %s" % name)
+
+    def expect_ok(name, fn):
+        try:
+            fn()
+            print("ACCEPT %s" % name)
+        except Exception as exc:
+            failures.append(name)
+            print("UNEXPECTED_REJECT %s: %s" % (name, exc))
+
+    expect_fail(
+        "empty_headings",
+        lambda: assert_pr_body(
+            "## Motivation\n\n## Changes\n\n## Tests\n\n## SSOT integrity\n\n## Governance\n",
+            final_head,
+            evidence,
+        ),
+    )
+    expect_fail(
+        "fenced_headings",
+        lambda: assert_pr_body("```\n" + _valid_body(final_head, evidence) + "\n```\n", final_head, evidence),
+    )
+    expect_fail(
+        "extra_h2",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, extra_h2="## Extra"),
+            final_head,
+            evidence,
+        ),
+    )
+    expect_fail(
+        "duplicate_or_reordered_headings",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence).replace("## Tests", "## Changes", 1),
+            final_head,
+            evidence,
+        ),
+    )
+    missing = _valid_body(final_head, evidence).replace(
+        "external_focused_passed = 176\n", ""
+    )
+    expect_fail("missing_required_fact", lambda: assert_pr_body(missing, final_head, evidence))
+    adversarial = (
+        "PR17 not rewritten; PR19 rewritten;\n"
+        "no cherry-pick; rebase, squash and manual conflict resolution performed."
+    )
+    expect_fail(
+        "pr17_false_pr19_true",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, changes=adversarial),
+            final_head,
+            evidence,
+        ),
+    )
+    mixed = dict(CHANGES_FACTS)
+    mixed["pr19_history_rewritten"] = "true"
+    mixed_text = "\n".join("%s = %s" % item for item in mixed.items())
+    expect_fail(
+        "pr19_rewritten_true",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, changes=mixed_text),
+            final_head,
+            evidence,
+        ),
+    )
+    mixed2 = dict(CHANGES_FACTS)
+    mixed2["rebase_used"] = "true"
+    mixed2["squash_used"] = "true"
+    mixed2["manual_conflict_commit_used"] = "true"
+    mixed2_text = "\n".join("%s = %s" % item for item in mixed2.items())
+    expect_fail(
+        "no_cherrypick_but_other_rewrites",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, changes=mixed2_text),
+            final_head,
+            evidence,
+        ),
+    )
+    expect_fail(
+        "invented_warning",
+        lambda: assert_pr_body(
+            _valid_body(
+                final_head,
+                evidence,
+                tests_overlay={
+                    "root_warning_count": "999",
+                    "root_warning_types": "InventedWarning",
+                },
+            ),
+            final_head,
+            evidence,
+        ),
+    )
+
+    pending = {
+        "headSha": final_head,
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://example.test/run/1",
+        "jobs": [_required_job(2, "in_progress", "")],
+    }
+    pending_result = wait_for_terminal(
+        lambda _rid: pending,
+        1,
+        final_head,
+        FakeClock(),
+        completion_seconds=30,
+        poll_seconds=15,
+    )
+    if not pending_result.get("expired"):
+        failures.append("permanent_pending")
+        print("UNEXPECTED_ACCEPT permanent_pending")
+    else:
+        print("REJECT permanent_pending: COMPLETION_DEADLINE_EXPIRED")
+
+    dup_jobs = {
+        "headSha": final_head,
+        "status": "in_progress",
+        "conclusion": "",
+        "jobs": [
+            _required_job(2, "in_progress", ""),
+            _required_job(3, "in_progress", ""),
+        ],
+    }
+    expect_fail(
+        "duplicate_required_jobs",
+        lambda: wait_for_terminal(
+            lambda _rid: dup_jobs,
+            1,
+            final_head,
+            FakeClock(),
+            completion_seconds=30,
+            poll_seconds=15,
+        ),
+    )
+    missing_job = {
+        "headSha": final_head,
+        "status": "completed",
+        "conclusion": "success",
+        "jobs": [],
+    }
+    expect_fail(
+        "missing_job_on_terminal_run",
+        lambda: wait_for_terminal(
+            lambda _rid: missing_job,
+            1,
+            final_head,
+            FakeClock(),
+            completion_seconds=30,
+            poll_seconds=15,
+        ),
+    )
+    expect_fail(
+        "unrelated_rollup",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [{
+                    "workflowName": "other",
+                    "name": "unrelated",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "detailsUrl": "https://github.com/%s/actions/runs/1/job/2" % REPO,
+                }],
+            },
+            final_head,
+            1,
+            2,
+        ),
+    )
+    expect_fail(
+        "duplicate_required_rollup",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [
+                    _required_rollup(1, 2),
+                    _required_rollup(1, 2),
+                ],
+            },
+            final_head,
+            1,
+            2,
+        ),
+    )
+    expect_fail(
+        "old_url",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [_required_rollup(999, 888)],
+            },
+            final_head,
+            1,
+            2,
+        ),
+    )
+    for conclusion in ("FAILURE", "CANCELLED", "STALE", "SKIPPED"):
+        expect_fail(
+            "rollup_%s" % conclusion.lower(),
+            lambda c=conclusion: assert_rollup_bound(
+                {
+                    "headRefOid": final_head,
+                    "statusCheckRollup": [_required_rollup(1, 2, conclusion=c)],
+                },
+                final_head,
+                1,
+                2,
+            ),
+        )
+    expect_fail(
+        "pending_rollup",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [_required_rollup(1, 2, status="IN_PROGRESS", conclusion="")],
+            },
+            final_head,
+            1,
+            2,
+        ),
+    )
+
+    expect_ok(
+        "valid_body_and_evidence",
+        lambda: assert_pr_body(_valid_body(final_head, evidence), final_head, evidence),
+    )
+    success = {
+        "headSha": final_head,
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://example.test/run/1",
+        "jobs": [_required_job(2, "completed", "success")],
+    }
+    expect_ok(
+        "valid_wait",
+        lambda: (
+            None
+            if wait_for_terminal(
+                lambda _rid: success,
+                1,
+                final_head,
+                FakeClock(),
+                completion_seconds=30,
+                poll_seconds=15,
+            ).get("state")
+            == "C"
+            else (_ for _ in ()).throw(VerifierError("expected C"))
+        ),
+    )
+    expect_ok(
+        "valid_rollup",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [_required_rollup(1, 2)],
+            },
+            final_head,
+            1,
+            2,
+        ),
+    )
+    if failures:
+        print("VERIFIER_SELF_TEST_FAILED", ",".join(failures))
+        raise SystemExit(1)
+    print("VERIFIER_SELF_TEST_OK")
 # === VERIFIER_LIB_END ===
 ```
 
-Required body facts the verifier machine-checks after a fresh
-`gh pr view`. Heading presence alone does not prove them.
+`NON_SUCCESS` is consumed by `is_non_success_conclusion`, which
+fail-closes rollup conclusions and identifies D-state
+non-success terminals. It is not dead data.
+
+Required body facts. Heading presence alone does not prove them.
 
 ```text
-headings = exact unfenced ATX H2, each once, in this order:
+unfenced H2 sequence ==
 ## Motivation
 ## Changes
 ## Tests
 ## SSOT integrity
 ## Governance
 each section body is non-empty
+no extra unfenced H2
 
 Motivation:
 authoritative
@@ -903,24 +1478,31 @@ RED job = 96676383508
 PR18 source head = 4b21072add365923799dccc057d4fefffd69918c
 dynamically computed FINAL_HEAD
 
-Changes:
-exactly one --no-ff
-source branch = cursor/p3-compiler-alias-ci-repair-c46c
-source head = 4b21072add365923799dccc057d4fefffd69918c
-merge message = merge: integrate residual CMakeCache CI repair
-PR #17 and PR #19 histories were not rewritten
-no cherry-pick, rebase, squash or manual conflict commit
+Changes canonical keys, each once, exact values:
+merge.count = 1
+merge.mode = --no-ff
+merge.source_branch = cursor/p3-compiler-alias-ci-repair-c46c
+merge.source_head = 4b21072add365923799dccc057d4fefffd69918c
+merge.message = merge: integrate residual CMakeCache CI repair
+pr17_history_rewritten = false
+pr19_history_rewritten = false
+cherry_pick_used = false
+rebase_used = false
+squash_used = false
+manual_conflict_commit_used = false
 
-Tests:
-external focused: 176 passed
-compile_commands named test: 1 passed
-CMakeCache named test: 1 passed
-pilot file: 75 passed
-planned successful root tuple:
-collected 1693, passed 1693, failed 0, exit 0
-numeric warning count
-warning types from the future fresh run
-banned tokens TBD / TODO / FIXME / TBA / placeholder fail
+Tests canonical keys, each once:
+external_focused_passed = 176
+compile_commands_passed = 1
+cmakecache_passed = 1
+pilot_file_passed = 75
+root_collected = 1693
+root_passed = 1693
+root_failed = 0
+root_exit = 0
+root_warning_count = <Task 7 evidence.warning_count>
+root_warning_types = <Task 7 evidence.warning_types>
+banned tokens fail
 
 SSOT integrity:
 scripts/build_paper_numbers.py
@@ -939,6 +1521,29 @@ CLAIMS_AUTHORIZED=false
 FORMAL_DENOMINATOR_MEMBERSHIP=false
 ```
 
+- [ ] **Step 0: Run the extractable verifier self-test**
+
+This step uses `FakeClock`. It must run before any live
+`gh pr view` or CI wait. A failed self-test is a stop.
+
+```bash
+/usr/bin/python3 - <<'PY'
+from pathlib import Path
+
+plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
+ns = {}
+exec(plan[start:end], ns)
+ns["run_verifier_self_test"]()
+PY
+```
+
+Required: `VERIFIER_SELF_TEST_OK` and exit 0. Do not continue to
+Step 1 if this fails.
+
 - [ ] **Step 1: Freeze FINAL_HEAD and update the existing draft**
 
 ```bash
@@ -948,9 +1553,9 @@ echo "FINAL_HEAD=$FINAL_HEAD"
 
 Keep pull request 28 OPEN and draft. Do not mark-ready. Do not
 merge. Do not edit pull request 17, 18, or 19. Write the five
-unfenced headings and every required fact above, including the
-dynamic `FINAL_HEAD` value in Motivation and the fresh root
-warning count and warning types in Tests.
+unfenced headings and the canonical Changes / Tests keys,
+including `FINAL_HEAD` in Motivation and the Task 7 warning
+fields in Tests.
 
 - [ ] **Step 2: Re-read pull request 28 and run the body verifier**
 
@@ -982,10 +1587,13 @@ from pathlib import Path
 
 final_head = os.environ["FINAL_HEAD"]
 plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
-start = plan.index("# === VERIFIER_LIB_BEGIN ===")
-end = plan.index("# === VERIFIER_LIB_END ===") + len("# === VERIFIER_LIB_END ===")
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
 ns = {}
 exec(plan[start:end], ns)
+evidence = ns["load_task7_evidence"](final_head)
 raw = subprocess.check_output(
     [
         "gh",
@@ -1005,15 +1613,15 @@ assert pr["isDraft"] is True
 assert pr["baseRefName"] == "main"
 assert pr["headRefName"] == "cursor/pr17-pr19-ci-integration-c46c"
 assert pr["headRefOid"] == final_head
-ns["assert_pr_body"](pr["body"], final_head)
+ns["assert_pr_body"](pr["body"], final_head, evidence)
 print("PR28_BODY_FACTS_OK")
 print("FINAL_HEAD", final_head)
 print("headRefOid", pr["headRefOid"])
 PY
 ```
 
-`headRefOid != FINAL_HEAD` is a stop. A body that only has the
-five headings is a stop.
+`headRefOid != FINAL_HEAD` is a stop. Missing Task 7 evidence is
+a stop. A body that only has the five headings is a stop.
 
 - [ ] **Step 3: Discover, wait with a completion deadline, and bind rollup**
 
@@ -1033,13 +1641,14 @@ from pathlib import Path
 
 final_head = os.environ["FINAL_HEAD"]
 plan = Path("docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md").read_text()
-start = plan.index("# === VERIFIER_LIB_BEGIN ===")
-end = plan.index("# === VERIFIER_LIB_END ===") + len("# === VERIFIER_LIB_END ===")
+begin = "#" + " === VERIFIER_LIB_BEGIN ==="
+end_mark = "#" + " === VERIFIER_LIB_END ==="
+start = plan.index(begin)
+end = plan.index(end_mark) + len(end_mark)
 ns = {}
 exec(plan[start:end], ns)
 
 REPO = ns["REPO"]
-JOB_NAME = ns["REQUIRED_JOB"]
 DISCOVERY_SECONDS = ns["DISCOVERY_SECONDS"]
 COMPLETION_SECONDS = ns["COMPLETION_SECONDS"]
 POLL_SECONDS = ns["POLL_SECONDS"]
@@ -1100,14 +1709,20 @@ run_id = selected["databaseId"]
 print("DISCOVERED_RUN", run_id, selected.get("url"))
 print("CI_STATE", ns["classify"](selected))
 
-result = ns["wait_for_terminal"](
-    view_run,
-    run_id,
-    final_head,
-    clock,
-    completion_seconds=COMPLETION_SECONDS,
-    poll_seconds=POLL_SECONDS,
-)
+try:
+    result = ns["wait_for_terminal"](
+        view_run,
+        run_id,
+        final_head,
+        clock,
+        completion_seconds=COMPLETION_SECONDS,
+        poll_seconds=POLL_SECONDS,
+    )
+except ns["VerifierError"] as exc:
+    print("WAIT_FAILED", exc)
+    print("stop; do not edit, re-merge, re-push, mark-ready, or merge main")
+    sys.exit(4)
+
 if result.get("expired"):
     print(ns["format_timeout"](result))
     sys.exit(7)
@@ -1227,10 +1842,11 @@ and return the first failure plus collected, passed, failed, exit,
 and warning counts. Then stop. Do not modify code, re-merge,
 re-push, mark-ready, or merge main.
 
-Only after pull-request metadata, structured body facts, FINAL_HEAD
-CI state C, and a rollup bound to that run and job all pass may
-the later executor stop for Sol implementation review. Do not
-write an implementation verdict.
+Only after self-test, pull-request metadata, structured body
+facts bound to Task 7 evidence, FINAL_HEAD CI state C, and a
+rollup bound to that run and job all pass may the later executor
+stop for Sol implementation review. Do not write an
+implementation verdict.
 
 ---
 
@@ -1241,22 +1857,30 @@ A later implementation node must stop immediately when:
 - the isolated alias `IMPLEMENTATION_ENTRY` still appears;
 - parent 1 is not the Sol-written
   `INTEGRATION_IMPLEMENTATION_ENTRY`;
-- pull request 28 body headings are missing, duplicated, out of
-  order, only inside a fence, or only proven by
+- `run_verifier_self_test` fails;
+- the unfenced H2 sequence is not exactly the five required
+  titles, including extra, missing, duplicate, or reordered H2;
+- headings are only inside a fence or only proven by
   `assert heading in body`;
 - any required section body is empty;
-- any required Motivation, Changes, Tests, SSOT, or Governance
-  fact is missing;
-- Tests omit the planned root tuple
-  `collected 1693, passed 1693, failed 0, exit 0`;
-- Tests omit a numeric warning count or warning types from the
-  fresh run, or use a banned token;
+- Changes lacks a canonical key, repeats a key, or uses a value
+  other than the frozen false/exact merge facts;
+- PR17 and PR19 rewritten flags are not independently `false`;
+- cherry-pick, rebase, squash, or manual conflict flags are not
+  independently `false`;
+- Tests canonical keys do not equal the frozen focused counts
+  plus Task 7 evidence fields;
+- `root_warning_count` / `root_warning_types` do not equal the
+  exclusive-created Task 7 evidence for this `FINAL_HEAD`;
+- Task 7 evidence is missing, reused, or not exclusive-created;
 - pull request 28 `headRefOid` is not `FINAL_HEAD`;
 - no FINAL_HEAD `sanity-check` run appears before
   `DISCOVERY_SECONDS = 600`;
 - the selected FINAL_HEAD run or required job is still
   non-terminal when `COMPLETION_SECONDS = 3600` expires;
 - the wait loop has no completion deadline;
+- two jobs share `REQUIRED_JOB`;
+- a terminal run has zero `REQUIRED_JOB` matches;
 - the FINAL_HEAD run or job has any non-success terminal
   conclusion;
 - `statusCheckRollup` is empty;
@@ -1319,35 +1943,37 @@ This archival node must not start Task 1 through Task 9.
   name. Isolated `IMPLEMENTATION_ENTRY` is a stop. `parent 1`
   must equal the Sol-written SHA verbatim. `parent 2` remains
   `4b21072add365923799dccc057d4fefffd69918c`.
-- Body-fact finding is closed. Task 9, Stop Conditions, and this
-  Self-Review now require the extractable section parser. Five
-  exact unfenced ATX H2 titles must appear once in order with
-  non-empty bodies. Motivation, Changes, Tests, SSOT, and
-  Governance facts are machine-checked. `assert heading in body`
-  is not a pass.
-- Completion-deadline finding is closed. Discovery stays
-  `DISCOVERY_SECONDS = 600`. After the newest FINAL_HEAD run is
-  selected, a new monotonic `COMPLETION_SECONDS = 3600` deadline
-  bounds queued, pending, in_progress, waiting, and requested
-  polling. Timeout prints FINAL_HEAD, run, and job evidence and
-  stops. An unbounded wait is a stop. 3600 seconds is not a
-  success exemption.
-- Rollup-binding finding is closed. `FINAL_HEAD_CI_OK` requires
-  run C, required job C, `headRefOid = FINAL_HEAD`, and exactly
-  one `sanity-check` / `Run pytest (Path-A cache replay smoke)`
-  CheckRun whose `detailsUrl` binds the selected `run_id` and
-  `job_id`. Empty, unrelated, pending, failed, cancelled, stale,
-  skipped, duplicate, or old-URL rollups fail.
-- Kept contracts: atomic five-destination fetch, merge-base
-  gate, PR17/PR18/PR19 source-head gates, 11 to 13 path set,
+- H2-sequence finding is closed. The parser collects every
+  unfenced line-start ATX H2 and requires the exact five-title
+  sequence. Extra `## Extra`, duplicates, reorder, fence-only,
+  and empty sections fail.
+- Changes-negation finding is closed. Changes uses unique
+  canonical keys. PR17, PR19, cherry-pick, rebase, squash, and
+  manual conflict are independently `false`. The prose fixture
+  `PR17 not rewritten; PR19 rewritten; no cherry-pick; rebase,
+  squash and manual conflict resolution performed.` is a reject.
+- Warning-evidence finding is closed. Task 7 exclusive-creates
+  FINAL_HEAD-named raw and parsed files, keeps the pytest exit,
+  and parses collected/passed/failed/exit/warning fields. Task 9
+  compares Tests canonical keys to that evidence. Invented
+  `999 InventedWarning` fails unless evidence matches.
+- Duplicate-job finding is closed. `wait_for_terminal` collects
+  all `REQUIRED_JOB` matches. `len > 1` raises. Terminal
+  `len == 0` raises. Non-terminal `len == 0` may wait. Only one
+  match may be used. First-match job selection without a
+  count check is gone.
+- Self-test finding is closed. Task 9 Step 0 runs
+  `run_verifier_self_test()` on `FakeClock` before live PR/CI.
+  The listed negative fixtures must REJECT and one complete
+  fixture must ACCEPT. `NON_SUCCESS` feeds
+  `is_non_success_conclusion` for rollup D-state conclusions.
+- Kept contracts: `DISCOVERY_SECONDS = 600`,
+  `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, four-way
+  run/job/headRefOid/detailsUrl bind, atomic five-destination
+  fetch, merge-base, source-head gates, 11 to 13 path set,
   current and combined test blobs, exactly one `--no-ff` merge,
   pull request 28 OPEN draft on `main`, design as semantic SSOT,
   and local-history versus main-PR merge separation.
-- Spec coverage: reuse of pull request 28, one remaining
-  `--no-ff` merge, pre-merge 11-path and post-merge 13-path
-  sets, current and combined test hashes, three-ancestor
-  contract, four pytest gates plus recorded root counts, draft
-  stop.
 - Design remains the semantic SSOT.
 - Entry is fail-closed on an explicit Sol SHA and atomic
   five-destination fetch.

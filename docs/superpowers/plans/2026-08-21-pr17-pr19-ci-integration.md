@@ -145,11 +145,13 @@ tests/external_slice/test_check_supplemental_r2_admission.py
 tests/p3_v3/test_pilot_build.py
 ```
 
-A fifteenth path is a stop. Do not create helper modules. Do not
-edit workflows except the one authorized `fetch-depth: 2` to
-`fetch-depth: 0` change in `.github/workflows/sanity.yml`. Do not
-change the immutable transport-baseline fetch. Do not add fixed
-historical SHAs, another fetch step, or a second workflow edit.
+A fifteenth path is a stop. Do not create helper modules. The
+only authorized workflow edits in `.github/workflows/sanity.yml`
+are the existing `fetch-depth: 2` to `fetch-depth: 0` change and
+this one `timeout-minutes: 30` to `timeout-minutes: 45` change.
+A third workflow edit is a stop. Do not change the immutable
+transport-baseline fetch. Do not add fixed historical SHAs or
+another fetch step.
 
 ## Frozen Evidence
 
@@ -689,8 +691,9 @@ gh run list \
 A bounded wait is mandatory: `DISCOVERY_SECONDS = 600` then,
 after a FINAL_HEAD run is selected, `COMPLETION_SECONDS = 3600`
 on a monotonic clock. An unbounded `while` loop is a stop. The
-workflow job timeout is 30 minutes. 3600 seconds is this
-plan's finite wait cap, not a success exemption.
+workflow job timeout is 45 minutes. `COMPLETION_SECONDS = 3600`
+is this plan's finite wait cap, not a success exemption. Do not
+raise the job timeout again.
 
 Inspect the selected run:
 
@@ -851,8 +854,10 @@ This plan does not:
 - re-merge pull request 17 or 19
 - cherry-pick or copy `4b21072a`
 - create a second combination branch or pull request
-- change `.github/workflows` except the one authorized
-  `fetch-depth: 2` to `fetch-depth: 0` edit, or skip tests
+- change `.github/workflows` except the two authorized
+  `fetch-depth: 2` to `fetch-depth: 0` and
+  `timeout-minutes: 30` to `timeout-minutes: 45` edits, or
+  skip tests. A third workflow edit is a stop.
 - change production `os.path.realpath` compares
 - run CMake, a real compiler, qualification, or Boost.Math
 - run `scripts/build_paper_numbers.py`
@@ -934,6 +939,36 @@ unchanged. The fixed-range history-audit test stays unchanged.
 - Deletion condition: the fixed-history test is removed or
   redesigned to consume an independently reviewable artifact
   without runtime Git history.
+
+## Timeout CI Remediation
+
+This one-off exception changes only
+`.github/workflows/sanity.yml` `timeout-minutes: 30` to
+`timeout-minutes: 45`. `fetch-depth: 0`, the immutable
+transport-baseline fetch, the pytest command, and
+`COMPLETION_SECONDS = 3600` stay unchanged. A third workflow
+edit is a stop.
+
+- Protected asset: complete final-head CI evidence.
+- Concrete failure: the runner cancels the unchanged suite at
+  30 minutes.
+- Trigger: elapsed job time reaches `timeout-minutes`.
+- Observable consequence: pytest has no terminal result and
+  SSOT is skipped.
+- Why existing mechanisms are insufficient:
+  `COMPLETION_SECONDS` controls reviewer waiting, not runner
+  lifetime; a local PASS is non-authoritative.
+- Minimal control: increase the existing job timeout from 30
+  to 45 minutes.
+- Deepest seam: the existing Actions job timeout.
+- Proof: the unchanged final-head suite and SSOT complete
+  successfully.
+- Maintenance cost: a failed job may consume up to 15
+  additional minutes.
+- Failure mode: suite runtime grows beyond 45 minutes.
+- Deletion condition: measured final-head runtime remains
+  below 30 minutes after a separately authorized performance
+  reduction or suite split.
 
 ## Self-Review Record
 

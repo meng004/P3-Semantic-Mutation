@@ -105,8 +105,8 @@ tests/external_slice/test_check_supplemental_r2_admission.py
 tests/p3_v3/test_pilot_build.py
 ```
 
-After the future pull request 18 merge, `origin/main...HEAD` must
-contain exactly these 13 paths:
+After the pull request 18 merge, `origin/main...HEAD` contained
+exactly these 13 paths:
 
 ```text
 docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-repair.md
@@ -124,8 +124,32 @@ tests/external_slice/test_check_supplemental_r2_admission.py
 tests/p3_v3/test_pilot_build.py
 ```
 
-A fourteenth path is a stop. Do not create helper modules. Do not
-edit workflows.
+After the authorized final-head shallow-history CI remediation,
+`origin/main...HEAD` must contain exactly these 14 paths. The
+added path is `.github/workflows/sanity.yml`.
+
+```text
+.github/workflows/sanity.yml
+docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-repair.md
+docs/superpowers/plans/2026-08-19-p3-compiler-alias-ci-test-repair.md
+docs/superpowers/plans/2026-08-19-supplemental-r2-path-scan-ci-repair.md
+docs/superpowers/plans/2026-08-21-pr17-pr19-ci-integration.md
+docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-repair-design.md
+docs/superpowers/specs/2026-08-19-p3-compiler-alias-ci-test-repair-design.md
+docs/superpowers/specs/2026-08-19-supplemental-r2-path-scan-ci-repair-design.md
+docs/superpowers/specs/2026-08-21-pr17-pr19-ci-integration-design.md
+scripts/external_slice/check_supplemental_r2_admission.py
+scripts/external_slice/check_supplemental_r2_handoff_hashes.py
+scripts/external_slice/mine_supplemental_r2.py
+tests/external_slice/test_check_supplemental_r2_admission.py
+tests/p3_v3/test_pilot_build.py
+```
+
+A fifteenth path is a stop. Do not create helper modules. Do not
+edit workflows except the one authorized `fetch-depth: 2` to
+`fetch-depth: 0` change in `.github/workflows/sanity.yml`. Do not
+change the immutable transport-baseline fetch. Do not add fixed
+historical SHAs, another fetch step, or a second workflow edit.
 
 ## Frozen Evidence
 
@@ -336,7 +360,7 @@ widen the write set.
 
 **Files:** read only after the merge
 
-- [ ] **Step 1: Confirm parents, three ancestors, 13 paths, and hash**
+- [ ] **Step 1: Confirm parents, three ancestors, post-merge paths, and hash**
 
 ```bash
 git log -1 --format='%H%n%P'
@@ -377,8 +401,12 @@ PR18_ANCESTOR_EXIT=0
 porcelain = empty
 combined test blob =
 b1af86f556614b28cd41a204255c47a7c0e4b27cd4812c9cd6491b0c3c824e90
-path set = the exact 13-path set
+path set immediately after the --no-ff merge = the exact 13-path set
+path set after the authorized fetch-depth remediation = the exact 14-path set
 ```
+
+Requiring the 13-path set as the final base→HEAD state after the
+checkout remediation is a stop.
 
 Parent 1 must equal the Sol-written
 `INTEGRATION_IMPLEMENTATION_ENTRY` verbatim. The future entry
@@ -811,7 +839,7 @@ A later implementation node must stop immediately when:
 - cherry-pick, rebase, squash, or a hand-written conflict
   commit is used;
 - a merge conflict appears;
-- the post-merge path set is not the exact 13-path set;
+- the final base→HEAD path set is not the exact 14-path set;
 - any required pytest command fails.
 
 ---
@@ -823,7 +851,8 @@ This plan does not:
 - re-merge pull request 17 or 19
 - cherry-pick or copy `4b21072a`
 - create a second combination branch or pull request
-- change `.github/workflows` or skip tests
+- change `.github/workflows` except the one authorized
+  `fetch-depth: 2` to `fetch-depth: 0` edit, or skip tests
 - change production `os.path.realpath` compares
 - run CMake, a real compiler, qualification, or Boost.Math
 - run `scripts/build_paper_numbers.py`
@@ -882,6 +911,30 @@ existing Git/GitHub final-head CI seam instead.
   superseded by an explicitly authorized repository-wide CI
   policy.
 
+## Shallow-History CI Remediation
+
+This one-off exception changes only
+`.github/workflows/sanity.yml` `fetch-depth: 2` to
+`fetch-depth: 0`. The immutable transport-baseline fetch stays
+unchanged. The fixed-range history-audit test stays unchanged.
+
+- Protected asset: the existing no-production-artifact history
+  audit and trustworthy final-head CI.
+- Trigger: a shallow checkout omits commits required by the
+  unchanged test.
+- Observable consequence: `git diff` exits 128 before the test
+  can evaluate its assertion.
+- Why Git SHA alone is insufficient: a SHA identifies an object
+  but does not materialize it in a depth-2 checkout.
+- Minimal existing control: `actions/checkout` `fetch-depth: 0`.
+- Deepest seam: CI checkout object availability.
+- Proof: the unchanged 1693-test suite on the new FINAL_HEAD.
+- Maintenance cost: increased checkout history transfer.
+- Failure mode: checkout time or repository-history growth.
+- Deletion condition: the fixed-history test is removed or
+  redesigned to consume an independently reviewable artifact
+  without runtime Git history.
+
 ## Self-Review Record
 
 - Finding 1 remains closed. Task 1, Task 4 Post-Merge Required,
@@ -920,7 +973,8 @@ existing Git/GitHub final-head CI seam instead.
 - Kept contracts: `DISCOVERY_SECONDS = 600`,
   `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, atomic
   five-destination fetch, merge-base, source-head checks, 11
-  to 13 path set, current and combined test blobs, exactly one
+  to 13 path set after the merge and the 14-path set after this
+  checkout remediation, current and combined test blobs, exactly one
   `--no-ff` merge, pull request 28 OPEN draft on `main`,
   design as semantic SSOT for topology and frozen history
   values, and local-history versus main-PR merge separation.

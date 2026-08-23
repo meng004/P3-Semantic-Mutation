@@ -529,7 +529,16 @@ attempt_nonce
 raw_sha256
 manifest_sha256
 final_head
+bundle_dev
+bundle_ino
 ```
+
+`bundle_dev` and `bundle_ino` are the create-time `lstat`
+identity of the `mkdtemp` directory. Cleanup must compare the
+live directory object to that identity. Path, basename,
+copyable bytes, hash, mode, owner, and manifest are not
+enough. A missing, relocated, or replaced captured path is a
+non-zero stop and must not claim the original raw was cleaned.
 
 Do not use `eval`, glob, latest-mtime, directory scanning,
 guessed paths, fixed symlinks, or manually retyped values.
@@ -555,16 +564,22 @@ Handoff cleanup must validate before `chmod` / remove /
 `rmdir`: the exact captured `bundle_path`, expected
 `FINAL_HEAD` and nonce, owner and modes, exact directory
 entries, handed-off raw and manifest SHA-256 values, strict
-manifest schema, manifest `bundle_path` / head / nonce, and
-raw/manifest byte hashes. A validation failure refuses
-deletion, returns non-zero, and leaves the unverified target
-untouched. A coordinated handoff that points at a
-matching-name decoy must be rejected and the decoy must
-remain. Cleanup must not delete `/tmp`, an empty path, a
-glob result, a guessed path, a relocated path, or a
-directory verified only by basename substrings. After a
-validated cleanup the exact path must be absent. Raw output
-must not remain indefinitely.
+manifest schema, manifest `bundle_path` / head / nonce,
+raw/manifest byte hashes, and the create-time directory
+object identity. A validation failure refuses deletion,
+returns non-zero, and leaves the unverified target
+untouched. A missing captured path, a relocated original, a
+byte-identical replacement at the captured path, or a
+validate-then-swap decoy must fail closed and must not
+delete the lookalike. A coordinated handoff that points at a
+matching-name decoy that already satisfies mode, owner,
+schema, hashes, and path/head/nonce must still be rejected
+when it is not the original object. Cleanup must not delete
+`/tmp`, an empty path, a glob result, a guessed path, a
+relocated path, or a directory verified only by basename
+substrings. After a validated cleanup of the original object
+the exact path must be absent. Raw output must not remain
+indefinitely.
 
 - [ ] **Step 2: Reproduce the Actions pytest command and keep its exit**
 
@@ -818,7 +833,10 @@ HANDOFF_FIELDS = (
     "raw_sha256",
     "manifest_sha256",
     "final_head",
+    "bundle_dev",
+    "bundle_ino",
 )
+_BUNDLE_OBJECT = {}
 INT_FIELDS = (
     "exit",
     "collected",
@@ -964,6 +982,7 @@ def cleanup_partial_create(bundle, final_head, nonce):
                 os.chmod(child, 0o600)
                 os.remove(child)
         os.rmdir(abs_path)
+    _BUNDLE_OBJECT.pop(abs_path, None)
     if os.path.exists(abs_path) or os.path.lexists(abs_path):
         raise VerifierError("bundle still present after cleanup")
 
@@ -975,11 +994,37 @@ def cleanup_task7_bundle(bundle, final_head, nonce, expected_path=None):
     cleanup_partial_create(bundle, final_head, nonce)
 
 
-def cleanup_task7_handoff(handoff, expected_final_head):
+def _handoff_identity(handoff):
+    dev = handoff.get("bundle_dev")
+    ino = handoff.get("bundle_ino")
+    if type(dev) is not int or type(ino) is not int:
+        raise VerifierError("handoff missing original bundle identity")
+    return (dev, ino)
+
+
+def _path_identity(path):
+    reject_symlink(path, "bundle")
+    st = os.lstat(path)
+    return (st.st_dev, st.st_ino)
+
+
+def _require_original_bundle(handoff):
+    path = handoff["bundle_path"]
+    if not path:
+        raise VerifierError("empty captured path")
+    missing = not os.path.exists(path) and not os.path.lexists(path)
+    if missing:
+        raise VerifierError("captured path missing; original not cleaned")
+    if _path_identity(path) != _handoff_identity(handoff):
+        raise VerifierError("not the original Task 7 bundle object")
+    return os.path.abspath(path)
+
+
+def cleanup_task7_handoff(handoff, expected_final_head, after_validate=None):
     path = handoff["bundle_path"]
     missing = not os.path.exists(path) and not os.path.lexists(path)
     if missing:
-        return
+        raise VerifierError("captured path missing; original not cleaned")
     try:
         if handoff["final_head"] != expected_final_head:
             raise VerifierError("cleanup FINAL_HEAD mismatch")
@@ -991,6 +1036,16 @@ def cleanup_task7_handoff(handoff, expected_final_head):
             handoff["manifest_sha256"],
             handoff["bundle_path"],
         )
+        _require_original_bundle(handoff)
+    except Exception as exc:
+        raise VerifierError(
+            "cleanup validation failed; target left untouched: %s"
+            % exc
+        )
+    if after_validate is not None:
+        after_validate()
+    try:
+        _require_original_bundle(handoff)
     except Exception as exc:
         raise VerifierError(
             "cleanup validation failed; target left untouched: %s"
@@ -1056,6 +1111,8 @@ def create_task7_bundle(final_head, raw_text, exit_code, nonce=None, fail_after=
     try:
         prefix = "pr28-task7-%s-%s-" % (final_head, nonce)
         bundle = tempfile.mkdtemp(prefix=prefix, dir="/tmp")
+        st = os.lstat(bundle)
+        _BUNDLE_OBJECT[os.path.abspath(bundle)] = (st.st_dev, st.st_ino)
         os.chmod(bundle, 0o700)
         assert_safe_bundle_path(bundle, final_head, nonce)
         reject_symlink(bundle, "bundle")
@@ -1143,12 +1200,18 @@ def validate_manifest_schema(manifest):
 def make_task7_handoff(bundle, manifest):
     man_path = os.path.join(bundle, MANIFEST_NAME)
     man_bytes = open(man_path, "rb").read()
+    path = os.path.abspath(bundle)
+    ident = _BUNDLE_OBJECT.get(path)
+    if ident is None:
+        raise VerifierError("handoff missing create-time bundle identity")
     return {
-        "bundle_path": os.path.abspath(bundle),
+        "bundle_path": path,
         "attempt_nonce": manifest["attempt_nonce"],
         "raw_sha256": manifest["raw_sha256"],
         "manifest_sha256": hashlib.sha256(man_bytes).hexdigest(),
         "final_head": manifest["final_head"],
+        "bundle_dev": ident[0],
+        "bundle_ino": ident[1],
     }
 
 
@@ -1168,6 +1231,10 @@ def parse_task7_handoff(text, expected_final_head):
     _require_hex(handoff["manifest_sha256"], SHA_RE, "manifest_sha256")
     if type(handoff["bundle_path"]) is not str:
         raise VerifierError("bundle_path must be a string")
+    if type(handoff["bundle_dev"]) is not int:
+        raise VerifierError("bundle_dev must be int")
+    if type(handoff["bundle_ino"]) is not int:
+        raise VerifierError("bundle_ino must be int")
     if handoff["final_head"] != expected_final_head:
         raise VerifierError("handoff FINAL_HEAD mismatch")
     return handoff
@@ -1796,6 +1863,409 @@ def _required_rollup(run_id, job_id, status="COMPLETED", conclusion="SUCCESS"):
         "detailsUrl": "https://github.com/%s/actions/runs/%s/job/%s"
         % (REPO, run_id, job_id),
     }
+
+
+def _force_rm_bundle(path):
+    if not os.path.isdir(path):
+        return
+    os.chmod(path, 0o700)
+    for name in os.listdir(path):
+        child = os.path.join(path, name)
+        is_file = os.path.isfile(child) and not os.path.islink(child)
+        if is_file:
+            os.chmod(child, 0o600)
+            os.remove(child)
+    os.rmdir(path)
+
+
+def _valid_lookalike(dest, final_head, nonce, raw, path_value):
+    dest = os.path.abspath(dest)
+    os.mkdir(dest, 0o700)
+    raw_b = raw.encode("utf-8") if not isinstance(raw, bytes) else raw
+    write_exclusive_bytes(os.path.join(dest, RAW_NAME), raw_b)
+    parsed = parse_pytest_output(raw_b.decode("utf-8"), 0, final_head)
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "final_head": final_head,
+        "attempt_nonce": nonce,
+        "command": TASK7_COMMAND,
+        "exit": parsed["exit"],
+        "collected": parsed["collected"],
+        "passed": parsed["passed"],
+        "failed": parsed["failed"],
+        "warning_count": parsed["warning_count"],
+        "warning_types": list(parsed["warning_types"]),
+        "raw_sha256": hashlib.sha256(raw_b).hexdigest(),
+        "raw_size": len(raw_b),
+        "bundle_path": os.path.abspath(path_value),
+    }
+    write_exclusive_bytes(
+        os.path.join(dest, MANIFEST_NAME),
+        (json.dumps(manifest, sort_keys=True) + "\n").encode("utf-8"),
+    )
+    os.chmod(os.path.join(dest, RAW_NAME), 0o444)
+    os.chmod(os.path.join(dest, MANIFEST_NAME), 0o444)
+    os.chmod(dest, 0o500)
+    man_bytes = open(os.path.join(dest, MANIFEST_NAME), "rb").read()
+    return {
+        "bundle_path": dest,
+        "attempt_nonce": nonce,
+        "raw_sha256": hashlib.sha256(raw_b).hexdigest(),
+        "manifest_sha256": hashlib.sha256(man_bytes).hexdigest(),
+        "final_head": final_head,
+    }
+
+
+def suite_producer_lifecycle(final_head, raw, failures, live, drop):
+    class _Mem:
+        def __init__(self):
+            self.parts = []
+
+        def write(self, data):
+            self.parts.append(data)
+            return len(data)
+
+        def flush(self):
+            return None
+
+    def _produce_fail(name, point):
+        produced_nonce = new_nonce()
+        before = set(os.listdir("/tmp"))
+        try:
+            produce_task7_handoff(
+                final_head,
+                raw,
+                0,
+                stdout=_Mem(),
+                fail_after=point,
+                nonce=produced_nonce,
+            )
+            failures.append(name)
+            print("UNEXPECTED_ACCEPT %s" % name)
+        except Exception:
+            leftover = [
+                item
+                for item in sorted(set(os.listdir("/tmp")) - before)
+                if final_head in item and produced_nonce in item
+            ]
+            if leftover:
+                failures.append(name)
+                print("UNEXPECTED_ACCEPT %s still present" % name)
+            else:
+                print("REJECT %s: bundle absent" % name)
+                print("CLEANUP_ABSENT")
+
+    _produce_fail("produce_fail_make_handoff", "make_handoff")
+    _produce_fail("produce_fail_loader", "loader")
+    _produce_fail("produce_fail_tuple", "tuple")
+    _produce_fail("produce_fail_serialize", "serialize")
+    _produce_fail("produce_fail_write", "write")
+    _produce_fail("produce_fail_flush", "flush")
+    prod_nonce = new_nonce()
+    prod_buf = _Mem()
+    prod_h, _prod_ev = produce_task7_handoff(
+        final_head, raw, 0, stdout=prod_buf, nonce=prod_nonce
+    )
+    live.append(prod_h["bundle_path"])
+    parsed_prod = parse_task7_handoff("".join(prod_buf.parts), final_head)
+    try:
+        load_task7_evidence(
+            parsed_prod["bundle_path"],
+            parsed_prod["final_head"],
+            parsed_prod["attempt_nonce"],
+            parsed_prod["raw_sha256"],
+            parsed_prod["manifest_sha256"],
+            parsed_prod["bundle_path"],
+        )
+        print("ACCEPT producer_stdout_json")
+    except Exception as exc:
+        failures.append("producer_stdout_json")
+        print("UNEXPECTED_REJECT producer_stdout_json: %s" % exc)
+    drop(prod_h["bundle_path"], prod_nonce)
+
+
+def suite_task9_rc(final_head, failures, live, fresh, drop):
+    bundle, man, hon = fresh()
+    payload = json.dumps(hon, sort_keys=True)
+
+    def _ok_then_break(_handoff):
+        os.chmod(bundle, 0o700)
+        return "ok"
+
+    try:
+        run_task9_with_handoff_cleanup(payload, final_head, _ok_then_break)
+        failures.append("main_ok_cleanup_fail")
+        print("UNEXPECTED_ACCEPT main_ok_cleanup_fail")
+    except VerifierError as exc:
+        text = str(exc)
+        if "cleanup failed" not in text or os.path.isdir(bundle) is False:
+            failures.append("main_ok_cleanup_fail")
+            print("UNEXPECTED_REJECT main_ok_cleanup_fail: %s" % exc)
+        else:
+            print("REJECT main_ok_cleanup_fail: %s" % exc)
+            print("CLEANUP_FAILURE_NONZERO")
+    if os.path.isdir(bundle):
+        drop(bundle, man["attempt_nonce"])
+
+    bundle, man, hon = fresh()
+    payload = json.dumps(hon, sort_keys=True)
+
+    def _main_fail(_handoff):
+        raise VerifierError("main work failed")
+
+    try:
+        run_task9_with_handoff_cleanup(payload, final_head, _main_fail)
+        failures.append("main_fail_cleanup_ok")
+        print("UNEXPECTED_ACCEPT main_fail_cleanup_ok")
+    except VerifierError as exc:
+        if str(exc) != "main work failed" or os.path.exists(bundle):
+            failures.append("main_fail_cleanup_ok")
+            print("UNEXPECTED_REJECT main_fail_cleanup_ok: %s" % exc)
+        else:
+            print("REJECT main_fail_cleanup_ok: preserved main rc")
+            print("CLEANUP_ABSENT")
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    payload = json.dumps(hon, sort_keys=True)
+
+    def _exit5(_handoff):
+        raise SystemExit(5)
+
+    try:
+        run_task9_with_handoff_cleanup(payload, final_head, _exit5)
+        failures.append("main_exit_cleanup_ok")
+        print("UNEXPECTED_ACCEPT main_exit_cleanup_ok")
+    except SystemExit as exc:
+        if exc.code != 5 or os.path.exists(bundle):
+            failures.append("main_exit_cleanup_ok")
+            print("UNEXPECTED_REJECT main_exit_cleanup_ok: %s" % exc)
+        else:
+            print("REJECT main_exit_cleanup_ok: preserved exit 5")
+            print("CLEANUP_ABSENT")
+    except Exception as exc:
+        failures.append("main_exit_cleanup_ok")
+        print("UNEXPECTED_REJECT main_exit_cleanup_ok: %s" % exc)
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    payload = json.dumps(hon, sort_keys=True)
+
+    def _both_fail(_handoff):
+        os.chmod(bundle, 0o700)
+        raise VerifierError("main work failed")
+
+    try:
+        run_task9_with_handoff_cleanup(payload, final_head, _both_fail)
+        failures.append("main_fail_cleanup_fail")
+        print("UNEXPECTED_ACCEPT main_fail_cleanup_fail")
+    except VerifierError as exc:
+        text = str(exc)
+        both = "main failed" in text and "cleanup failed" in text
+        if not both or os.path.isdir(bundle) is False:
+            failures.append("main_fail_cleanup_fail")
+            print("UNEXPECTED_REJECT main_fail_cleanup_fail: %s" % exc)
+        else:
+            print("REJECT main_fail_cleanup_fail: %s" % exc)
+            print("BOTH_FAILED")
+    if os.path.isdir(bundle):
+        drop(bundle, man["attempt_nonce"])
+
+
+def suite_cleanup_refusal(final_head, failures, fresh, drop, unlock, relock):
+    def _cleanup_refuse(name, mutate):
+        bundle, man, hon = fresh()
+        decoy = None
+        try:
+            decoy = mutate(bundle, hon)
+            cleanup_task7_handoff(hon, final_head)
+            failures.append(name)
+            print("UNEXPECTED_ACCEPT %s" % name)
+        except VerifierError as exc:
+            target = decoy or bundle
+            if not os.path.isdir(target):
+                failures.append(name)
+                print("UNEXPECTED_REJECT %s deleted: %s" % (name, exc))
+            else:
+                print("REJECT %s: %s" % (name, exc))
+                print("CLEANUP_REFUSED")
+        if decoy and os.path.isdir(decoy):
+            os.chmod(decoy, 0o700)
+            os.rmdir(decoy)
+        if os.path.isdir(bundle):
+            unlock(bundle)
+            extra = os.path.join(bundle, "extra.txt")
+            if os.path.isfile(extra):
+                os.chmod(extra, 0o600)
+                os.remove(extra)
+            drop(bundle, man["attempt_nonce"])
+
+    bundle, man, hon = fresh()
+    real_geteuid = os.geteuid
+    os.geteuid = lambda: real_geteuid() + 1
+    try:
+        cleanup_task7_handoff(hon, final_head)
+        failures.append("cleanup_owner")
+        print("UNEXPECTED_ACCEPT cleanup_owner")
+    except VerifierError as exc:
+        if "owner" not in str(exc) or not os.path.isdir(bundle):
+            failures.append("cleanup_owner")
+            print("UNEXPECTED_REJECT cleanup_owner: %s" % exc)
+        else:
+            print("REJECT cleanup_owner: %s" % exc)
+            print("CLEANUP_REFUSED")
+    finally:
+        os.geteuid = real_geteuid
+    if os.path.isdir(bundle):
+        drop(bundle, man["attempt_nonce"])
+
+    def _mut_mode(bundle, _hon):
+        os.chmod(bundle, 0o700)
+
+    def _mut_extra(bundle, _hon):
+        unlock(bundle)
+        write_exclusive_bytes(os.path.join(bundle, "extra.txt"), b"x\n")
+        relock(bundle)
+
+    def _mut_missing(bundle, _hon):
+        unlock(bundle)
+        os.remove(os.path.join(bundle, RAW_NAME))
+        os.chmod(bundle, 0o500)
+
+    def _mut_raw(bundle, hon):
+        hon["raw_sha256"] = "0" * 64
+
+    def _mut_man(_bundle, hon):
+        hon["manifest_sha256"] = "0" * 64
+
+    def _mut_nonce(_bundle, hon):
+        hon["attempt_nonce"] = "0" * 32
+
+    def _mut_head(_bundle, hon):
+        hon["final_head"] = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+    def _mut_path(bundle, hon):
+        decoy = bundle + "-pathdecoy"
+        os.mkdir(decoy, 0o700)
+        hon["bundle_path"] = decoy
+        return decoy
+
+    _cleanup_refuse("cleanup_mode", _mut_mode)
+    _cleanup_refuse("cleanup_extra_entry", _mut_extra)
+    _cleanup_refuse("cleanup_missing_entry", _mut_missing)
+    _cleanup_refuse("cleanup_raw_hash", _mut_raw)
+    _cleanup_refuse("cleanup_manifest_hash", _mut_man)
+    _cleanup_refuse("cleanup_nonce", _mut_nonce)
+    _cleanup_refuse("cleanup_head", _mut_head)
+    _cleanup_refuse("cleanup_bundle_path", _mut_path)
+
+
+def suite_object_identity(final_head, raw, failures, live, fresh, drop):
+    bundle, man, hon = fresh()
+    reloc = bundle + "-reloc"
+    os.rename(bundle, reloc)
+    try:
+        cleanup_task7_handoff(hon, final_head)
+        failures.append("relocated_original_cleanup")
+        print("UNEXPECTED_ACCEPT relocated_original_cleanup")
+    except VerifierError:
+        if os.path.isdir(reloc) and not os.path.exists(bundle):
+            print("REJECT relocated_original_cleanup")
+            print("ORIGINAL_REMAINS_AND_CLEANUP_NONZERO")
+        else:
+            failures.append("relocated_original_cleanup")
+            print("UNEXPECTED_REJECT relocated_original_cleanup")
+    if os.path.isdir(reloc):
+        cleanup_partial_create(reloc, final_head, man["attempt_nonce"])
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    reloc = bundle + "-orig"
+    os.rename(bundle, reloc)
+    _valid_lookalike(bundle, final_head, man["attempt_nonce"], raw, bundle)
+    try:
+        cleanup_task7_handoff(hon, final_head)
+        failures.append("byte_identical_path_swap")
+        print("UNEXPECTED_ACCEPT byte_identical_path_swap")
+    except VerifierError:
+        if os.path.isdir(bundle) and os.path.isdir(reloc):
+            print("REJECT byte_identical_path_swap")
+            print("DECOY_REMAINS")
+            print("ORIGINAL_REMAINS")
+            print("CLEANUP_NONZERO")
+        else:
+            failures.append("byte_identical_path_swap")
+            print("UNEXPECTED_REJECT byte_identical_path_swap")
+    _force_rm_bundle(bundle)
+    if os.path.isdir(reloc):
+        cleanup_partial_create(reloc, final_head, man["attempt_nonce"])
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    reloc = bundle + "-orig"
+
+    def _swap():
+        os.rename(bundle, reloc)
+        _valid_lookalike(bundle, final_head, man["attempt_nonce"], raw, bundle)
+
+    try:
+        cleanup_task7_handoff(hon, final_head, after_validate=_swap)
+        failures.append("validate_then_swap")
+        print("UNEXPECTED_ACCEPT validate_then_swap")
+    except VerifierError:
+        if os.path.isdir(bundle) and os.path.isdir(reloc):
+            print("REJECT validate_then_swap")
+            print("DECOY_REMAINS")
+            print("CLEANUP_NONZERO")
+        else:
+            failures.append("validate_then_swap")
+            print("UNEXPECTED_REJECT validate_then_swap")
+    _force_rm_bundle(bundle)
+    if os.path.isdir(reloc):
+        cleanup_partial_create(reloc, final_head, man["attempt_nonce"])
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    try:
+        cleanup_task7_handoff(hon, final_head)
+        if os.path.exists(bundle):
+            failures.append("original_bundle_cleanup")
+            print("UNEXPECTED_ACCEPT original_bundle_cleanup still present")
+        else:
+            print("ACCEPT original_bundle_cleanup")
+            print("CLEANUP_ABSENT")
+    except Exception as exc:
+        failures.append("original_bundle_cleanup")
+        print("UNEXPECTED_REJECT original_bundle_cleanup: %s" % exc)
+    if bundle in live:
+        live.remove(bundle)
+
+    real_b, real_m, real_h = fresh()
+    decoy_nonce = real_m["attempt_nonce"]
+    decoy = "/tmp/pr28-task7-%s-%s-decoy" % (final_head, decoy_nonce)
+    look = _valid_lookalike(decoy, final_head, decoy_nonce, raw, decoy)
+    decoy_h = dict(look)
+    decoy_h["bundle_dev"] = real_h["bundle_dev"]
+    decoy_h["bundle_ino"] = real_h["bundle_ino"]
+    try:
+        cleanup_task7_handoff(decoy_h, final_head)
+        failures.append("coordinated_decoy_cleanup")
+        print("UNEXPECTED_ACCEPT coordinated_decoy_cleanup")
+    except VerifierError as exc:
+        if os.path.isdir(decoy) and os.path.isdir(real_b):
+            print("REJECT coordinated_decoy_cleanup: %s" % exc)
+            print("DECOY_REMAINS")
+        else:
+            failures.append("coordinated_decoy_cleanup")
+            print("UNEXPECTED_REJECT coordinated_decoy_cleanup deleted")
+    _force_rm_bundle(decoy)
+    if os.path.isdir(real_b):
+        drop(real_b, decoy_nonce)
 
 
 def run_verifier_self_test():
@@ -2582,285 +3052,12 @@ def run_verifier_self_test():
     _inject("d_state_cleanup", _d_state)
     _inject("rollup_failure_cleanup", _rollup_fail)
     _inject("loader_failure_cleanup", _loader_fail)
-
-    class _Mem:
-        def __init__(self):
-            self.parts = []
-
-        def write(self, data):
-            self.parts.append(data)
-            return len(data)
-
-        def flush(self):
-            return None
-
-    def _produce_fail(name, point):
-        produced_nonce = new_nonce()
-        before = set(os.listdir("/tmp"))
-        try:
-            produce_task7_handoff(
-                final_head,
-                raw,
-                0,
-                stdout=_Mem(),
-                fail_after=point,
-                nonce=produced_nonce,
-            )
-            failures.append(name)
-            print("UNEXPECTED_ACCEPT %s" % name)
-        except Exception:
-            leftover = [
-                item
-                for item in sorted(set(os.listdir("/tmp")) - before)
-                if final_head in item and produced_nonce in item
-            ]
-            if leftover:
-                failures.append(name)
-                print("UNEXPECTED_ACCEPT %s still present" % name)
-            else:
-                print("REJECT %s: bundle absent" % name)
-                print("CLEANUP_ABSENT")
-
-    _produce_fail("produce_fail_make_handoff", "make_handoff")
-    _produce_fail("produce_fail_loader", "loader")
-    _produce_fail("produce_fail_tuple", "tuple")
-    _produce_fail("produce_fail_serialize", "serialize")
-    _produce_fail("produce_fail_write", "write")
-    _produce_fail("produce_fail_flush", "flush")
-
-    prod_nonce = new_nonce()
-    prod_buf = _Mem()
-    prod_h, _prod_ev = produce_task7_handoff(
-        final_head, raw, 0, stdout=prod_buf, nonce=prod_nonce
+    suite_producer_lifecycle(final_head, raw, failures, live, _drop)
+    suite_task9_rc(final_head, failures, live, _fresh, _drop)
+    suite_cleanup_refusal(
+        final_head, failures, _fresh, _drop, _unlock, _relock
     )
-    live.append(prod_h["bundle_path"])
-    parsed_prod = parse_task7_handoff("".join(prod_buf.parts), final_head)
-    expect_ok(
-        "producer_stdout_json",
-        lambda: load_task7_evidence(
-            parsed_prod["bundle_path"],
-            parsed_prod["final_head"],
-            parsed_prod["attempt_nonce"],
-            parsed_prod["raw_sha256"],
-            parsed_prod["manifest_sha256"],
-            parsed_prod["bundle_path"],
-        ),
-    )
-    _drop(prod_h["bundle_path"], prod_nonce)
-
-    bundle, man, hon = _fresh()
-    payload = json.dumps(hon, sort_keys=True)
-
-    def _ok_then_break(_handoff):
-        os.chmod(bundle, 0o700)
-        return "ok"
-
-    try:
-        run_task9_with_handoff_cleanup(payload, final_head, _ok_then_break)
-        failures.append("main_ok_cleanup_fail")
-        print("UNEXPECTED_ACCEPT main_ok_cleanup_fail")
-    except VerifierError as exc:
-        text = str(exc)
-        if "cleanup failed" not in text or os.path.isdir(bundle) is False:
-            failures.append("main_ok_cleanup_fail")
-            print("UNEXPECTED_REJECT main_ok_cleanup_fail: %s" % exc)
-        else:
-            print("REJECT main_ok_cleanup_fail: %s" % exc)
-            print("CLEANUP_FAILURE_NONZERO")
-    if os.path.isdir(bundle):
-        _drop(bundle, man["attempt_nonce"])
-
-    bundle, man, hon = _fresh()
-    payload = json.dumps(hon, sort_keys=True)
-
-    def _main_fail(_handoff):
-        raise VerifierError("main work failed")
-
-    try:
-        run_task9_with_handoff_cleanup(payload, final_head, _main_fail)
-        failures.append("main_fail_cleanup_ok")
-        print("UNEXPECTED_ACCEPT main_fail_cleanup_ok")
-    except VerifierError as exc:
-        if str(exc) != "main work failed" or os.path.exists(bundle):
-            failures.append("main_fail_cleanup_ok")
-            print("UNEXPECTED_REJECT main_fail_cleanup_ok: %s" % exc)
-        else:
-            print("REJECT main_fail_cleanup_ok: preserved main rc")
-            print("CLEANUP_ABSENT")
-    if bundle in live:
-        live.remove(bundle)
-
-    bundle, man, hon = _fresh()
-    payload = json.dumps(hon, sort_keys=True)
-
-    def _exit5(_handoff):
-        raise SystemExit(5)
-
-    try:
-        run_task9_with_handoff_cleanup(payload, final_head, _exit5)
-        failures.append("main_exit_cleanup_ok")
-        print("UNEXPECTED_ACCEPT main_exit_cleanup_ok")
-    except SystemExit as exc:
-        if exc.code != 5 or os.path.exists(bundle):
-            failures.append("main_exit_cleanup_ok")
-            print("UNEXPECTED_REJECT main_exit_cleanup_ok: %s" % exc)
-        else:
-            print("REJECT main_exit_cleanup_ok: preserved exit 5")
-            print("CLEANUP_ABSENT")
-    except Exception as exc:
-        failures.append("main_exit_cleanup_ok")
-        print("UNEXPECTED_REJECT main_exit_cleanup_ok: %s" % exc)
-    if bundle in live:
-        live.remove(bundle)
-
-    bundle, man, hon = _fresh()
-    payload = json.dumps(hon, sort_keys=True)
-
-    def _both_fail(_handoff):
-        os.chmod(bundle, 0o700)
-        raise VerifierError("main work failed")
-
-    try:
-        run_task9_with_handoff_cleanup(payload, final_head, _both_fail)
-        failures.append("main_fail_cleanup_fail")
-        print("UNEXPECTED_ACCEPT main_fail_cleanup_fail")
-    except VerifierError as exc:
-        text = str(exc)
-        both = "main failed" in text and "cleanup failed" in text
-        if not both or os.path.isdir(bundle) is False:
-            failures.append("main_fail_cleanup_fail")
-            print("UNEXPECTED_REJECT main_fail_cleanup_fail: %s" % exc)
-        else:
-            print("REJECT main_fail_cleanup_fail: %s" % exc)
-            print("BOTH_FAILED")
-    if os.path.isdir(bundle):
-        _drop(bundle, man["attempt_nonce"])
-
-    def _cleanup_refuse(name, mutate):
-        bundle, man, hon = _fresh()
-        decoy = None
-        try:
-            decoy = mutate(bundle, hon)
-            cleanup_task7_handoff(hon, final_head)
-            failures.append(name)
-            print("UNEXPECTED_ACCEPT %s" % name)
-        except VerifierError as exc:
-            target = decoy or bundle
-            if not os.path.isdir(target):
-                failures.append(name)
-                print("UNEXPECTED_REJECT %s deleted: %s" % (name, exc))
-            else:
-                print("REJECT %s: %s" % (name, exc))
-                print("CLEANUP_REFUSED")
-        if decoy and os.path.isdir(decoy):
-            os.chmod(decoy, 0o700)
-            os.rmdir(decoy)
-        if os.path.isdir(bundle):
-            _unlock(bundle)
-            extra = os.path.join(bundle, "extra.txt")
-            if os.path.isfile(extra):
-                os.chmod(extra, 0o600)
-                os.remove(extra)
-            _drop(bundle, man["attempt_nonce"])
-
-    bundle, man, hon = _fresh()
-    real_geteuid = os.geteuid
-    os.geteuid = lambda: real_geteuid() + 1
-    try:
-        cleanup_task7_handoff(hon, final_head)
-        failures.append("cleanup_owner")
-        print("UNEXPECTED_ACCEPT cleanup_owner")
-    except VerifierError as exc:
-        if "owner" not in str(exc) or not os.path.isdir(bundle):
-            failures.append("cleanup_owner")
-            print("UNEXPECTED_REJECT cleanup_owner: %s" % exc)
-        else:
-            print("REJECT cleanup_owner: %s" % exc)
-            print("CLEANUP_REFUSED")
-    finally:
-        os.geteuid = real_geteuid
-    if os.path.isdir(bundle):
-        _drop(bundle, man["attempt_nonce"])
-
-    def _mut_mode(bundle, _hon):
-        os.chmod(bundle, 0o700)
-
-    def _mut_extra(bundle, _hon):
-        _unlock(bundle)
-        write_exclusive_bytes(os.path.join(bundle, "extra.txt"), b"x\n")
-        _relock(bundle)
-
-    def _mut_missing(bundle, _hon):
-        _unlock(bundle)
-        os.remove(os.path.join(bundle, RAW_NAME))
-        os.chmod(bundle, 0o500)
-
-    def _mut_raw(bundle, hon):
-        hon["raw_sha256"] = "0" * 64
-
-    def _mut_man(_bundle, hon):
-        hon["manifest_sha256"] = "0" * 64
-
-    def _mut_nonce(_bundle, hon):
-        hon["attempt_nonce"] = "0" * 32
-
-    def _mut_head(_bundle, hon):
-        hon["final_head"] = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-
-    def _mut_path(bundle, hon):
-        decoy = bundle + "-pathdecoy"
-        os.mkdir(decoy, 0o700)
-        hon["bundle_path"] = decoy
-        return decoy
-
-    _cleanup_refuse("cleanup_mode", _mut_mode)
-    _cleanup_refuse("cleanup_extra_entry", _mut_extra)
-    _cleanup_refuse("cleanup_missing_entry", _mut_missing)
-    _cleanup_refuse("cleanup_raw_hash", _mut_raw)
-    _cleanup_refuse("cleanup_manifest_hash", _mut_man)
-    _cleanup_refuse("cleanup_nonce", _mut_nonce)
-    _cleanup_refuse("cleanup_head", _mut_head)
-    _cleanup_refuse("cleanup_bundle_path", _mut_path)
-
-    real_b, real_m, real_h = _fresh()
-    decoy_nonce = real_m["attempt_nonce"]
-    decoy = "/tmp/pr28-task7-%s-%s-decoy" % (final_head, decoy_nonce)
-    os.mkdir(decoy, 0o700)
-    decoy_raw = raw.encode("utf-8")
-    write_exclusive_bytes(os.path.join(decoy, RAW_NAME), decoy_raw)
-    decoy_man = dict(real_m)
-    decoy_man["bundle_path"] = os.path.abspath(decoy)
-    write_exclusive_bytes(
-        os.path.join(decoy, MANIFEST_NAME),
-        (json.dumps(decoy_man, sort_keys=True) + "\n").encode("utf-8"),
-    )
-    decoy_h = {
-        "bundle_path": os.path.abspath(decoy),
-        "attempt_nonce": decoy_nonce,
-        "raw_sha256": real_h["raw_sha256"],
-        "manifest_sha256": real_h["manifest_sha256"],
-        "final_head": final_head,
-    }
-    try:
-        cleanup_task7_handoff(decoy_h, final_head)
-        failures.append("coordinated_decoy_cleanup")
-        print("UNEXPECTED_ACCEPT coordinated_decoy_cleanup")
-    except VerifierError as exc:
-        if os.path.isdir(decoy):
-            print("REJECT coordinated_decoy_cleanup: %s" % exc)
-            print("DECOY_REMAINS")
-        else:
-            failures.append("coordinated_decoy_cleanup")
-            print("UNEXPECTED_REJECT coordinated_decoy_cleanup deleted")
-    if os.path.isdir(decoy):
-        os.chmod(decoy, 0o700)
-        for name in (RAW_NAME, MANIFEST_NAME):
-            child = os.path.join(decoy, name)
-            if os.path.isfile(child):
-                os.chmod(child, 0o600)
-                os.remove(child)
-        os.rmdir(decoy)
-    _drop(real_b, decoy_nonce)
+    suite_object_identity(final_head, raw, failures, live, _fresh, _drop)
 
     tab_motivation = _valid_body(final_head, evidence).replace(
         "## Motivation\n", "##\tMotivation\n", 1
@@ -3364,16 +3561,6 @@ ns["run_task9_with_handoff_cleanup"](
 PY
 main_rc=$?
 trap - EXIT
-task9_cleanup
-cleanup_rc=$?
-if [ "$cleanup_rc" -ne 0 ]; then
-  echo "TASK9_CLEANUP_FAILED main_rc=$main_rc cleanup_rc=$cleanup_rc" >&2
-  if [ "$main_rc" -ne 0 ]; then
-    echo "TASK9_MAIN_AND_CLEANUP_FAILED" >&2
-    exit "$main_rc"
-  fi
-  exit 1
-fi
 exit "$main_rc"
 ```
 
@@ -3469,7 +3656,11 @@ A later implementation node must stop immediately when:
   owner or mode, or is not read-only after create;
 - the parent shell has no `TASK7_HANDOFF_JSON` object with
   exactly `bundle_path`, `attempt_nonce`, `raw_sha256`,
-  `manifest_sha256`, and `final_head`;
+  `manifest_sha256`, `final_head`, `bundle_dev`, and
+  `bundle_ino`;
+- cleanup treats a missing, relocated, or replaced captured
+  path as success, deletes a lookalike, or skips the
+  create-time directory object identity;
 - Task 9 loads from a path or nonce that is only self-consistent
   with its own manifest and is not the independently captured
   handoff;
@@ -3610,10 +3801,15 @@ This archival node must not start Task 1 through Task 9.
   through `produce_task7_handoff` and remove the exact path.
   Task 9 runs body, wait, and rollup through
   `run_task9_with_handoff_cleanup`. Handoff cleanup validates
-  owner, mode, entries, hashes, schema, head, nonce, and
-  `bundle_path` before deletion. A coordinated matching-name
-  decoy is refused and left untouched. Cleanup failure makes
-  the real orchestration non-zero.
+  owner, mode, entries, hashes, schema, head, nonce,
+  `bundle_path`, and the create-time directory object before
+  deletion. Path, copyable bytes, hash, mode, owner, and
+  manifest are not enough. A missing or replaced captured
+  path is a non-zero stop and does not claim the original raw
+  was cleaned. A coordinated matching-name decoy that already
+  satisfies those early checks is refused when it is not the
+  original object. Cleanup failure makes the real
+  orchestration non-zero.
 - Duplicate-job finding is closed. `wait_for_terminal` collects
   all `REQUIRED_JOB` matches. `len > 1` raises. Terminal
   `len == 0` raises. Non-terminal `len == 0` may wait. Only one
@@ -3637,9 +3833,25 @@ This archival node must not start Task 1 through Task 9.
   Main failure plus cleanup failure reports both. Owner,
   mode, extra/missing entry, raw hash, manifest hash, nonce,
   head, and `bundle_path` cleanup-validation failures refuse
-  deletion. A coordinated valid-shape decoy remains.
+  deletion. Relocated original, byte-identical path swap,
+  validate-then-swap, and a coordinated decoy that already
+  satisfies mode 0500 / file 0444 / owner / schema / hashes /
+  path/head/nonce all reach object-identity refusal. The
+  original-bundle cleanup path still deletes the exact object
+  and proves it absent. Producer lifecycle, Task 9 rc,
+  cleanup-refusal, and object-identity fixtures are named
+  suites; they do not add a second source of truth.
   `VERIFIER_SELF_TEST_OK` requires every expected REJECT,
   every valid fixture ACCEPT, and cleanup paths absent.
+- Object-identity control: create already `lstat`s the
+  `mkdtemp` directory for owner/mode. Cleanup now retains that
+  same directory object on the existing handoff and compares
+  it before deletion. No second hash, manifest, or parallel
+  gate. Failure mode: a lookalike at the captured path, or a
+  missing/relocated captured path, raises and leaves the
+  unverified target untouched. The control is removable only
+  if exclusive-create plus same-process fd ownership replace
+  the Task 7 to Task 9 JSON handoff.
 - Kept contracts: `DISCOVERY_SECONDS = 600`,
   `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, four-way
   run/job/headRefOid/detailsUrl bind, atomic five-destination

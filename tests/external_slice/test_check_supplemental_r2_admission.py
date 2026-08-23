@@ -600,6 +600,104 @@ def test_positive_admission_check(tmp_path: Path) -> None:
     assert checker.verify_admission(root) == 0
 
 
+def _init_decoy_git(repo: Path) -> None:
+    subprocess.run(
+        ["git", "init"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_real_repo_docs_protocol_freeze_does_not_hit_seeded_root(
+    tmp_path: Path,
+) -> None:
+    """Workspace docs with freeze tokens must not classify a fixture."""
+    root = seed_root(tmp_path)
+    hit, readiness, freeze = checker._forbidden_path_scan(
+        root, repo_root=ROOT
+    )
+    assert (hit, readiness, freeze) == (False, False, False)
+    hit_h, readiness_h, freeze_h = (
+        handoff_mod._forbidden_path_scan(root, repo_root=ROOT)
+    )
+    hit_m, readiness_m, freeze_m = miner._forbidden_path_scan(
+        root, repo_root=ROOT
+    )
+    assert (hit_h, readiness_h, freeze_h) == (False, False, False)
+    assert (hit_m, readiness_m, freeze_m) == (False, False, False)
+
+
+def test_unrelated_docs_protocol_freeze_outside_sibling_is_ignored(
+    tmp_path: Path,
+) -> None:
+    """A new decoy freeze path outside sibling must not be a hit."""
+    decoy_repo = tmp_path
+    admission_home = decoy_repo / "admission_home"
+    root = seed_root(admission_home)
+    unrelated = (
+        decoy_repo
+        / "docs"
+        / "review_20260812"
+        / "phase0_protocol_freeze_task_report.md"
+    )
+    unrelated.parent.mkdir(parents=True, exist_ok=True)
+    unrelated.write_text(
+        "unrelated protocol freeze note\n",
+        encoding="utf-8",
+    )
+    _init_decoy_git(decoy_repo)
+    hit, readiness, freeze = checker._forbidden_path_scan(
+        root, repo_root=decoy_repo
+    )
+    assert (hit, readiness, freeze) == (False, False, False)
+
+
+def test_admission_root_protocol_freeze_file_still_rejected(
+    tmp_path: Path,
+) -> None:
+    root = seed_root(tmp_path)
+    build_valid_payload(root, admits_per_quota_repo=3)
+    (root / "protocol_freeze.md").write_text("x\n", encoding="utf-8")
+    seal_handoff_bundle(root)
+    both_checkers_fail(root)
+    hit, readiness, freeze = checker._forbidden_path_scan(
+        root, repo_root=tmp_path
+    )
+    assert hit is True
+    assert freeze is True
+    assert readiness is False
+
+
+def test_three_forbidden_path_scan_classifications_match(
+    tmp_path: Path,
+) -> None:
+    admission_home = tmp_path / "admission_home"
+    root = seed_root(admission_home)
+    unrelated = (
+        tmp_path
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-08-12-p3-phase0-protocol-freeze.md"
+    )
+    unrelated.parent.mkdir(parents=True, exist_ok=True)
+    unrelated.write_text("unrelated\n", encoding="utf-8")
+    (root / "readiness_note.md").write_text("x\n", encoding="utf-8")
+    (admission_home / "freeze.json").write_text("{}\n", encoding="utf-8")
+    _init_decoy_git(tmp_path)
+    scanned = [
+        mod._forbidden_path_scan(root, repo_root=tmp_path)
+        for mod in (checker, handoff_mod, miner)
+    ]
+    assert scanned[0] == scanned[1] == scanned[2]
+    hit, readiness, freeze = scanned[0]
+    assert hit is True
+    assert readiness is True
+    assert freeze is True
+
+
 @pytest.mark.parametrize(
     "target,field",
     [

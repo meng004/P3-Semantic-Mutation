@@ -534,11 +534,18 @@ bundle_ino
 ```
 
 `bundle_dev` and `bundle_ino` are the create-time `lstat`
-identity of the `mkdtemp` directory. Cleanup must compare the
-live directory object to that identity. Path, basename,
-copyable bytes, hash, mode, owner, and manifest are not
-enough. A missing, relocated, or replaced captured path is a
-non-zero stop and must not claim the original raw was cleaned.
+identity of the `mkdtemp` directory. Handoff cleanup must
+open the captured directory with `O_RDONLY | O_DIRECTORY |
+O_NOFOLLOW`, `fstat` that handle against the handed-off
+identity, and keep every later enumerate / read / chmod /
+unlink / rmdir on that same handle. After that check it
+must not re-select `root.raw` or `manifest.json` by
+pathname. Path, basename, copyable bytes, hash, mode,
+owner, and manifest are not enough. If the captured
+pathname is missing or names another object before the
+final rmdir, cleanup is non-zero and must not delete the
+object now at that pathname. A rename of the original
+during cleanup must not retarget the handle at a decoy.
 
 Do not use `eval`, glob, latest-mtime, directory scanning,
 guessed paths, fixed symlinks, or manually retyped values.
@@ -560,26 +567,27 @@ original main failure when cleanup succeeds. Main success
 plus cleanup failure is a stop. Main failure plus cleanup
 failure stays non-zero and must report both.
 
-Handoff cleanup must validate before `chmod` / remove /
-`rmdir`: the exact captured `bundle_path`, expected
-`FINAL_HEAD` and nonce, owner and modes, exact directory
-entries, handed-off raw and manifest SHA-256 values, strict
-manifest schema, manifest `bundle_path` / head / nonce,
-raw/manifest byte hashes, and the create-time directory
-object identity. A validation failure refuses deletion,
-returns non-zero, and leaves the unverified target
-untouched. A missing captured path, a relocated original, a
-byte-identical replacement at the captured path, or a
-validate-then-swap decoy must fail closed and must not
-delete the lookalike. A coordinated handoff that points at a
+Handoff cleanup has one destructive seam. Validation uses
+the no-follow directory handle and the existing
+`bundle_dev` / `bundle_ino` fields. Destructive chmod,
+unlink, and rmdir of `root.raw`, `manifest.json`, and the
+bundle directory run only on that verified handle. There is
+no production `after_validate` hook. A validation failure
+refuses deletion, returns non-zero, and leaves the
+unverified target untouched. A missing captured path, a
+relocated original, a byte-identical replacement, a
+post-final-identity-check swap, or a pre-rmdir path swap
+must fail closed, must not delete the lookalike, and must
+not leave the original raw behind when the handle already
+unlinked it. A coordinated handoff that points at a
 matching-name decoy that already satisfies mode, owner,
 schema, hashes, and path/head/nonce must still be rejected
 when it is not the original object. Cleanup must not delete
 `/tmp`, an empty path, a glob result, a guessed path, a
 relocated path, or a directory verified only by basename
-substrings. After a validated cleanup of the original object
-the exact path must be absent. Raw output must not remain
-indefinitely.
+substrings. After a validated cleanup of the original
+object the exact path must be absent. Raw output must not
+remain indefinitely.
 
 - [ ] **Step 2: Reproduce the Actions pytest command and keep its exit**
 
@@ -1008,54 +1016,157 @@ def _path_identity(path):
     return (st.st_dev, st.st_ino)
 
 
-def _require_original_bundle(handoff):
-    path = handoff["bundle_path"]
+def _open_bundle_dir(path):
     if not path:
         raise VerifierError("empty captured path")
+    if os.path.islink(path):
+        raise VerifierError("bundle is symlink")
     missing = not os.path.exists(path) and not os.path.lexists(path)
     if missing:
         raise VerifierError("captured path missing; original not cleaned")
-    if _path_identity(path) != _handoff_identity(handoff):
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    return os.open(path, flags)
+
+
+def _read_bundle_entry(dir_fd, name):
+    flags = os.O_RDONLY | os.O_NOFOLLOW
+    fd = os.open(name, flags, dir_fd=dir_fd)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise VerifierError("%s is not a regular file" % name)
+        if st.st_uid != os.geteuid():
+            raise VerifierError("wrong %s owner" % name)
+        if st.st_mode & 0o777 != 0o444:
+            raise VerifierError("wrong %s mode" % name)
+        chunks = []
+        while True:
+            block = os.read(fd, 65536)
+            if not block:
+                break
+            chunks.append(block)
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
+
+
+def _validate_bundle_fd(dir_fd, handoff, expected_final_head):
+    want = _handoff_identity(handoff)
+    st = os.fstat(dir_fd)
+    if (st.st_dev, st.st_ino) != want:
         raise VerifierError("not the original Task 7 bundle object")
-    return os.path.abspath(path)
+    if not stat.S_ISDIR(st.st_mode):
+        raise VerifierError("bundle is not a directory")
+    if st.st_uid != os.geteuid():
+        raise VerifierError("wrong bundle owner")
+    if st.st_mode & 0o777 != 0o500:
+        raise VerifierError("wrong bundle mode")
+    names = sorted(os.listdir(dir_fd))
+    if names != list(BUNDLE_ENTRIES):
+        raise VerifierError(
+            "bundle entries must be exactly root.raw and manifest.json"
+        )
+    raw_bytes = _read_bundle_entry(dir_fd, RAW_NAME)
+    man_bytes = _read_bundle_entry(dir_fd, MANIFEST_NAME)
+    digest = hashlib.sha256(raw_bytes).hexdigest()
+    man_digest = hashlib.sha256(man_bytes).hexdigest()
+    if digest != handoff["raw_sha256"]:
+        raise VerifierError("handed-off raw_sha256 does not match bytes")
+    if man_digest != handoff["manifest_sha256"]:
+        raise VerifierError("handed-off manifest_sha256 does not match bytes")
+    manifest = json.loads(
+        man_bytes.decode("utf-8"), object_pairs_hook=_manifest_object
+    )
+    validate_manifest_schema(manifest)
+    if manifest["final_head"] != expected_final_head:
+        raise VerifierError("wrong FINAL_HEAD")
+    if manifest["attempt_nonce"] != handoff["attempt_nonce"]:
+        raise VerifierError("wrong nonce")
+    if manifest["bundle_path"] != handoff["bundle_path"]:
+        raise VerifierError("manifest bundle_path != handed-off path")
+    if manifest["raw_sha256"] != digest:
+        raise VerifierError("wrong raw_sha256")
+    if manifest["raw_size"] != len(raw_bytes):
+        raise VerifierError("wrong raw_size")
 
 
-def cleanup_task7_handoff(handoff, expected_final_head, after_validate=None):
-    path = handoff["bundle_path"]
-    missing = not os.path.exists(path) and not os.path.lexists(path)
-    if missing:
-        raise VerifierError("captured path missing; original not cleaned")
+def _captured_path_is_original(path, want):
+    if os.path.islink(path):
+        return False
+    if not os.path.exists(path):
+        return False
+    return _path_identity(path) == want
+
+
+def _rmdir_original_fd(dir_fd, want):
+    current = os.readlink("/proc/self/fd/%d" % dir_fd)
+    parent = os.path.dirname(current)
+    name = os.path.basename(current)
+    if not name or name in (".", ".."):
+        raise VerifierError("held directory has unsafe name")
+    if os.path.islink(parent):
+        raise VerifierError("held directory parent is a symlink")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    pfd = os.open(parent, flags)
+    try:
+        child = os.open(name, flags, dir_fd=pfd)
+        try:
+            st = os.fstat(child)
+            held = os.fstat(dir_fd)
+            ident = (st.st_dev, st.st_ino)
+            held_id = (held.st_dev, held.st_ino)
+            if ident != want or ident != held_id:
+                raise VerifierError("rmdir target is not the original")
+        finally:
+            os.close(child)
+        os.rmdir(name, dir_fd=pfd)
+    finally:
+        os.close(pfd)
+
+
+def cleanup_task7_handoff(handoff, expected_final_head):
+    path = os.path.abspath(handoff["bundle_path"])
+    want = _handoff_identity(handoff)
+    dir_fd = None
     try:
         if handoff["final_head"] != expected_final_head:
             raise VerifierError("cleanup FINAL_HEAD mismatch")
-        load_task7_evidence(
-            handoff["bundle_path"],
-            expected_final_head,
-            handoff["attempt_nonce"],
-            handoff["raw_sha256"],
-            handoff["manifest_sha256"],
-            handoff["bundle_path"],
+        assert_safe_bundle_path(
+            path, handoff["final_head"], handoff["attempt_nonce"]
         )
-        _require_original_bundle(handoff)
+        dir_fd = _open_bundle_dir(path)
+        _validate_bundle_fd(dir_fd, handoff, expected_final_head)
     except Exception as exc:
+        if dir_fd is not None:
+            try:
+                os.close(dir_fd)
+            except OSError:
+                pass
+            dir_fd = None
         raise VerifierError(
             "cleanup validation failed; target left untouched: %s"
             % exc
         )
-    if after_validate is not None:
-        after_validate()
     try:
-        _require_original_bundle(handoff)
-    except Exception as exc:
-        raise VerifierError(
-            "cleanup validation failed; target left untouched: %s"
-            % exc
-        )
-    cleanup_partial_create(
-        handoff["bundle_path"],
-        handoff["final_head"],
-        handoff["attempt_nonce"],
-    )
+        os.fchmod(dir_fd, 0o700)
+        for name in (RAW_NAME, MANIFEST_NAME):
+            os.chmod(name, 0o600, dir_fd=dir_fd)
+            os.unlink(name, dir_fd=dir_fd)
+        path_ok = _captured_path_is_original(path, want)
+        _rmdir_original_fd(dir_fd, want)
+        _BUNDLE_OBJECT.pop(path, None)
+        if not path_ok:
+            raise VerifierError(
+                "captured path missing or replaced before rmdir"
+            )
+        if os.path.exists(path) or os.path.lexists(path):
+            raise VerifierError("bundle still present after cleanup")
+    finally:
+        if dir_fd is not None:
+            try:
+                os.close(dir_fd)
+            except OSError:
+                pass
 
 
 def _manifest_object(pairs):
@@ -1916,6 +2027,78 @@ def _valid_lookalike(dest, final_head, nonce, raw, path_value):
     }
 
 
+def _st_expect_fail(failures, name, fn):
+    try:
+        fn()
+    except VerifierError as exc:
+        print("REJECT %s: %s" % (name, exc))
+        return
+    failures.append(name)
+    print("UNEXPECTED_ACCEPT %s" % name)
+
+
+def _st_expect_ok(failures, name, fn):
+    try:
+        fn()
+        print("ACCEPT %s" % name)
+    except Exception as exc:
+        failures.append(name)
+        print("UNEXPECTED_REJECT %s: %s" % (name, exc))
+
+
+def _st_unlock(bundle):
+    os.chmod(bundle, 0o700)
+    for name in (RAW_NAME, MANIFEST_NAME):
+        path = os.path.join(bundle, name)
+        if os.path.isfile(path) and not os.path.islink(path):
+            os.chmod(path, 0o600)
+
+
+def _st_relock(bundle):
+    for name in (RAW_NAME, MANIFEST_NAME):
+        path = os.path.join(bundle, name)
+        if os.path.isfile(path) and not os.path.islink(path):
+            os.chmod(path, 0o444)
+    os.chmod(bundle, 0o500)
+
+
+def _st_write_manifest(bundle, manifest):
+    man_path = os.path.join(bundle, MANIFEST_NAME)
+    _st_unlock(bundle)
+    os.remove(man_path)
+    payload = (json.dumps(manifest, sort_keys=True) + "\n")
+    write_exclusive_bytes(man_path, payload.encode("utf-8"))
+    _st_relock(bundle)
+
+
+def _st_drop(live, final_head, bundle, nonce):
+    cleanup_task7_bundle(
+        bundle, final_head, nonce, expected_path=bundle
+    )
+    if bundle in live:
+        live.remove(bundle)
+
+
+def _st_fresh(live, final_head, raw):
+    bundle, manifest = create_task7_bundle(
+        final_head, raw, 0, nonce=new_nonce()
+    )
+    handoff = make_task7_handoff(bundle, manifest)
+    live.append(bundle)
+    return bundle, manifest, handoff
+
+
+def _st_load(bundle, handoff, **overrides):
+    return load_task7_evidence(
+        overrides.get("bundle_dir", bundle),
+        overrides.get("final_head", handoff["final_head"]),
+        overrides.get("attempt_nonce", handoff["attempt_nonce"]),
+        overrides.get("raw_sha256", handoff["raw_sha256"]),
+        overrides.get("manifest_sha256", handoff["manifest_sha256"]),
+        overrides.get("bundle_path", handoff["bundle_path"]),
+    )
+
+
 def suite_producer_lifecycle(final_head, raw, failures, live, drop):
     class _Mem:
         def __init__(self):
@@ -2207,23 +2390,80 @@ def suite_object_identity(final_head, raw, failures, live, fresh, drop):
 
     bundle, man, hon = fresh()
     reloc = bundle + "-orig"
+    fired = []
+    real_fchmod = os.fchmod
 
-    def _swap():
-        os.rename(bundle, reloc)
-        _valid_lookalike(bundle, final_head, man["attempt_nonce"], raw, bundle)
+    def swap_then_fchmod(fd, mode):
+        if not fired:
+            fired.append(1)
+            os.rename(bundle, reloc)
+            _valid_lookalike(
+                bundle, final_head, man["attempt_nonce"], raw, bundle,
+            )
+        return real_fchmod(fd, mode)
 
+    os.fchmod = swap_then_fchmod
     try:
-        cleanup_task7_handoff(hon, final_head, after_validate=_swap)
-        failures.append("validate_then_swap")
-        print("UNEXPECTED_ACCEPT validate_then_swap")
+        cleanup_task7_handoff(hon, final_head)
+        failures.append("post_final_identity_check_swap")
+        print("UNEXPECTED_ACCEPT post_final_identity_check_swap")
     except VerifierError:
-        if os.path.isdir(bundle) and os.path.isdir(reloc):
-            print("REJECT validate_then_swap")
+        raw_left = os.path.isfile(os.path.join(reloc, RAW_NAME))
+        if os.path.isdir(bundle) and not raw_left:
+            print("REJECT post_final_identity_check_swap")
+            print("DECOY_REMAINS")
+            print("ORIGINAL_RAW_NOT_LEFT")
+            print("CLEANUP_NONZERO")
+        else:
+            failures.append("post_final_identity_check_swap")
+            print("UNEXPECTED_REJECT post_final_identity_check_swap")
+    finally:
+        os.fchmod = real_fchmod
+    _force_rm_bundle(bundle)
+    if os.path.isdir(reloc):
+        cleanup_partial_create(reloc, final_head, man["attempt_nonce"])
+    if bundle in live:
+        live.remove(bundle)
+
+    bundle, man, hon = fresh()
+    reloc = bundle + "-prerm"
+    fired = []
+    real_lstat = os.lstat
+
+    def swap_then_lstat(path, *args, **kwargs):
+        same = os.path.abspath(path) == os.path.abspath(bundle)
+        if same and not fired:
+            try:
+                names = os.listdir(path)
+            except OSError:
+                names = None
+            if names == []:
+                fired.append(1)
+                os.rename(bundle, reloc)
+                _valid_lookalike(
+                    bundle,
+                    final_head,
+                    man["attempt_nonce"],
+                    raw,
+                    bundle,
+                )
+        return real_lstat(path, *args, **kwargs)
+
+    os.lstat = swap_then_lstat
+    try:
+        cleanup_task7_handoff(hon, final_head)
+        failures.append("pre_rmdir_path_swap")
+        print("UNEXPECTED_ACCEPT pre_rmdir_path_swap")
+    except VerifierError:
+        if os.path.isdir(bundle):
+            print("REJECT pre_rmdir_path_swap")
             print("DECOY_REMAINS")
             print("CLEANUP_NONZERO")
         else:
-            failures.append("validate_then_swap")
-            print("UNEXPECTED_REJECT validate_then_swap")
+            failures.append("pre_rmdir_path_swap")
+            print("UNEXPECTED_REJECT pre_rmdir_path_swap")
+    finally:
+        os.lstat = real_lstat
     _force_rm_bundle(bundle)
     if os.path.isdir(reloc):
         cleanup_partial_create(reloc, final_head, man["attempt_nonce"])
@@ -2268,29 +2508,9 @@ def suite_object_identity(final_head, raw, failures, live, fresh, drop):
         drop(real_b, decoy_nonce)
 
 
-def run_verifier_self_test():
-    final_head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    evidence = _valid_evidence(final_head)
-    failures = []
-
-    def expect_fail(name, fn):
-        try:
-            fn()
-        except VerifierError as exc:
-            print("REJECT %s: %s" % (name, exc))
-            return
-        failures.append(name)
-        print("UNEXPECTED_ACCEPT %s" % name)
-
-    def expect_ok(name, fn):
-        try:
-            fn()
-            print("ACCEPT %s" % name)
-        except Exception as exc:
-            failures.append(name)
-            print("UNEXPECTED_REJECT %s: %s" % (name, exc))
-
-    expect_fail(
+def suite_pr_body_parser(final_head, evidence, failures):
+    _st_expect_fail(
+        failures,
         "empty_headings",
         lambda: assert_pr_body(
             "## Motivation\n\n## Changes\n\n## Tests\n\n## SSOT integrity\n\n## Governance\n",
@@ -2298,11 +2518,17 @@ def run_verifier_self_test():
             evidence,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "fenced_headings",
-        lambda: assert_pr_body("```\n" + _valid_body(final_head, evidence) + "\n```\n", final_head, evidence),
+        lambda: assert_pr_body(
+            "```\n" + _valid_body(final_head, evidence) + "\n```\n",
+            final_head,
+            evidence,
+        ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "extra_h2",
         lambda: assert_pr_body(
             _valid_body(final_head, evidence, extra_h2="## Extra"),
@@ -2310,7 +2536,8 @@ def run_verifier_self_test():
             evidence,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "duplicate_heading",
         lambda: assert_pr_body(
             _valid_body(final_head, evidence) + "\n## Motivation\nmore\n",
@@ -2319,14 +2546,16 @@ def run_verifier_self_test():
         ),
     )
     reordered = _reordered_body(final_head, evidence)
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "reordered_headings",
         lambda: assert_pr_body(reordered, final_head, evidence),
     )
     missing = _valid_body(final_head, evidence).replace(
         "external_focused_passed = 176\n", ""
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "missing_required_fact",
         lambda: assert_pr_body(missing, final_head, evidence),
     )
@@ -2334,7 +2563,8 @@ def run_verifier_self_test():
         "PR17 not rewritten; PR19 rewritten;\n"
         "no cherry-pick; rebase, squash and manual conflict resolution performed."
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "pr17_false_pr19_true",
         lambda: assert_pr_body(
             _valid_body(final_head, evidence, changes=adversarial),
@@ -2345,7 +2575,8 @@ def run_verifier_self_test():
     mixed = dict(CHANGES_FACTS)
     mixed["pr19_history_rewritten"] = "true"
     mixed_text = "\n".join("%s = %s" % item for item in mixed.items())
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "pr19_rewritten_true",
         lambda: assert_pr_body(
             _valid_body(final_head, evidence, changes=mixed_text),
@@ -2358,7 +2589,8 @@ def run_verifier_self_test():
     mixed2["squash_used"] = "true"
     mixed2["manual_conflict_commit_used"] = "true"
     mixed2_text = "\n".join("%s = %s" % item for item in mixed2.items())
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "no_cherrypick_but_other_rewrites",
         lambda: assert_pr_body(
             _valid_body(final_head, evidence, changes=mixed2_text),
@@ -2366,7 +2598,8 @@ def run_verifier_self_test():
             evidence,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "invented_warning",
         lambda: assert_pr_body(
             _valid_body(
@@ -2382,6 +2615,95 @@ def run_verifier_self_test():
         ),
     )
 
+    _st_expect_fail(
+        failures,
+        "bare_h2",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence) + "\n##\n",
+            final_head,
+            evidence,
+        ),
+    )
+    _st_expect_fail(
+        failures,
+        "tab_extra_h2",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence) + "\n##\tExtra\n",
+            final_head,
+            evidence,
+        ),
+    )
+    four_open = "````\n" + _valid_body(final_head, evidence) + "\n```\n"
+    _st_expect_fail(
+        failures,
+        "four_backtick_open_three_close",
+        lambda: assert_pr_body(four_open, final_head, evidence),
+    )
+    _st_expect_fail(
+        failures,
+        "unclosed_backtick_fence",
+        lambda: assert_pr_body(
+            "```\n" + _valid_body(final_head, evidence),
+            final_head,
+            evidence,
+        ),
+    )
+    _st_expect_fail(
+        failures,
+        "unclosed_tilde_fence",
+        lambda: assert_pr_body(
+            "~~~\n" + _valid_body(final_head, evidence),
+            final_head,
+            evidence,
+        ),
+    )
+    changes_plus_prose = (
+        "\n".join("%s = %s" % item for item in CHANGES_FACTS.items())
+        + "\nrebase was used.\nmanual conflict commit was used.\n"
+    )
+    _st_expect_fail(
+        failures,
+        "canonical_changes_plus_contradictory_prose",
+        lambda: assert_pr_body(
+            _valid_body(final_head, evidence, changes=changes_plus_prose),
+            final_head,
+            evidence,
+        ),
+    )
+    prose_tests = _valid_body(final_head, evidence).replace(
+        "root_warning_types = PytestCollectionWarning\n",
+        "root_warning_types = PytestCollectionWarning\nwarnings were 999 InventedWarning.\n",
+    )
+    _st_expect_fail(
+        failures,
+        "canonical_tests_plus_invented_warning_prose",
+        lambda: assert_pr_body(prose_tests, final_head, evidence),
+    )
+
+    tab_motivation = _valid_body(final_head, evidence).replace(
+        "## Motivation\n", "##\tMotivation\n", 1
+    )
+    _st_expect_ok(
+        failures,
+        "tab_motivation_heading",
+        lambda: assert_pr_body(tab_motivation, final_head, evidence),
+    )
+    closing_hash = _valid_body(final_head, evidence).replace(
+        "## Tests\n", "## Tests ##\n", 1
+    )
+    _st_expect_ok(
+        failures,
+        "legal_atx_closing_sequence",
+        lambda: assert_pr_body(closing_hash, final_head, evidence),
+    )
+    _st_expect_ok(
+        failures,
+        "valid_body_and_evidence",
+        lambda: assert_pr_body(_valid_body(final_head, evidence), final_head, evidence),
+    )
+
+
+def suite_ci_discovery_wait_rollup(final_head, failures):
     pending = {
         "headSha": final_head,
         "status": "in_progress",
@@ -2412,7 +2734,8 @@ def run_verifier_self_test():
             _required_job(3, "in_progress", ""),
         ],
     }
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "duplicate_required_jobs",
         lambda: wait_for_terminal(
             lambda _rid: dup_jobs,
@@ -2429,7 +2752,8 @@ def run_verifier_self_test():
         "conclusion": "success",
         "jobs": [],
     }
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "missing_job_on_terminal_run",
         lambda: wait_for_terminal(
             lambda _rid: missing_job,
@@ -2440,7 +2764,8 @@ def run_verifier_self_test():
             poll_seconds=15,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "unrelated_rollup",
         lambda: assert_rollup_bound(
             {
@@ -2458,7 +2783,8 @@ def run_verifier_self_test():
             2,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "duplicate_required_rollup",
         lambda: assert_rollup_bound(
             {
@@ -2473,7 +2799,8 @@ def run_verifier_self_test():
             2,
         ),
     )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "old_url",
         lambda: assert_rollup_bound(
             {
@@ -2486,7 +2813,8 @@ def run_verifier_self_test():
         ),
     )
     for conclusion in ("FAILURE", "CANCELLED", "STALE", "SKIPPED"):
-        expect_fail(
+        _st_expect_fail(
+        failures,
             "rollup_%s" % conclusion.lower(),
             lambda c=conclusion: assert_rollup_bound(
                 {
@@ -2498,7 +2826,8 @@ def run_verifier_self_test():
                 2,
             ),
         )
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "pending_rollup",
         lambda: assert_rollup_bound(
             {
@@ -2511,182 +2840,116 @@ def run_verifier_self_test():
         ),
     )
 
-    expect_fail(
-        "bare_h2",
-        lambda: assert_pr_body(
-            _valid_body(final_head, evidence) + "\n##\n",
-            final_head,
-            evidence,
+    success = {
+        "headSha": final_head,
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://example.test/run/1",
+        "jobs": [_required_job(2, "completed", "success")],
+    }
+    _st_expect_ok(
+        failures,
+        "valid_wait",
+        lambda: (
+            None
+            if wait_for_terminal(
+                lambda _rid: success,
+                1,
+                final_head,
+                FakeClock(),
+                completion_seconds=30,
+                poll_seconds=15,
+            ).get("state")
+            == "C"
+            else (_ for _ in ()).throw(VerifierError("expected C"))
         ),
     )
-    expect_fail(
-        "tab_extra_h2",
-        lambda: assert_pr_body(
-            _valid_body(final_head, evidence) + "\n##\tExtra\n",
+    _st_expect_ok(
+        failures,
+        "valid_rollup",
+        lambda: assert_rollup_bound(
+            {
+                "headRefOid": final_head,
+                "statusCheckRollup": [_required_rollup(1, 2)],
+            },
             final_head,
-            evidence,
+            1,
+            2,
         ),
     )
-    four_open = "````\n" + _valid_body(final_head, evidence) + "\n```\n"
-    expect_fail(
-        "four_backtick_open_three_close",
-        lambda: assert_pr_body(four_open, final_head, evidence),
-    )
-    expect_fail(
-        "unclosed_backtick_fence",
-        lambda: assert_pr_body("```\n" + _valid_body(final_head, evidence), final_head, evidence),
-    )
-    expect_fail(
-        "unclosed_tilde_fence",
-        lambda: assert_pr_body("~~~\n" + _valid_body(final_head, evidence), final_head, evidence),
-    )
-    changes_plus_prose = (
-        "\n".join("%s = %s" % item for item in CHANGES_FACTS.items())
-        + "\nrebase was used.\nmanual conflict commit was used.\n"
-    )
-    expect_fail(
-        "canonical_changes_plus_contradictory_prose",
-        lambda: assert_pr_body(
-            _valid_body(final_head, evidence, changes=changes_plus_prose),
-            final_head,
-            evidence,
-        ),
-    )
-    prose_tests = _valid_body(final_head, evidence).replace(
-        "root_warning_types = PytestCollectionWarning\n",
-        "root_warning_types = PytestCollectionWarning\nwarnings were 999 InventedWarning.\n",
-    )
-    expect_fail(
-        "canonical_tests_plus_invented_warning_prose",
-        lambda: assert_pr_body(prose_tests, final_head, evidence),
-    )
 
-    raw = sample_task7_raw()
-    live = []
 
-    def _unlock(bundle):
-        os.chmod(bundle, 0o700)
-        for name in (RAW_NAME, MANIFEST_NAME):
-            path = os.path.join(bundle, name)
-            if os.path.isfile(path) and not os.path.islink(path):
-                os.chmod(path, 0o600)
-
-    def _relock(bundle):
-        for name in (RAW_NAME, MANIFEST_NAME):
-            path = os.path.join(bundle, name)
-            if os.path.isfile(path) and not os.path.islink(path):
-                os.chmod(path, 0o444)
-        os.chmod(bundle, 0o500)
-
-    def _write_manifest(bundle, manifest):
-        man_path = os.path.join(bundle, MANIFEST_NAME)
-        _unlock(bundle)
-        os.remove(man_path)
-        write_exclusive_bytes(
-            man_path, (json.dumps(manifest, sort_keys=True) + "\n").encode("utf-8")
-        )
-        _relock(bundle)
-
-    def _drop(bundle, nonce):
-        cleanup_task7_bundle(
-            bundle, final_head, nonce, expected_path=bundle
-        )
-        if bundle in live:
-            live.remove(bundle)
-
-    def _fresh():
-        bundle, manifest = create_task7_bundle(
-            final_head, raw, 0, nonce=new_nonce()
-        )
-        handoff = make_task7_handoff(bundle, manifest)
-        live.append(bundle)
-        return bundle, manifest, handoff
-
-    def _load(bundle, handoff, **overrides):
-        return load_task7_evidence(
-            overrides.get("bundle_dir", bundle),
-            overrides.get("final_head", handoff["final_head"]),
-            overrides.get("attempt_nonce", handoff["attempt_nonce"]),
-            overrides.get("raw_sha256", handoff["raw_sha256"]),
-            overrides.get("manifest_sha256", handoff["manifest_sha256"]),
-            overrides.get("bundle_path", handoff["bundle_path"]),
-        )
-
-    def _schema_fail(name, mutate):
-        bundle, manifest, handoff = _fresh()
-        bad = dict(manifest)
-        mutate(bad)
-        _write_manifest(bundle, bad)
-        current = make_task7_handoff(bundle, bad)
-        expect_fail(name, lambda: _load(bundle, current))
-        _drop(bundle, manifest["attempt_nonce"])
-
-    bundle, manifest, handoff = _fresh()
+def suite_raw_manifest_mutation(final_head, raw, failures, live):
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     raw_path = os.path.join(bundle, RAW_NAME)
-    _unlock(bundle)
+    _st_unlock(bundle)
     with open(raw_path, "ab") as handle:
         handle.write(b"\nTAMPER\n")
-    _relock(bundle)
-    expect_fail(
+    _st_relock(bundle)
+    _st_expect_fail(
+        failures,
         "raw_changed_manifest_unchanged",
-        lambda: _load(bundle, handoff),
+        lambda: _st_load(bundle, handoff),
     )
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     tampered = dict(manifest)
     tampered["warning_count"] = 999
     tampered["warning_types"] = ["InventedWarning"]
-    _write_manifest(bundle, tampered)
-    expect_fail(
+    _st_write_manifest(bundle, tampered)
+    _st_expect_fail(
+        failures,
         "manifest_warning_changed_raw_unchanged",
-        lambda: _load(bundle, handoff),
+        lambda: _st_load(bundle, handoff),
     )
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     bad_hash = dict(manifest)
     bad_hash["raw_sha256"] = "0" * 64
-    _write_manifest(bundle, bad_hash)
-    expect_fail("wrong_raw_sha256", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_write_manifest(bundle, bad_hash)
+    _st_expect_fail(failures, "wrong_raw_sha256", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     bad_size = dict(manifest)
     bad_size["raw_size"] = int(manifest["raw_size"]) + 7
-    _write_manifest(bundle, bad_size)
-    expect_fail("wrong_raw_size", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_write_manifest(bundle, bad_size)
+    _st_expect_fail(failures, "wrong_raw_size", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
-    expect_fail(
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
+    _st_expect_fail(
+        failures,
         "wrong_final_head",
-        lambda: _load(
+        lambda: _st_load(
             bundle,
             handoff,
             final_head="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         ),
     )
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     bad_nonce = dict(manifest)
     bad_nonce["attempt_nonce"] = "0" * 32
-    _write_manifest(bundle, bad_nonce)
-    expect_fail("wrong_nonce", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_write_manifest(bundle, bad_nonce)
+    _st_expect_fail(failures, "wrong_nonce", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     missing_field = dict(manifest)
     del missing_field["attempt_nonce"]
-    _write_manifest(bundle, missing_field)
-    expect_fail("missing_manifest_field", lambda: _load(bundle, handoff))
+    _st_write_manifest(bundle, missing_field)
+    _st_expect_fail(failures, "missing_manifest_field", lambda: _st_load(bundle, handoff))
     extra_field = dict(manifest)
     extra_field["unexpected"] = "x"
-    _write_manifest(bundle, extra_field)
-    expect_fail(
+    _st_write_manifest(bundle, extra_field)
+    _st_expect_fail(
+        failures,
         "duplicate_or_extra_manifest_field",
-        lambda: _load(bundle, handoff),
+        lambda: _st_load(bundle, handoff),
     )
     dup_json = (
         '{"schema_version":"1","final_head":"%s","final_head":"%s",'
@@ -2704,47 +2967,24 @@ def run_verifier_self_test():
             bundle,
         )
     )
-    _unlock(bundle)
+    _st_unlock(bundle)
     man_path = os.path.join(bundle, MANIFEST_NAME)
     os.remove(man_path)
     write_exclusive_bytes(man_path, (dup_json + "\n").encode("utf-8"))
-    _relock(bundle)
-    expect_fail("duplicate_manifest_field", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_relock(bundle)
+    _st_expect_fail(failures, "duplicate_manifest_field", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    real_bundle, real_man, real_h = _fresh()
-    link_bundle = "/tmp/pr28-task7-link-%s" % new_nonce()
-    os.symlink(real_bundle, link_bundle)
-    expect_fail(
-        "symlink_bundle",
-        lambda: _load(
-            link_bundle,
-            real_h,
-            bundle_dir=link_bundle,
-            bundle_path=link_bundle,
-        ),
-    )
-    if os.path.islink(link_bundle):
-        os.unlink(link_bundle)
-    raw_real = os.path.join(real_bundle, RAW_NAME)
-    raw_backup = raw_real + ".bak"
-    _unlock(real_bundle)
-    os.rename(raw_real, raw_backup)
-    os.symlink(raw_backup, raw_real)
-    os.chmod(real_bundle, 0o500)
-    expect_fail("symlink_file", lambda: _load(real_bundle, real_h))
-    os.chmod(real_bundle, 0o700)
-    os.unlink(raw_real)
-    os.rename(raw_backup, raw_real)
-    _relock(real_bundle)
-    _drop(real_bundle, real_man["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
-    os.chmod(bundle, 0o700)
-    os.chmod(os.path.join(bundle, RAW_NAME), 0o644)
-    os.chmod(bundle, 0o500)
-    expect_fail("wrong_mode", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+def suite_manifest_schema(final_head, raw, failures, live):
+    def _schema_fail(name, mutate):
+        bundle, manifest, handoff = _st_fresh(live, final_head, raw)
+        bad = dict(manifest)
+        mutate(bad)
+        _st_write_manifest(bundle, bad)
+        current = make_task7_handoff(bundle, bad)
+        _st_expect_fail(failures, name, lambda: _st_load(bundle, current))
+        _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
     _schema_fail("numeric_string_exit", lambda bad: bad.__setitem__("exit", "0"))
     _schema_fail(
@@ -2786,56 +3026,95 @@ def run_verifier_self_test():
         lambda bad: bad.__setitem__("schema_version", "9"),
     )
 
-    bundle, manifest, handoff = _fresh()
+
+def suite_handoff_path_guards(final_head, raw, failures, live):
+    real_bundle, real_man, real_h = _st_fresh(live, final_head, raw)
+    link_bundle = "/tmp/pr28-task7-link-%s" % new_nonce()
+    os.symlink(real_bundle, link_bundle)
+    _st_expect_fail(
+        failures,
+        "symlink_bundle",
+        lambda: _st_load(
+            link_bundle,
+            real_h,
+            bundle_dir=link_bundle,
+            bundle_path=link_bundle,
+        ),
+    )
+    if os.path.islink(link_bundle):
+        os.unlink(link_bundle)
+    raw_real = os.path.join(real_bundle, RAW_NAME)
+    raw_backup = raw_real + ".bak"
+    _st_unlock(real_bundle)
+    os.rename(raw_real, raw_backup)
+    os.symlink(raw_backup, raw_real)
+    os.chmod(real_bundle, 0o500)
+    _st_expect_fail(failures, "symlink_file", lambda: _st_load(real_bundle, real_h))
+    os.chmod(real_bundle, 0o700)
+    os.unlink(raw_real)
+    os.rename(raw_backup, raw_real)
+    _st_relock(real_bundle)
+    _st_drop(live, final_head, real_bundle, real_man["attempt_nonce"])
+
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
+    os.chmod(bundle, 0o700)
+    os.chmod(os.path.join(bundle, RAW_NAME), 0o644)
+    os.chmod(bundle, 0o500)
+    _st_expect_fail(failures, "wrong_mode", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
+
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     reloc = "/tmp/pr28-task7-%s-%s-reloc" % (
         final_head,
         manifest["attempt_nonce"],
     )
-    _unlock(bundle)
+    _st_unlock(bundle)
     os.rename(bundle, reloc)
     os.chmod(reloc, 0o500)
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "relocated_bundle",
-        lambda: _load(reloc, handoff, bundle_dir=reloc),
+        lambda: _st_load(reloc, handoff, bundle_dir=reloc),
     )
-    _drop(reloc, manifest["attempt_nonce"])
+    _st_drop(live, final_head, reloc, manifest["attempt_nonce"])
     if bundle in live:
         live.remove(bundle)
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     coord = dict(manifest)
     coord["attempt_nonce"] = new_nonce()
     coord["bundle_path"] = "/tmp/pr28-task7-%s-%s-coord" % (
         final_head,
         coord["attempt_nonce"],
     )
-    _write_manifest(bundle, coord)
-    expect_fail(
+    _st_write_manifest(bundle, coord)
+    _st_expect_fail(
+        failures,
         "coordinated_nonce_path_tamper",
-        lambda: _load(bundle, handoff),
+        lambda: _st_load(bundle, handoff),
     )
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
-    _unlock(bundle)
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
+    _st_unlock(bundle)
     write_exclusive_bytes(os.path.join(bundle, "extra.txt"), b"x\n")
-    _relock(bundle)
-    expect_fail("extra_directory_entry", lambda: _load(bundle, handoff))
-    _unlock(bundle)
+    _st_relock(bundle)
+    _st_expect_fail(failures, "extra_directory_entry", lambda: _st_load(bundle, handoff))
+    _st_unlock(bundle)
     extra_path = os.path.join(bundle, "extra.txt")
     if os.path.isfile(extra_path):
         os.chmod(extra_path, 0o600)
         os.remove(extra_path)
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
-    _unlock(bundle)
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
+    _st_unlock(bundle)
     os.remove(os.path.join(bundle, RAW_NAME))
     os.chmod(bundle, 0o500)
-    expect_fail("missing_directory_entry", lambda: _load(bundle, handoff))
-    _drop(bundle, manifest["attempt_nonce"])
+    _st_expect_fail(failures, "missing_directory_entry", lambda: _st_load(bundle, handoff))
+    _st_drop(live, final_head, bundle, manifest["attempt_nonce"])
 
-    bundle, manifest, handoff = _fresh()
+    bundle, manifest, handoff = _st_fresh(live, final_head, raw)
     decoy = "/tmp/pr28-task7-%s-%s-decoy" % (
         final_head,
         manifest["attempt_nonce"],
@@ -2875,8 +3154,10 @@ def run_verifier_self_test():
             print("REJECT partial_failure_cleanup: bundle absent")
             print("CLEANUP_ABSENT")
 
-    first, first_man, first_h = _fresh()
-    second, second_man, second_h = _fresh()
+
+def suite_same_head_retry(final_head, raw, failures, live):
+    first, first_man, first_h = _st_fresh(live, final_head, raw)
+    second, second_man, second_h = _st_fresh(live, final_head, raw)
     if (
         first == second
         or first_h["attempt_nonce"] == second_h["attempt_nonce"]
@@ -2885,10 +3166,11 @@ def run_verifier_self_test():
         failures.append("same_head_retry_nonce")
         print("UNEXPECTED_REJECT same_head_retry_nonce")
     else:
-        _load(first, first_h)
-        _load(second, second_h)
+        _st_load(first, first_h)
+        _st_load(second, second_h)
         print("ACCEPT same_head_retry_nonce")
-    expect_fail(
+    _st_expect_fail(
+        failures,
         "old_handoff_rejects_new_bundle",
         lambda: load_task7_evidence(
             second_h["bundle_path"],
@@ -2899,18 +3181,34 @@ def run_verifier_self_test():
             first_h["bundle_path"],
         ),
     )
-    _drop(first, first_man["attempt_nonce"])
-    _drop(second, second_man["attempt_nonce"])
+    _st_drop(live, final_head, first, first_man["attempt_nonce"])
+    _st_drop(live, final_head, second, second_man["attempt_nonce"])
     if os.path.exists(first) or os.path.exists(second):
         failures.append("same_head_retry_cleanup")
         print("UNEXPECTED_ACCEPT same_head_retry_cleanup still present")
     else:
         print("CLEANUP_ABSENT")
 
-    round_bundle, round_man, round_h = _fresh()
+
+def suite_manifest_handoff(final_head, raw, failures, live):
+    suite_raw_manifest_mutation(final_head, raw, failures, live)
+    suite_manifest_schema(final_head, raw, failures, live)
+    suite_handoff_path_guards(final_head, raw, failures, live)
+    suite_same_head_retry(final_head, raw, failures, live)
+
+
+def suite_lifecycle_orchestration(final_head, raw, failures, live):
+    def fresh():
+        return _st_fresh(live, final_head, raw)
+
+    def drop(bundle, nonce):
+        _st_drop(live, final_head, bundle, nonce)
+
+    round_bundle, round_man, round_h = _st_fresh(live, final_head, raw)
     text = json.dumps(round_h, sort_keys=True)
     parsed = parse_task7_handoff(text, final_head)
-    expect_ok(
+    _st_expect_ok(
+        failures,
         "valid_raw_manifest_round_trip",
         lambda: load_task7_evidence(
             parsed["bundle_path"],
@@ -2921,7 +3219,8 @@ def run_verifier_self_test():
             parsed["bundle_path"],
         ),
     )
-    expect_ok(
+    _st_expect_ok(
+        failures,
         "handoff_through_task9_load",
         lambda: load_task7_evidence(
             parsed["bundle_path"],
@@ -2958,7 +3257,7 @@ def run_verifier_self_test():
             live.remove(round_bundle)
 
     def _inject(name, work):
-        bundle, _manifest, hon = _fresh()
+        bundle, _manifest, hon = _st_fresh(live, final_head, raw)
         payload = json.dumps(hon, sort_keys=True)
         try:
             run_task9_with_handoff_cleanup(payload, final_head, work)
@@ -3052,65 +3351,25 @@ def run_verifier_self_test():
     _inject("d_state_cleanup", _d_state)
     _inject("rollup_failure_cleanup", _rollup_fail)
     _inject("loader_failure_cleanup", _loader_fail)
-    suite_producer_lifecycle(final_head, raw, failures, live, _drop)
-    suite_task9_rc(final_head, failures, live, _fresh, _drop)
+    suite_producer_lifecycle(final_head, raw, failures, live, drop)
+    suite_task9_rc(final_head, failures, live, fresh, drop)
     suite_cleanup_refusal(
-        final_head, failures, _fresh, _drop, _unlock, _relock
+        final_head, failures, fresh, drop, _st_unlock, _st_relock
     )
-    suite_object_identity(final_head, raw, failures, live, _fresh, _drop)
+    suite_object_identity(final_head, raw, failures, live, fresh, drop)
 
-    tab_motivation = _valid_body(final_head, evidence).replace(
-        "## Motivation\n", "##\tMotivation\n", 1
-    )
-    expect_ok(
-        "tab_motivation_heading",
-        lambda: assert_pr_body(tab_motivation, final_head, evidence),
-    )
-    closing_hash = _valid_body(final_head, evidence).replace(
-        "## Tests\n", "## Tests ##\n", 1
-    )
-    expect_ok(
-        "legal_atx_closing_sequence",
-        lambda: assert_pr_body(closing_hash, final_head, evidence),
-    )
-    expect_ok(
-        "valid_body_and_evidence",
-        lambda: assert_pr_body(_valid_body(final_head, evidence), final_head, evidence),
-    )
-    success = {
-        "headSha": final_head,
-        "status": "completed",
-        "conclusion": "success",
-        "url": "https://example.test/run/1",
-        "jobs": [_required_job(2, "completed", "success")],
-    }
-    expect_ok(
-        "valid_wait",
-        lambda: (
-            None
-            if wait_for_terminal(
-                lambda _rid: success,
-                1,
-                final_head,
-                FakeClock(),
-                completion_seconds=30,
-                poll_seconds=15,
-            ).get("state")
-            == "C"
-            else (_ for _ in ()).throw(VerifierError("expected C"))
-        ),
-    )
-    expect_ok(
-        "valid_rollup",
-        lambda: assert_rollup_bound(
-            {
-                "headRefOid": final_head,
-                "statusCheckRollup": [_required_rollup(1, 2)],
-            },
-            final_head,
-            1,
-            2,
-        ),
+
+def run_verifier_self_test():
+    final_head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    evidence = _valid_evidence(final_head)
+    raw = sample_task7_raw()
+    failures = []
+    live = []
+    suite_pr_body_parser(final_head, evidence, failures)
+    suite_ci_discovery_wait_rollup(final_head, failures)
+    suite_manifest_handoff(final_head, raw, failures, live)
+    suite_lifecycle_orchestration(
+        final_head, raw, failures, live
     )
     leftovers = [path for path in live if os.path.exists(path)]
     if leftovers:
@@ -3659,8 +3918,10 @@ A later implementation node must stop immediately when:
   `manifest_sha256`, `final_head`, `bundle_dev`, and
   `bundle_ino`;
 - cleanup treats a missing, relocated, or replaced captured
-  path as success, deletes a lookalike, or skips the
-  create-time directory object identity;
+  path as success, deletes a lookalike, re-selects
+  `root.raw` / `manifest.json` by pathname after the handle
+  check, rmdirs a pathname that is no longer the original,
+  or skips the create-time directory object identity;
 - Task 9 loads from a path or nonce that is only self-consistent
   with its own manifest and is not the independently captured
   handoff;
@@ -3800,16 +4061,16 @@ This archival node must not start Task 1 through Task 9.
   same-HEAD handoffs fail. Task 7 post-create failures run
   through `produce_task7_handoff` and remove the exact path.
   Task 9 runs body, wait, and rollup through
-  `run_task9_with_handoff_cleanup`. Handoff cleanup validates
-  owner, mode, entries, hashes, schema, head, nonce,
-  `bundle_path`, and the create-time directory object before
-  deletion. Path, copyable bytes, hash, mode, owner, and
-  manifest are not enough. A missing or replaced captured
-  path is a non-zero stop and does not claim the original raw
-  was cleaned. A coordinated matching-name decoy that already
-  satisfies those early checks is refused when it is not the
-  original object. Cleanup failure makes the real
-  orchestration non-zero.
+  `run_task9_with_handoff_cleanup`. Handoff cleanup opens the
+  captured directory no-follow, binds `fstat` to
+  `bundle_dev` / `bundle_ino`, and performs enumerate, read,
+  unlink, and rmdir relative to that handle. Path, copyable
+  bytes, hash, mode, owner, and manifest are not enough. A
+  missing or replaced captured path is a non-zero stop and
+  does not delete the substitute. A coordinated matching-name
+  decoy that already satisfies those early checks is refused
+  when it is not the original object. Cleanup failure makes
+  the real orchestration non-zero.
 - Duplicate-job finding is closed. `wait_for_terminal` collects
   all `REQUIRED_JOB` matches. `len > 1` raises. Terminal
   `len == 0` raises. Non-terminal `len == 0` may wait. Only one
@@ -3833,25 +4094,29 @@ This archival node must not start Task 1 through Task 9.
   Main failure plus cleanup failure reports both. Owner,
   mode, extra/missing entry, raw hash, manifest hash, nonce,
   head, and `bundle_path` cleanup-validation failures refuse
-  deletion. Relocated original, byte-identical path swap,
-  validate-then-swap, and a coordinated decoy that already
-  satisfies mode 0500 / file 0444 / owner / schema / hashes /
-  path/head/nonce all reach object-identity refusal. The
-  original-bundle cleanup path still deletes the exact object
-  and proves it absent. Producer lifecycle, Task 9 rc,
-  cleanup-refusal, and object-identity fixtures are named
-  suites; they do not add a second source of truth.
-  `VERIFIER_SELF_TEST_OK` requires every expected REJECT,
-  every valid fixture ACCEPT, and cleanup paths absent.
+  deletion.   Relocated original, byte-identical path swap,
+  post-final-identity-check swap, pre-rmdir path swap, and a
+  coordinated decoy that already satisfies mode 0500 / file
+  0444 / owner / schema / hashes / path/head/nonce all reach
+  object-identity refusal. Swap fixtures monkeypatch
+  `os.fchmod` or `os.lstat`; they do not add a production
+  hook. The original-bundle cleanup path still deletes the
+  exact object and proves it absent. PR-body, CI wait/rollup,
+  manifest/handoff, and lifecycle fixtures are named suites.
+  The self-test entry only orchestrates those suites and the
+  leftover-path teardown. They do not add a second source of
+  truth. `VERIFIER_SELF_TEST_OK` requires every expected
+  REJECT, every valid fixture ACCEPT, and cleanup paths
+  absent.
 - Object-identity control: create already `lstat`s the
-  `mkdtemp` directory for owner/mode. Cleanup now retains that
-  same directory object on the existing handoff and compares
-  it before deletion. No second hash, manifest, or parallel
-  gate. Failure mode: a lookalike at the captured path, or a
-  missing/relocated captured path, raises and leaves the
-  unverified target untouched. The control is removable only
-  if exclusive-create plus same-process fd ownership replace
-  the Task 7 to Task 9 JSON handoff.
+  `mkdtemp` directory for owner/mode. Cleanup reuses that
+  identity on the open directory handle. No second hash,
+  manifest, or parallel gate. Failure mode: a lookalike at
+  the captured path, or a missing/relocated captured path,
+  raises, leaves the substitute, and still rmdirs the held
+  original when validation already passed. The control is
+  removable only if exclusive-create plus same-process fd
+  ownership replace the Task 7 to Task 9 JSON handoff.
 - Kept contracts: `DISCOVERY_SECONDS = 600`,
   `COMPLETION_SECONDS = 3600`, newest FINAL_HEAD run, four-way
   run/job/headRefOid/detailsUrl bind, atomic five-destination

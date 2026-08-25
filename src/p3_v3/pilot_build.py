@@ -1165,6 +1165,8 @@ def bind_job_specs(environment: dict[str, Any]) -> tuple[dict[str, Any], ...]:
 
 
 def attempt2_phase_descriptors(cmake_path: str) -> list[dict[str, Any]]:
+    if type(cmake_path) is not str or not cmake_path or not os.path.isabs(cmake_path):
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "CMake path must be absolute")
     configure = [cmake_path, "-S", ATTEMPT2_HARNESS_ROOT.as_posix(), "-B",
         ATTEMPT2_BUILD_ROOT.as_posix(), "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_CXX_STANDARD=14", "-DCMAKE_CXX_STANDARD_REQUIRED=ON",
@@ -1209,12 +1211,43 @@ def validate_attempt2_phase_result(value: object) -> dict[str, Any]:
         raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "claim ceiling differs")
     if validated["terminal_status"] not in {"PASS", "FAIL", "TIMEOUT", "FAIL_INFRASTRUCTURE", "NOT_STARTED"}:
         raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "status differs")
+    cmake_path = (validated["argv"][0] if validated["phase_id"] in
+                  {"METADATA_CMAKE_VERSION", "CMAKE_CONFIGURE", "BASELINE_BUILD"}
+                  and validated["argv"] else "/cmake")
+    descriptors = {item["phase_id"]: item for item in attempt2_phase_descriptors(cmake_path)}
+    expected = descriptors.get(validated["phase_id"])
+    if expected is None or any(validated[key] != expected[key] for key in
+                               ("phase_kind", "dependency_phase_ids", "argv", "timeout_seconds")):
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "phase descriptor differs")
     if validated["terminal_status"] == "NOT_STARTED":
-        forbidden = ("exit_code", "stdout_sha256", "stderr_sha256", "stdout_bytes",
+        forbidden = ("process_group_terminated", "infrastructure_phase", "failure_reason",
+                     "exit_code", "stdout_sha256", "stderr_sha256", "stdout_bytes",
                      "stderr_bytes", "started_at", "ended_at", "wall_seconds",
-                     "cpu_seconds", "peak_rss_bytes")
-        if validated["process_started"] or any(validated[key] is not None for key in forbidden):
+                     "cpu_seconds", "peak_rss_bytes", "source_restoration_evidence")
+        if validated["process_started"] is not False or any(validated[key] is not None for key in forbidden):
             raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "NOT_STARTED carries evidence")
+    elif validated["phase_id"] == "SOURCE_RESTORE":
+        from p3_v3.pilot_source import validate_source_restoration_evidence
+        forbidden = ("process_group_terminated", "infrastructure_phase", "exit_code",
+                     "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes",
+                     "started_at", "ended_at", "wall_seconds", "cpu_seconds", "peak_rss_bytes")
+        if validated["process_started"] is not False or any(validated[k] is not None for k in forbidden):
+            raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "source restoration forged process evidence")
+        evidence = validate_source_restoration_evidence(validated["source_restoration_evidence"])
+        if (validated["terminal_status"] != evidence["terminal_status"]
+                or validated["terminal_status"] not in {"PASS", "FAIL"}
+                or validated["failure_reason"] != evidence["failure_reason"]):
+            raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "restoration status differs")
+    else:
+        if validated["source_restoration_evidence"] is not None:
+            raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "process phase carries restoration")
+        job = dict(validated)
+        job.pop("source_restoration_evidence")
+        job.update(schema_version="p3-pilot-build-preflight-job-result-v1",
+                   job_id=job.pop("phase_id"), job_kind=job.pop("phase_kind"),
+                   dependency_job_ids=job.pop("dependency_phase_ids"))
+        job["artifact_sha256"] = canonical_sha256({k: v for k, v in job.items() if k != "artifact_sha256"})
+        validate_job_result(job)
     body = {key: validated[key] for key in validated if key != "artifact_sha256"}
     if validated["artifact_sha256"] != canonical_sha256(body):
         raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "self-hash differs")
@@ -1227,6 +1260,27 @@ def validate_attempt2_environment(value: object) -> dict[str, Any]:
             or validated["execution_class"] != "PILOT_ONLY"
             or validated["denominator"] != "PILOT_ONLY" or validated["claims"] != "blocked"):
         raise EvidenceError("E_PILOT_ATTEMPT2_ENVIRONMENT", "identity or ceiling differs")
+    path = validated["cmake_executable_path"]
+    nonempty = ("cxx_compiler_identity", "cxx_compiler_version", "os_name", "os_release",
+                "python_version", "git_version")
+    if (validated["cmake_executable"] != "cmake" or type(path) is not str or not path
+            or not os.path.isabs(path) or validated["cmake_version"] == ""
+            or validated["cxx_compiler_executable"] != "c++"
+            or validated["cxx_compiler_path"] != FROZEN_CXX_PATH
+            or any(type(validated[k]) is not str or not validated[k] for k in nonempty)
+            or validated["cmake_generator"] != "Unix Makefiles"
+            or type(validated["build_parallelism"]) is not int
+            or validated["build_parallelism"] != 4 or type(validated["nvcc_present"]) is not bool
+            or validated["native_profiling_present"] is not False
+            or validated["cuda_absence_blocking"] is not False
+            or validated["fetchcontent_fully_disconnected"] is not True
+            or validated["system_boost_fallback_accepted"] is not False
+            or validated["disconnected_environment"] != DISCONNECTED_ENVIRONMENT
+            or validated["verification_scope"] != "ARTIFACT_HASH_AND_HOST_SNAPSHOT"
+            or validated["executor_cloud_run_id"] is not None
+            or validated["executor_build_snapshot_id"] is not None):
+        raise EvidenceError("E_PILOT_ATTEMPT2_ENVIRONMENT", "frozen environment differs")
+    validate_sha256(validated["qualification_evidence_sha256"], "qualification_evidence_sha256")
     if validated["artifact_sha256"] != canonical_sha256({k: v for k, v in validated.items() if k != "artifact_sha256"}):
         raise EvidenceError("E_PILOT_ATTEMPT2_ENVIRONMENT", "self-hash differs")
     return validated
@@ -1261,7 +1315,11 @@ def run_metadata_cmake_version(cmake_path: str, log_root: Path) -> dict[str, Any
     spec = {"job_id": descriptor["phase_id"], "job_kind": descriptor["phase_kind"],
             "dependency_job_ids": descriptor["dependency_phase_ids"],
             "argv": descriptor["argv"], "timeout_seconds": descriptor["timeout_seconds"]}
-    return execute_job(spec, env=dict(os.environ), log_root=log_root)
+    env = dict(os.environ)
+    reject_system_boost_environment(env)
+    env.update(DISCONNECTED_ENVIRONMENT)
+    reject_unbound_toolchain(env, FROZEN_CXX_PATH)
+    return execute_job(spec, env=env, log_root=log_root)
 
 
 def reject_unbound_toolchain(env: dict[str, str], resolved_cxx: str | None) -> None:
@@ -2854,12 +2912,70 @@ def _validate_attempt2_common(value: object, schema: str, context: str,
     return validated
 
 
+def _require_attempt2_bindings(value: dict[str, Any], context: str) -> None:
+    fixed = {
+        "p12_item_id": P12_ITEM_ID, "neutral_snapshot_id": NEUTRAL_SNAPSHOT_ID,
+        "normalized_source_tree_sha256": FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "controlled_subject_id": CONTROLLED_SUBJECT_ID,
+        "controlled_subject_source_id": CONTROLLED_SUBJECT_SOURCE_ID,
+        "build_descriptor_sha256": BUILD_DESCRIPTOR_SHA256,
+        "source_preparation_verdict_sha256": SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        "source_manifest_sha256": SOURCE_MANIFEST_FILE_SHA256,
+        "source_preparation_result_sha256": SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        "harness_cmake_sha256": HARNESS_CMAKE_SHA256, "harness_cxx_sha256": HARNESS_CXX_SHA256,
+        "source_root": str(ATTEMPT2_SOURCE_ROOT), "build_root": str(ATTEMPT2_BUILD_ROOT),
+        "harness_root": str(ATTEMPT2_HARNESS_ROOT), "log_root": str(ATTEMPT2_LOG_ROOT),
+        "archive_path": str(ATTEMPT2_ARCHIVE_PATH), "qualification_base_head": QUALIFICATION_BASE_HEAD,
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None,
+    }
+    if any(value.get(k) != expected for k, expected in fixed.items()):
+        raise EvidenceError(context, "frozen binding differs")
+    for key in ("attempt1_implementation_verdict_sha256", "attempt2_implementation_verdict_sha256",
+                "authorization_sha256", "qualification_evidence_sha256"):
+        validate_sha256(value[key], key)
+
+
+def _require_predecessors(value: dict[str, Any], required: list[str], context: str) -> None:
+    predecessor = value["predecessor_sha256"]
+    if (type(predecessor) is not list or predecessor != sorted(predecessor)
+            or len(predecessor) != len(set(predecessor))):
+        raise EvidenceError(context, "predecessors must be sorted and unique")
+    for digest in predecessor:
+        validate_sha256(digest, "predecessor_sha256")
+    if not set(required).issubset(predecessor):
+        raise EvidenceError(context, "direct predecessor missing")
+
+
 def validate_attempt2_intent(value: object) -> dict[str, Any]:
     validated = _validate_attempt2_common(value, ATTEMPT2_INTENT_SCHEMA,
                                           "E_PILOT_ATTEMPT2_INTENT", ATTEMPT2_INTENT_EXACT)
     environment = validate_attempt2_environment(validated["environment_snapshot"])
     if validated["environment_snapshot_sha256"] != environment["artifact_sha256"]:
         raise EvidenceError("E_PILOT_ATTEMPT2_INTENT", "environment binding differs")
+    _require_attempt2_bindings(validated, "E_PILOT_ATTEMPT2_INTENT")
+    descriptors = attempt2_phase_descriptors(environment["cmake_executable_path"])
+    expected = {
+        "plan_class": "PILOT_BUILD_PREFLIGHT_ATTEMPT_2_ONLY", "planned_count": 5,
+        "phase_order": [d["phase_id"] for d in descriptors],
+        "dependency_dag": [d["dependency_phase_ids"] for d in descriptors],
+        "cmake_metadata_argv": descriptors[0]["argv"], "cmake_configure_argv": descriptors[2]["argv"],
+        "baseline_build_argv": descriptors[3]["argv"], "baseline_smoke_argv": descriptors[4]["argv"],
+        "cmake_version_timeout_seconds": 10, "cmake_configure_timeout_seconds": 900,
+        "baseline_build_timeout_seconds": 3600, "baseline_smoke_timeout_seconds": 1800,
+        "outer_timeout_seconds": 7200, "build_parallelism": 4,
+        "source_preparation_reviewed_commit": SOURCE_PREPARATION_REVIEWED_COMMIT,
+    }
+    if any(validated[k] != expected for k, expected in expected.items()):
+        raise EvidenceError("E_PILOT_ATTEMPT2_INTENT", "intent plan differs")
+    if (environment["cmake_version"] is not None or type(validated["producer_pid"]) is not int
+            or validated["producer_pid"] <= 0 or not validated["producer_starttime"]):
+        raise EvidenceError("E_PILOT_ATTEMPT2_INTENT", "producer or metadata state differs")
+    required = [validated[k] for k in ("attempt1_implementation_verdict_sha256",
+        "attempt2_implementation_verdict_sha256", "authorization_sha256",
+        "qualification_evidence_sha256", "source_preparation_verdict_sha256",
+        "source_manifest_sha256", "source_preparation_result_sha256", "environment_snapshot_sha256")]
+    _require_predecessors(validated, required, "E_PILOT_ATTEMPT2_INTENT")
     return validated
 
 
@@ -2869,11 +2985,17 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
     environment = validate_attempt2_environment(validated["environment_snapshot"])
     if validated["environment_snapshot_sha256"] != environment["artifact_sha256"]:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "environment binding differs")
+    _require_attempt2_bindings(validated, "E_PILOT_ATTEMPT2_RESULT")
+    validate_sha256(validated["intent_sha256"], "intent_sha256")
     phases = validated.get("phases")
     if not isinstance(phases, list) or len(phases) != 5:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "five phases required")
     checked = [validate_attempt2_phase_result(phase) for phase in phases]
-    if validated["phase_order"] != [p["phase_id"] for p in checked]:
+    descriptors = attempt2_phase_descriptors(environment["cmake_executable_path"])
+    if (validated["planned_count"] != 5 or validated["phase_order"] != [d["phase_id"] for d in descriptors]
+            or any(any(p[k] != d[k] for k in ("phase_id", "phase_kind", "dependency_phase_ids",
+                                               "argv", "timeout_seconds"))
+                   for p, d in zip(checked, descriptors, strict=True))):
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "phase order differs")
     if validated["started_count"] != sum(p["process_started"] for p in checked):
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "started count differs")
@@ -2885,7 +3007,33 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
     for phase in checked:
         if failed and phase["terminal_status"] != "NOT_STARTED":
             raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "phase after failure was started")
-        failed |= phase["terminal_status"] not in {"PASS", "NOT_STARTED"}
+        failed |= phase["terminal_status"] != "PASS"
+    first = next((p for p in checked if p["terminal_status"] != "PASS"), None)
+    aggregate_status = "PASS" if first is None else first["terminal_status"]
+    aggregate_failure = None if first is None else first["failure_reason"]
+    if validated["terminal_status"] != aggregate_status or validated["failure_reason"] != aggregate_failure:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "aggregate differs")
+    source = checked[1]
+    disposition = (None if source["terminal_status"] == "NOT_STARTED" else
+                   source["source_restoration_evidence"]["disposition"])
+    if validated["source_restoration_disposition"] != disposition:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "restoration disposition differs")
+    evidence_requirements = (("cmake_cache_sha256", 2), ("compile_commands_sha256", 2),
+                             ("compiler_depfile_sha256", 3), ("dependency_list_sha256", 3),
+                             ("smoke_executable_sha256", 4))
+    for key, index in evidence_requirements:
+        digest = validated[key]
+        if digest is not None:
+            validate_sha256(digest, key)
+        if (checked[index]["terminal_status"] == "PASS") != (digest is not None):
+            raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "build evidence reach differs")
+    if validated["build_root_exists"] is not True or validated["build_root_is_symlink"] is not False:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "unsafe build root")
+    required = [validated[k] for k in ("intent_sha256", "attempt1_implementation_verdict_sha256",
+        "attempt2_implementation_verdict_sha256", "authorization_sha256",
+        "qualification_evidence_sha256", "source_preparation_verdict_sha256",
+        "source_manifest_sha256", "source_preparation_result_sha256", "environment_snapshot_sha256")]
+    _require_predecessors(validated, required, "E_PILOT_ATTEMPT2_RESULT")
     return validated
 
 

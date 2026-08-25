@@ -2905,12 +2905,53 @@ def test_attempt2_descriptor_dependency_and_environment():
     assert all(isinstance(arg, str) for spec in specs for arg in spec["argv"])
     assert specs[1]["argv"] == [] and specs[1]["timeout_seconds"] == 0
 
+    assert [s["timeout_seconds"] for s in specs] == [10, 0, 900, 3600, 1800]
+    assert specs[0]["argv"] == ["/usr/bin/cmake", "--version"]
+    assert specs[2]["argv"] == [
+        "/usr/bin/cmake", "-S", str(pilot_build.ATTEMPT2_HARNESS_ROOT),
+        "-B", str(pilot_build.ATTEMPT2_BUILD_ROOT), "-G", "Unix Makefiles",
+        "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_CXX_STANDARD=14",
+        "-DCMAKE_CXX_STANDARD_REQUIRED=ON", "-DBOOST_MATH_STANDALONE=1",
+        "-DBOOST_MATH_PILOT_SOURCE_INCLUDE=/tmp/p3-boost-math-pilot-production-source/include",
+        "-DCMAKE_DISABLE_SOURCE_CHANGES=ON", "-DCMAKE_DISABLE_IN_SOURCE_BUILD=ON",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON", "-DFETCHCONTENT_UPDATES_DISCONNECTED=ON",
+        "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF",
+        "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_CXX_COMPILER=/usr/bin/c++",
+    ]
+    assert specs[3]["argv"] == ["/usr/bin/cmake", "--build", str(pilot_build.ATTEMPT2_BUILD_ROOT), "--parallel", "4"]
+    assert specs[4]["argv"] == [str(pilot_build.ATTEMPT2_BUILD_ROOT / "boost_math_pilot_smoke")]
+    with pytest.raises(EvidenceError):
+        pilot_build.attempt2_phase_descriptors("cmake")
+
 
 def test_attempt2_execute_job_uses_existing_callable():
     from p3_v3 import pilot_build
 
     assert callable(pilot_build.execute_job)
     assert pilot_build.ATTEMPT2_LOG_ROOT == pilot_build.ATTEMPT2_BUILD_ROOT / "logs"
+
+
+def test_attempt2_execute_job_metadata_processes_copied_environment(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+
+    original = {"PRESERVED": "yes"}
+    monkeypatch.setattr(pilot_build.os, "environ", original)
+    calls = []
+    monkeypatch.setattr(pilot_build, "reject_system_boost_environment", lambda env: env.update(SEEN_BOOST="1"))
+    monkeypatch.setattr(pilot_build, "reject_unbound_toolchain", lambda env, cxx: env.update(SEEN_CXX=cxx))
+    sentinel = {"sentinel": True}
+    monkeypatch.setattr(pilot_build, "execute_job", lambda spec, **kwargs: calls.append((spec, kwargs)) or sentinel)
+    assert pilot_build.run_metadata_cmake_version("/opt/cmake", tmp_path) is sentinel
+    assert len(calls) == 1
+    spec, kwargs = calls[0]
+    assert spec == {"job_id": "METADATA_CMAKE_VERSION", "job_kind": "METADATA_CMAKE_VERSION",
+                    "dependency_job_ids": [], "argv": ["/opt/cmake", "--version"], "timeout_seconds": 10}
+    assert kwargs["log_root"] == tmp_path
+    assert "cwd" not in kwargs
+    assert kwargs["env"] is not original and original == {"PRESERVED": "yes"}
+    assert kwargs["env"] == {"PRESERVED": "yes", "SEEN_BOOST": "1", "SEEN_CXX": "/usr/bin/c++",
+                              **pilot_build.DISCONNECTED_ENVIRONMENT}
 def test_attempt2_orchestration_publication_preexisting_is_permanent(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
 

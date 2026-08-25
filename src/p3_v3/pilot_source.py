@@ -2002,9 +2002,12 @@ def validate_source_restoration_evidence(value: object) -> dict[str, Any]:
 def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, Any]:
     """Restore only the frozen missing production root, or fully revalidate it."""
     started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    last_evidence: dict[str, Any] | None = None
+
     def evidence(status: str, reason: str | None = None, *, restored: bool = False,
                  snapshot: ArchiveSnapshot | None = None, tree_hash: str | None = None,
                  count: int = 0, total: int = 0) -> dict[str, Any]:
+        nonlocal last_evidence
         payload = {"schema_version": SOURCE_RESTORATION_SCHEMA, "execution_class": "PILOT_ONLY",
             "claims": "blocked", "disposition": ("RESTORED" if restored else "REVALIDATED")
             if status == "PASS" else "NOT_APPLIED",
@@ -2018,7 +2021,9 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
             "ended_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "terminal_status": status, "failure_reason": reason}
         payload["artifact_sha256"] = canonical_sha256(payload)
-        return validate_source_restoration_evidence(payload)
+        validated = validate_source_restoration_evidence(payload)
+        last_evidence = validated
+        return validated
 
     snapshot = None
     created_staging = False
@@ -2077,9 +2082,11 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
         authority_bytes = (manifest_snapshot.raw, result_snapshot.raw)
         restored = state == "INVALID_PASS_NO_ROOT"
         if restored:
-            created_staging = True
             try:
                 root = extract_archive_to_staging(snapshot, ATTEMPT2_SOURCE_STAGING_ROOT)
+                if root != ATTEMPT2_SOURCE_STAGING_ROOT:
+                    return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+                created_staging = True
             except EvidenceError as exc:
                 reason = (
                     "ARCHIVE_FORMAT_MISMATCH"
@@ -2125,12 +2132,6 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
         boost_math = root / "include" / "boost" / "math"
         if not boost_math.is_dir() or boost_math.is_symlink():
             return evidence("FAIL", "TREE_HASH_MISMATCH", snapshot=snapshot)
-        if restored:
-            try:
-                os.replace(ATTEMPT2_SOURCE_STAGING_ROOT, ATTEMPT2_SOURCE_ROOT)
-            except OSError:
-                return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
-            created_staging = False
         try:
             current_manifest, _ = read_authority_snapshot(
                 SOURCE_MANIFEST_PATH, "source-restoration-manifest"
@@ -2142,22 +2143,28 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
             return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
         if (current_manifest, current_result) != authority_bytes:
             return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        if restored:
+            try:
+                os.replace(ATTEMPT2_SOURCE_STAGING_ROOT, ATTEMPT2_SOURCE_ROOT)
+            except OSError:
+                return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+            created_staging = False
         return evidence("PASS", restored=restored, snapshot=snapshot,
                         tree_hash=tree_hash, count=count, total=total)
     finally:
         if created_staging and os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+            cleanup_failed = False
             try:
                 shutil.rmtree(ATTEMPT2_SOURCE_STAGING_ROOT)
-            except OSError as exc:
-                raise EvidenceError(
-                    "E_PILOT_SOURCE_RESTORATION_CLEANUP",
-                    "owned staging cleanup failed",
-                ) from exc
+            except OSError:
+                cleanup_failed = True
             if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
-                raise EvidenceError(
-                    "E_PILOT_SOURCE_RESTORATION_CLEANUP",
-                    "owned staging remains after cleanup",
-                )
+                cleanup_failed = True
+            if cleanup_failed and last_evidence is not None:
+                pending_evidence = last_evidence
+                replacement = evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+                pending_evidence.clear()
+                pending_evidence.update(replacement)
 
 
 if canonical_sha256(EXTRACTOR_POLICY_V1) != EXTRACTOR_POLICY_SHA256:

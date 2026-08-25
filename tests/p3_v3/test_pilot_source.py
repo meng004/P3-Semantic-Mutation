@@ -2450,20 +2450,88 @@ def test_attempt2_restore_maps_operation_local_oserror(tmp_path, monkeypatch, op
     assert not os.path.lexists(root)
 
 
-def test_attempt2_restore_cleanup_failure_is_observable(tmp_path, monkeypatch):
+def test_attempt2_restore_owned_cleanup_failure_returns_failure_evidence(tmp_path, monkeypatch):
     ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
-    original_extract = ps.extract_archive_to_staging
-
-    def fail_after_creation(snapshot, destination):
-        original_extract(snapshot, destination)
-        raise EvidenceError("E_PILOT_EXTRACT_UNSAFE", "stop")
-
-    monkeypatch.setattr(ps, "extract_archive_to_staging", fail_after_creation)
+    monkeypatch.setattr(
+        ps,
+        "capture_materialized_tree",
+        lambda *_: (_ for _ in ()).throw(EvidenceError("E_PILOT_EXTRACT_UNSAFE", "stop")),
+    )
     monkeypatch.setattr(ps.shutil, "rmtree",
                         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup")))
-    with pytest.raises(EvidenceError, match="E_PILOT_SOURCE_RESTORATION_CLEANUP"):
-        ps.run_restore_production_source(archive, root)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert ps.validate_source_restoration_evidence(evidence) == evidence
+    assert (
+        evidence["terminal_status"], evidence["disposition"], evidence["failure_reason"]
+    ) == ("FAIL", "NOT_APPLIED", "EXTRACTION_UNSAFE")
+    assert (evidence["staging_published"], evidence["root_published"]) == (False, False)
     assert os.path.lexists(staging)
+
+
+def test_attempt2_restore_extractor_race_preserves_foreign_staging(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    foreign_inode = None
+
+    def collide(_snapshot, destination):
+        nonlocal foreign_inode
+        destination.mkdir()
+        (destination / "foreign").write_text("unchanged")
+        foreign_inode = destination.stat().st_ino
+        raise EvidenceError("E_PILOT_EXTRACT_UNSAFE", "exclusive mkdir collision")
+
+    monkeypatch.setattr(ps, "extract_archive_to_staging", collide)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "EXTRACTION_UNSAFE"
+    assert staging.stat().st_ino == foreign_inode
+    assert (staging / "foreign").read_text() == "unchanged"
+    assert not os.path.lexists(root)
+
+
+def test_attempt2_restore_authority_drift_precedes_publication(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_read = ps.read_authority_snapshot
+    reads = 0
+
+    def drift_on_reread(path, label):
+        nonlocal reads
+        reads += 1
+        if reads == 1:
+            manifest.write_bytes(manifest.read_bytes() + b" ")
+        return original_read(path, label)
+
+    monkeypatch.setattr(ps, "read_authority_snapshot", drift_on_reread)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_PASS_PAIR"
+    assert not os.path.lexists(root)
+    assert not os.path.lexists(staging)
+
+
+def test_attempt2_restore_rereads_authority_before_atomic_replace(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_read = ps.read_authority_snapshot
+    original_replace = ps.os.replace
+    calls = []
+
+    def ordered_read(path, label):
+        calls.append(("read", label))
+        return original_read(path, label)
+
+    def ordered_replace(source, destination):
+        calls.append(("replace", source, destination))
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(ps, "read_authority_snapshot", ordered_read)
+    monkeypatch.setattr(ps.os, "replace", ordered_replace)
+    assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+    boundary_calls = [
+        call for call in calls
+        if call[0] == "replace" or call[1].startswith("source-restoration-")
+    ]
+    assert boundary_calls == [
+        ("read", "source-restoration-manifest"),
+        ("read", "source-restoration-result"),
+        ("replace", ps.ATTEMPT2_SOURCE_STAGING_ROOT, ps.ATTEMPT2_SOURCE_ROOT),
+    ]
 
 
 def test_attempt2_restore_preserves_preexisting_staging_when_cleanup_not_owned(tmp_path, monkeypatch):

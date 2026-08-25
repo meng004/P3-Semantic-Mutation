@@ -32,6 +32,7 @@ from p3_v3.pilot_source import (
     capture_materialized_tree,
     validate_materialized_tree_with_phase1,
 )
+from p3_v3 import toolchain_qualification as qualification_contract
 
 PILOT_EXECUTION_CLASS = "PILOT_ONLY"
 PILOT_DENOMINATOR = "PILOT_ONLY"
@@ -44,12 +45,17 @@ QUALIFICATION_SOURCE_NAME = "qualify.cpp"
 QUALIFICATION_EXECUTABLE_NAME = "qualify"
 QUALIFICATION_CXX_STDOUT_NAME = "METADATA_CXX_VERSION.stdout"
 QUALIFICATION_CXX_STDERR_NAME = "METADATA_CXX_VERSION.stderr"
+QUALIFICATION_INTENT_SHA256 = "0a13766c565e89e32a21bc69ba0f449dc8a79c48a66a7bcace54c63faa224860"
+QUALIFICATION_RESULT_SHA256 = "68aaac07c2d5ad4f834f114e1a0ac011052176f2a20ea63793f483357c31f6c2"
+QUALIFICATION_MANIFEST_SHA256 = "5ef4c89e9601303b9e40e3fcda07c68055664cf53fb578d6efb1d39fc5f27c9a"
+QUALIFICATION_SOURCE_SHA256 = "91193433e324b0a1e525cfecac51f43ca0f6bd882e1c34292510c9740115bf5c"
+QUALIFICATION_EXECUTABLE_SHA256 = "9d24d5298272942e95333acf18b05052b4c9d701aeaf92f7252a4d9666228b3b"
 QUALIFICATION_FIXED_HASHES = {
-    QUALIFICATION_INTENT_NAME: "0a13766c565e89e32a21bc69ba0f449dc8a79c48a66a7bcace54c63faa224860",
-    QUALIFICATION_RESULT_NAME: "68aaac07c2d5ad4f834f114e1a0ac011052176f2a20ea63793f483357c31f6c2",
-    QUALIFICATION_MANIFEST_NAME: "5ef4c89e9601303b9e40e3fcda07c68055664cf53fb578d6efb1d39fc5f27c9a",
-    QUALIFICATION_SOURCE_NAME: "91193433e324b0a1e525cfecac51f43ca0f6bd882e1c34292510c9740115bf5c",
-    QUALIFICATION_EXECUTABLE_NAME: "9d24d5298272942e95333acf18b05052b4c9d701aeaf92f7252a4d9666228b3b",
+    QUALIFICATION_INTENT_NAME: QUALIFICATION_INTENT_SHA256,
+    QUALIFICATION_RESULT_NAME: QUALIFICATION_RESULT_SHA256,
+    QUALIFICATION_MANIFEST_NAME: QUALIFICATION_MANIFEST_SHA256,
+    QUALIFICATION_SOURCE_NAME: QUALIFICATION_SOURCE_SHA256,
+    QUALIFICATION_EXECUTABLE_NAME: QUALIFICATION_EXECUTABLE_SHA256,
 }
 FROZEN_CXX_PATH = "/usr/bin/c++"
 FROZEN_CXX_REALPATH = "/usr/lib/llvm-18/bin/clang"
@@ -135,18 +141,57 @@ ATTEMPT2_RESULT_EXACT = {
  "executor_cloud_run_id": (str, type(None)), "executor_build_snapshot_id": (str, type(None)),
  "predecessor_sha256": list, "artifact_sha256": str,
 }
-IMPLEMENTATION_VERDICT_EXACT = {
+ATTEMPT2_IMPLEMENTATION_VERDICT_SCHEMA = "p3-pilot-attempt2-recovery-implementation-verdict-v1"
+ATTEMPT2_IMPLEMENTATION_VERDICT_PATH = Path(
+    "docs/review_20260824/boost_math_attempt_2_recovery_implementation_sol_high_review.md"
+)
+ATTEMPT2_QUALIFICATION_EVIDENCE_SCHEMA = "p3-pilot-attempt-2-qualification-evidence-v1"
+ATTEMPT2_QUALIFICATION_EVIDENCE_EXACT = {
+ "schema_version": str, "execution_class": str, "claims": str,
+ "qualification_root": str, "qualification_base_head": str,
+ "intent_sha256": str, "result_sha256": str, "manifest_sha256": str,
+ "source_sha256": str, "executable_sha256": str,
+ "compiler_version_stdout_sha256": str, "compiler_version_stderr_sha256": str,
+ "compiler_version_stdout": str, "compiler_version_stderr": str,
+ "requested_compiler": str, "resolved_compiler_path": str,
+ "resolved_compiler_realpath": str, "current_cxx_realpath": str,
+ "host_git_version": str, "host_snapshot_sha256": str,
+ "terminal_status": str, "failure_reason": (str, type(None)),
+ "verification_scope": str, "artifact_sha256": str,
+}
+ATTEMPT2_IMPLEMENTATION_VERDICT_EXACT = {
  "schema_version": str, "verdict": str, "reviewed_commit": str,
  "qualification_base_head": str, "v1_design_sha256": str, "v2_design_sha256": str,
  "v3_design_sha256": str, "approved_implementation_plan_sha256": str,
  "reviewed_blob_sha256": dict, "formal_denominator_membership": bool, "claims": str,
  "attempt_2_authorized": bool, "rq4_supported": bool, "artifact_sha256": str,
 }
-IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT = {
+ATTEMPT2_IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT = {
  "rejected_plan_v1": str, "src/p3_v3/pilot_source.py": str,
  "src/p3_v3/pilot_build.py": str, "scripts/p3_v3/pilot.py": str,
  "tests/p3_v3/test_pilot_source.py": str, "tests/p3_v3/test_pilot_build.py": str,
  "tests/p3_v3/test_pilot.py": str,
+}
+ATTEMPT2_V1_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design.md")
+ATTEMPT2_V2_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design-amendment-v2.md")
+ATTEMPT2_V3_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design-amendment-v3.md")
+ATTEMPT2_APPROVED_PLAN_PATH = Path("docs/superpowers/plans/2026-08-24-p3-boost-math-attempt-2-recovery-implementation-v2.md")
+ATTEMPT2_REJECTED_PLAN_V1_PATH = Path("docs/superpowers/plans/2026-08-24-p3-boost-math-attempt-2-recovery-implementation.md")
+ATTEMPT2_AUTHORITY_HASHES = {
+    "v1_design_sha256": (ATTEMPT2_V1_DESIGN_PATH, "a441fd68321e28f769447f19315c4b3bd82943888600126fe91bc66f3aec923b"),
+    "v2_design_sha256": (ATTEMPT2_V2_DESIGN_PATH, "a75cc3a3fecaafc26b59d32bb79fceac93f1a511f65a206b47ab497eacc2912f"),
+    "v3_design_sha256": (ATTEMPT2_V3_DESIGN_PATH, "b99c72f89704f582692dffdad8478efca56b4f75d17b0b7541b84cb0f311f3e3"),
+    "approved_implementation_plan_sha256": (ATTEMPT2_APPROVED_PLAN_PATH, "c004284bc7c5c101a6af999481af79ae34aa7fa1d9e61386326248b2b13bb98e"),
+}
+ATTEMPT2_REJECTED_PLAN_V1_SHA256 = "9d5192b78b103fb0213ed2947c15b3e207aec022241b6cac9520e07da73c3e8c"
+ATTEMPT2_REVIEWED_FILES = {
+    "rejected_plan_v1": ATTEMPT2_REJECTED_PLAN_V1_PATH,
+    "src/p3_v3/pilot_source.py": Path("src/p3_v3/pilot_source.py"),
+    "src/p3_v3/pilot_build.py": Path("src/p3_v3/pilot_build.py"),
+    "scripts/p3_v3/pilot.py": Path("scripts/p3_v3/pilot.py"),
+    "tests/p3_v3/test_pilot_source.py": Path("tests/p3_v3/test_pilot_source.py"),
+    "tests/p3_v3/test_pilot_build.py": Path("tests/p3_v3/test_pilot_build.py"),
+    "tests/p3_v3/test_pilot.py": Path("tests/p3_v3/test_pilot.py"),
 }
 P12_ITEM_ID = "C-BOOSTMATH-001"
 NEUTRAL_SNAPSHOT_ID = (
@@ -670,6 +715,23 @@ def read_v5_qualification_evidence(
 ) -> dict[str, Any]:
     """Adapt frozen V5 files without rerunning any qualification or metadata tool."""
     root = Path(qualification_root)
+    try:
+        root_info = root.lstat()
+    except OSError as exc:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification root is unavailable") from exc
+    if stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode):
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification root is unsafe")
+    required = {
+        *QUALIFICATION_FIXED_HASHES,
+        QUALIFICATION_CXX_STDOUT_NAME,
+        QUALIFICATION_CXX_STDERR_NAME,
+    }
+    try:
+        observed_names = {entry.name for entry in root.iterdir()}
+    except OSError as exc:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification inventory is unavailable") from exc
+    if observed_names != required:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification inventory differs")
     records: dict[str, bytes] = {}
     digests: dict[str, str] = {}
     for name in (*QUALIFICATION_FIXED_HASHES,
@@ -680,27 +742,62 @@ def read_v5_qualification_evidence(
         expected = QUALIFICATION_FIXED_HASHES.get(name)
         if expected is not None and digests[name] != expected:
             raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", f"{name} hash differs")
-    intent = parse_canonical_json_object(records[QUALIFICATION_INTENT_NAME], "qualification-intent")
-    result = parse_canonical_json_object(records[QUALIFICATION_RESULT_NAME], "qualification-result")
-    manifest = parse_canonical_json_object(records[QUALIFICATION_MANIFEST_NAME], "qualification-manifest")
+    intent = qualification_contract.validate_intent(
+        parse_canonical_json_object(records[QUALIFICATION_INTENT_NAME], "qualification-intent")
+    )
+    result = qualification_contract.validate_result(
+        parse_canonical_json_object(records[QUALIFICATION_RESULT_NAME], "qualification-result")
+    )
+    manifest = qualification_contract.validate_manifest(
+        parse_canonical_json_object(records[QUALIFICATION_MANIFEST_NAME], "qualification-manifest")
+    )
+    qualification_contract.validate_attempt_pair(intent, digests[QUALIFICATION_INTENT_NAME], result)
     if result.get("terminal_status") != "PASS" or result.get("failure_reason") is not None:
         raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification is not PASS")
     if os.path.realpath(FROZEN_CXX_PATH) != FROZEN_CXX_REALPATH:
         raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "current compiler differs")
     stdout = records[QUALIFICATION_CXX_STDOUT_NAME]
     stderr = records[QUALIFICATION_CXX_STDERR_NAME]
-    # V5 field names are intentionally accepted only when mutually consistent.
-    def common(key: str) -> Any:
-        values = [obj[key] for obj in (intent, result) if key in obj]
-        if not values or any(item != values[0] for item in values):
-            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", f"{key} cross-link differs")
-        return values[0]
-    host_git = common("git_version")
-    host_snapshot = common("host_snapshot_sha256")
+    if intent["repository_commit"] != QUALIFICATION_BASE_HEAD:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification base differs")
+    if intent["requested_compiler"] != "c++":
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "requested compiler differs")
+    if intent["resolved_compiler_path"] != FROZEN_CXX_PATH:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "compiler path differs")
+    if intent["resolved_compiler_realpath"] != FROZEN_CXX_REALPATH:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "compiler realpath differs")
+    host = intent["host_snapshot"]
+    if host != result["host_snapshot"] or host["repository_commit"] != QUALIFICATION_BASE_HEAD:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "host snapshot differs")
+    host_git = host["git_version"]
+    host_snapshot = intent["host_snapshot_sha256"]
+    version = result["compiler_version"]
+    if version is None:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "compiler version evidence is absent")
+    if (version["stdout_sha256"] != _sha256_bytes(stdout)
+            or version["stderr_sha256"] != _sha256_bytes(stderr)
+            or version["stdout_bytes"] != len(stdout)
+            or version["stderr_bytes"] != len(stderr)):
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "compiler version output differs")
+    expected_inventory = {
+        name: {"sha256": digests[name], "bytes": len(records[name])}
+        for name in required if name != QUALIFICATION_MANIFEST_NAME
+    }
+    actual_inventory = {
+        entry["path"]: {"sha256": entry["sha256"], "bytes": entry["bytes"]}
+        for entry in manifest["files"]
+    }
+    if (actual_inventory != expected_inventory
+            or manifest["intent_sha256"] != digests[QUALIFICATION_INTENT_NAME]
+            or manifest["result_sha256"] != digests[QUALIFICATION_RESULT_NAME]
+            or result["source_sha256"] != digests[QUALIFICATION_SOURCE_NAME]
+            or result["executable_sha256"] != digests[QUALIFICATION_EXECUTABLE_NAME]
+            or result["executable_bytes"] != len(records[QUALIFICATION_EXECUTABLE_NAME])):
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "manifest cross-link differs")
     payload = {
-        "schema_version": "p3-pilot-attempt-2-qualification-evidence-v1",
+        "schema_version": ATTEMPT2_QUALIFICATION_EVIDENCE_SCHEMA,
         "execution_class": "PILOT_ONLY", "claims": "blocked",
-        "qualification_root": QUALIFICATION_ROOT.as_posix(),
+        "qualification_root": root.as_posix(),
         "qualification_base_head": QUALIFICATION_BASE_HEAD,
         "intent_sha256": digests[QUALIFICATION_INTENT_NAME],
         "result_sha256": digests[QUALIFICATION_RESULT_NAME],
@@ -711,7 +808,7 @@ def read_v5_qualification_evidence(
         "compiler_version_stderr_sha256": _sha256_bytes(stderr),
         "compiler_version_stdout": stdout.decode("utf-8"),
         "compiler_version_stderr": stderr.decode("utf-8"),
-        "requested_compiler": FROZEN_CXX_PATH,
+        "requested_compiler": "c++",
         "resolved_compiler_path": FROZEN_CXX_PATH,
         "resolved_compiler_realpath": FROZEN_CXX_REALPATH,
         "current_cxx_realpath": os.path.realpath(FROZEN_CXX_PATH),
@@ -719,13 +816,61 @@ def read_v5_qualification_evidence(
         "terminal_status": "PASS", "failure_reason": None,
         "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
     }
-    # Manifest must at least bind the frozen source and executable.
-    encoded_manifest = json.dumps(manifest, sort_keys=True)
-    for digest in (payload["source_sha256"], payload["executable_sha256"]):
-        if digest not in encoded_manifest:
-            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "manifest cross-link differs")
     payload["artifact_sha256"] = canonical_sha256(payload)
-    return payload
+    return validate_exact_object(payload, ATTEMPT2_QUALIFICATION_EVIDENCE_EXACT, "attempt2-qualification-evidence")
+
+
+def validate_attempt2_implementation_verdict(value: object) -> dict[str, Any]:
+    validated = validate_exact_object(
+        value, ATTEMPT2_IMPLEMENTATION_VERDICT_EXACT, "attempt2-implementation-verdict"
+    )
+    if validated["schema_version"] != ATTEMPT2_IMPLEMENTATION_VERDICT_SCHEMA:
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "schema differs")
+    if validated["verdict"] != "PASS":
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "verdict is not PASS")
+    if GIT_OID_RE.fullmatch(validated["reviewed_commit"]) is None:
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "reviewed commit is invalid")
+    if validated["qualification_base_head"] != QUALIFICATION_BASE_HEAD:
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "qualification base differs")
+    if (validated["formal_denominator_membership"] is not False
+            or validated["claims"] != "blocked"
+            or validated["attempt_2_authorized"] is not False
+            or validated["rq4_supported"] is not False):
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "claim ceiling differs")
+    blobs = validate_exact_object(
+        validated["reviewed_blob_sha256"],
+        ATTEMPT2_IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT,
+        "attempt2-implementation-verdict.reviewed_blob_sha256",
+    )
+    for key, value_hash in validated.items():
+        if key.endswith("_sha256") and key != "reviewed_blob_sha256":
+            validate_sha256(value_hash, f"attempt2-implementation-verdict.{key}")
+    for key, value_hash in blobs.items():
+        validate_sha256(value_hash, f"attempt2-implementation-verdict.reviewed_blob_sha256.{key}")
+    body = {key: item for key, item in validated.items() if key != "artifact_sha256"}
+    if validated["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", "self hash differs")
+    validated["reviewed_blob_sha256"] = blobs
+    return validated
+
+
+def read_attempt2_implementation_verdict(
+    verdict_path: Path = ATTEMPT2_IMPLEMENTATION_VERDICT_PATH,
+) -> tuple[dict[str, Any], str]:
+    raw, verdict_sha256 = read_authority_snapshot(verdict_path, "attempt2-implementation-verdict")
+    verdict = validate_attempt2_implementation_verdict(
+        parse_canonical_json_object(raw, "attempt2-implementation-verdict")
+    )
+    for key, (path, frozen_hash) in ATTEMPT2_AUTHORITY_HASHES.items():
+        _raw, observed = read_authority_snapshot(path, key)
+        if observed != frozen_hash or verdict[key] != frozen_hash:
+            raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", f"{key} differs")
+    for key, path in ATTEMPT2_REVIEWED_FILES.items():
+        _raw, observed = read_authority_snapshot(path, f"reviewed-blob-{key}")
+        expected = ATTEMPT2_REJECTED_PLAN_V1_SHA256 if key == "rejected_plan_v1" else observed
+        if observed != expected or verdict["reviewed_blob_sha256"][key] != expected:
+            raise EvidenceError("E_PILOT_ATTEMPT2_IMPL_VERDICT", f"reviewed blob {key} differs")
+    return verdict, verdict_sha256
 
 
 def require_safe_directory(path: Path, expected: Path, context: str) -> Path:

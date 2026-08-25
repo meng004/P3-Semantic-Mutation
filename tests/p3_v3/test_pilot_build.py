@@ -2463,6 +2463,135 @@ def test_attempt2_exact_schema_and_canonical_lf():
     assert pilot_build.canonical_json_bytes({"a": 1}).endswith(b"\n")
 
 
+def _write_attempt2_v5_fixture(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    q = pilot_build.qualification_contract
+
+    root = tmp_path / "qualification"
+    root.mkdir()
+    stdout, stderr = b"clang version 18\n", b""
+    source, executable = q.SOURCE_BYTES, b"synthetic executable"
+    host = q._self_hash({
+        "schema_version": q.HOST_SCHEMA, "os_name": "Linux", "os_release": "test",
+        "kernel_release": "test", "machine": "x86_64", "node_name": "test",
+        "python_version": "3.12", "git_version": "git version synthetic",
+        "repository_commit": pilot_build.QUALIFICATION_BASE_HEAD, "repository_clean": True,
+        "requested_compiler": "c++", "resolved_compiler_path": pilot_build.FROZEN_CXX_PATH,
+        "resolved_compiler_realpath": pilot_build.FROZEN_CXX_REALPATH,
+        "resolved_path_regular": True, "resolved_path_symlink": True,
+    })
+    process_base = {
+        "schema_version": q.PROCESS_SCHEMA, "execution_class": q.EXECUTION_CLASS,
+        "claims": q.CLAIMS, "process_role": "WORKLOAD", "process_started": True,
+        "terminal_status": "PASS", "failure_reason": None, "exit_code": 0,
+        "started_at": "t0", "ended_at": "t1", "wall_seconds": 0.1,
+        "process_group_terminated": False, "stdout_sha256": hashlib.sha256(b"").hexdigest(),
+        "stderr_sha256": hashlib.sha256(b"").hexdigest(), "stdout_bytes": 0, "stderr_bytes": 0,
+    }
+    compile_job = q._self_hash({**process_base, "job_id": q.JOB_COMPILE,
+        "argv": [pilot_build.FROZEN_CXX_PATH, "-std=c++14", f"{root}/qualify.cpp", "-o", f"{root}/qualify"],
+        "timeout_seconds": 60})
+    run_job = q._self_hash({**process_base, "job_id": q.JOB_RUN,
+        "argv": [f"{root}/qualify"], "timeout_seconds": 10})
+    metadata = q._self_hash({**process_base, "process_role": "METADATA", "job_id": q.JOB_METADATA,
+        "argv": [pilot_build.FROZEN_CXX_PATH, "--version"], "timeout_seconds": 10,
+        "stdout_sha256": hashlib.sha256(stdout).hexdigest(), "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
+        "stdout_bytes": len(stdout), "stderr_bytes": len(stderr)})
+    intent = q._self_hash({
+        "schema_version": q.INTENT_SCHEMA, "execution_class": q.EXECUTION_CLASS, "claims": q.CLAIMS,
+        "formal_denominator_membership": False, "attempt_2_authorized": False, "no_retry": True,
+        "repository_commit": pilot_build.QUALIFICATION_BASE_HEAD, "host_snapshot": host,
+        "host_snapshot_sha256": host["artifact_sha256"], "spec_path": q.SPEC_PATH.as_posix(),
+        "spec_sha256": q.SPEC_SHA256, "qualification_root": str(root), "requested_compiler": "c++",
+        "resolved_compiler_path": pilot_build.FROZEN_CXX_PATH,
+        "resolved_compiler_realpath": pilot_build.FROZEN_CXX_REALPATH,
+        "source_text": q.SOURCE_TEXT, "source_sha256": hashlib.sha256(source).hexdigest(),
+        "compile_link_argv": compile_job["argv"], "binary_run_argv": run_job["argv"],
+        "compile_timeout_seconds": 60, "run_timeout_seconds": 10,
+        "compiler_version_timeout_seconds": 10, "relevant_environment": {"PATH": "/usr/bin"},
+    })
+    intent_raw = pilot_build.canonical_json_bytes(intent)
+    result = q._self_hash({
+        "schema_version": q.RESULT_SCHEMA, "execution_class": q.EXECUTION_CLASS, "claims": q.CLAIMS,
+        "formal_denominator_membership": False, "attempt_2_authorized": False, "no_retry": True,
+        "intent_sha256": hashlib.sha256(intent_raw).hexdigest(),
+        "repository_commit": pilot_build.QUALIFICATION_BASE_HEAD, "host_snapshot": host,
+        "host_snapshot_sha256": host["artifact_sha256"], "spec_sha256": q.SPEC_SHA256,
+        "compiler_version": metadata, "jobs": [compile_job, run_job],
+        "source_sha256": hashlib.sha256(source).hexdigest(),
+        "executable_sha256": hashlib.sha256(executable).hexdigest(), "executable_bytes": len(executable),
+        "executable_regular": True, "executable_symlink": False,
+        "terminal_status": "PASS", "failure_reason": None,
+    })
+    named = {
+        pilot_build.QUALIFICATION_INTENT_NAME: intent_raw,
+        pilot_build.QUALIFICATION_RESULT_NAME: pilot_build.canonical_json_bytes(result),
+        pilot_build.QUALIFICATION_SOURCE_NAME: source,
+        pilot_build.QUALIFICATION_EXECUTABLE_NAME: executable,
+        pilot_build.QUALIFICATION_CXX_STDOUT_NAME: stdout,
+        pilot_build.QUALIFICATION_CXX_STDERR_NAME: stderr,
+    }
+    manifest = q._self_hash({
+        "schema_version": q.MANIFEST_SCHEMA, "execution_class": q.EXECUTION_CLASS, "claims": q.CLAIMS,
+        "formal_denominator_membership": False, "attempt_2_authorized": False, "no_retry": True,
+        "intent_sha256": hashlib.sha256(intent_raw).hexdigest(),
+        "result_sha256": hashlib.sha256(named[pilot_build.QUALIFICATION_RESULT_NAME]).hexdigest(),
+        "files": [{"path": name, "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}
+                  for name, raw in sorted(named.items())],
+    })
+    named[pilot_build.QUALIFICATION_MANIFEST_NAME] = pilot_build.canonical_json_bytes(manifest)
+    for name, raw in named.items():
+        (root / name).write_bytes(raw)
+    monkeypatch.setattr(pilot_build, "QUALIFICATION_FIXED_HASHES", {
+        name: hashlib.sha256(named[name]).hexdigest() for name in (
+            pilot_build.QUALIFICATION_INTENT_NAME, pilot_build.QUALIFICATION_RESULT_NAME,
+            pilot_build.QUALIFICATION_MANIFEST_NAME, pilot_build.QUALIFICATION_SOURCE_NAME,
+            pilot_build.QUALIFICATION_EXECUTABLE_NAME)})
+    monkeypatch.setattr(pilot_build.os.path, "realpath", lambda path: pilot_build.FROZEN_CXX_REALPATH)
+    return root, named
+
+
+def test_attempt2_v5_adapter_complete_success_and_no_process(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    for forbidden in ("Popen", "run"):
+        monkeypatch.setattr(pilot_build.subprocess, forbidden, lambda *a, **k: pytest.fail("process ran"))
+    evidence = pilot_build.read_v5_qualification_evidence(root)
+    assert set(evidence) == set(pilot_build.ATTEMPT2_QUALIFICATION_EVIDENCE_EXACT)
+    assert evidence["requested_compiler"] == "c++"
+    assert evidence["qualification_root"] == str(root)
+    assert evidence["artifact_sha256"] == pilot_build.canonical_sha256(
+        {k: v for k, v in evidence.items() if k != "artifact_sha256"})
+
+
+@pytest.mark.parametrize("name", [
+    "qualification-intent.json", "qualification-result.json", "qualification-manifest.json",
+    "qualify.cpp", "qualify", "METADATA_CXX_VERSION.stdout", "METADATA_CXX_VERSION.stderr",
+])
+def test_attempt2_v5_adapter_each_missing_rejected(tmp_path, monkeypatch, name):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    (root / name).unlink()
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_hash_noncanonical_symlink_and_realpath_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    monkeypatch.setitem(pilot_build.QUALIFICATION_FIXED_HASHES, pilot_build.QUALIFICATION_SOURCE_NAME, "0" * 64)
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+    monkeypatch.setitem(pilot_build.QUALIFICATION_FIXED_HASHES, pilot_build.QUALIFICATION_SOURCE_NAME,
+                        hashlib.sha256(named[pilot_build.QUALIFICATION_SOURCE_NAME]).hexdigest())
+    target = root / "outside"
+    target.write_bytes(named[pilot_build.QUALIFICATION_CXX_STDERR_NAME])
+    (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).unlink()
+    (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).symlink_to(target)
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
 def test_attempt2_v5_adapter_missing_evidence_fails_without_process(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
 
@@ -2474,11 +2603,88 @@ def test_attempt2_v5_adapter_missing_evidence_fails_without_process(tmp_path, mo
 def test_implementation_verdict_exact_has_seven_reviewed_blobs():
     from p3_v3 import pilot_build
 
-    assert set(pilot_build.IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT) == {
+    assert set(pilot_build.ATTEMPT2_IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT) == {
         "rejected_plan_v1", "src/p3_v3/pilot_source.py", "src/p3_v3/pilot_build.py",
         "scripts/p3_v3/pilot.py", "tests/p3_v3/test_pilot_source.py",
         "tests/p3_v3/test_pilot_build.py", "tests/p3_v3/test_pilot.py",
     }
+
+
+def _write_attempt2_verdict_fixture(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    authority_hashes = {}
+    for index, key in enumerate(pilot_build.ATTEMPT2_AUTHORITY_HASHES):
+        path = tmp_path / f"authority-{index}"
+        path.write_bytes(f"authority-{key}\n".encode())
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        authority_hashes[key] = (path, digest)
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_AUTHORITY_HASHES", authority_hashes)
+    reviewed = {}
+    reviewed_hashes = {}
+    for index, key in enumerate(pilot_build.ATTEMPT2_REVIEWED_FILES):
+        path = tmp_path / f"reviewed-{index}"
+        path.write_bytes(f"reviewed-{key}\n".encode())
+        reviewed[key] = path
+        reviewed_hashes[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_REVIEWED_FILES", reviewed)
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_REJECTED_PLAN_V1_SHA256", reviewed_hashes["rejected_plan_v1"])
+    payload = {
+        "schema_version": pilot_build.ATTEMPT2_IMPLEMENTATION_VERDICT_SCHEMA,
+        "verdict": "PASS", "reviewed_commit": "a" * 40,
+        "qualification_base_head": pilot_build.QUALIFICATION_BASE_HEAD,
+        **{key: digest for key, (_path, digest) in authority_hashes.items()},
+        "reviewed_blob_sha256": reviewed_hashes,
+        "formal_denominator_membership": False, "claims": "blocked",
+        "attempt_2_authorized": False, "rq4_supported": False,
+    }
+    payload["artifact_sha256"] = pilot_build.canonical_sha256(payload)
+    path = tmp_path / "verdict.json"
+    path.write_bytes(pilot_build.canonical_json_bytes(payload))
+    return path, payload
+
+
+def test_attempt2_implementation_verdict_exact_success_returns_observed_hash(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    path, expected = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
+    verdict, observed = pilot_build.read_attempt2_implementation_verdict(path)
+    assert verdict == expected
+    assert observed == hashlib.sha256(path.read_bytes()).hexdigest()
+    # The Attempt-1 contract and validator remain the original independent seam.
+    assert "reviewed_plan_path" in pilot_build.IMPLEMENTATION_VERDICT_EXACT
+    assert callable(pilot_build.validate_implementation_verdict)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("schema_version", "wrong"), ("verdict", "FAIL"), ("reviewed_commit", "A" * 40),
+    ("qualification_base_head", "b" * 40), ("claims", "open"),
+    ("formal_denominator_membership", True), ("attempt_2_authorized", True),
+    ("rq4_supported", True), ("artifact_sha256", "0" * 64),
+])
+def test_attempt2_implementation_verdict_exact_rejects_constraints(tmp_path, monkeypatch, field, value):
+    from p3_v3 import pilot_build
+    _path, payload = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
+    payload[field] = value
+    if field != "artifact_sha256":
+        payload["artifact_sha256"] = pilot_build.canonical_sha256(
+            {key: item for key, item in payload.items() if key != "artifact_sha256"})
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_implementation_verdict(payload)
+
+
+def test_attempt2_implementation_verdict_exact_rejects_keys_and_file_drift(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    path, payload = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
+    missing = dict(payload)
+    missing.pop("claims")
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_implementation_verdict(missing)
+    extra = dict(payload, invented=False)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_implementation_verdict(extra)
+    reviewed_path = next(iter(pilot_build.ATTEMPT2_REVIEWED_FILES.values()))
+    reviewed_path.write_bytes(b"drift\n")
+    with pytest.raises(EvidenceError):
+        pilot_build.read_attempt2_implementation_verdict(path)
 def test_attempt2_descriptor_dependency_and_environment():
     from p3_v3 import pilot_build
 

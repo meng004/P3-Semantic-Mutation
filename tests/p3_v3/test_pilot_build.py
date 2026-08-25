@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -2555,11 +2556,57 @@ def _write_attempt2_v5_fixture(tmp_path, monkeypatch):
     return root, named
 
 
+def _read_json_object(path: Path):
+    return json.loads(path.read_bytes())
+
+
+def _rewrite_v5_result_and_manifest(root, monkeypatch, mutate_result):
+    """Rewrite a result and every dependent manifest/frozen hash canonically."""
+    from p3_v3 import pilot_build
+    q = pilot_build.qualification_contract
+
+    result_path = root / pilot_build.QUALIFICATION_RESULT_NAME
+    result = _read_json_object(result_path)
+    mutate_result(result)
+    result = q._self_hash(result)
+    result_raw = pilot_build.canonical_json_bytes(result)
+    result_path.write_bytes(result_raw)
+
+    manifest_path = root / pilot_build.QUALIFICATION_MANIFEST_NAME
+    manifest = _read_json_object(manifest_path)
+    result_digest = hashlib.sha256(result_raw).hexdigest()
+    manifest["result_sha256"] = result_digest
+    for entry in manifest["files"]:
+        if entry["path"] == pilot_build.QUALIFICATION_RESULT_NAME:
+            entry["sha256"] = result_digest
+            entry["bytes"] = len(result_raw)
+    manifest = q._self_hash(manifest)
+    manifest_raw = pilot_build.canonical_json_bytes(manifest)
+    manifest_path.write_bytes(manifest_raw)
+    monkeypatch.setitem(
+        pilot_build.QUALIFICATION_FIXED_HASHES,
+        pilot_build.QUALIFICATION_RESULT_NAME,
+        result_digest,
+    )
+    monkeypatch.setitem(
+        pilot_build.QUALIFICATION_FIXED_HASHES,
+        pilot_build.QUALIFICATION_MANIFEST_NAME,
+        hashlib.sha256(manifest_raw).hexdigest(),
+    )
+
+
 def test_attempt2_v5_adapter_complete_success_and_no_process(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
     root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
-    for forbidden in ("Popen", "run"):
+    for forbidden in ("Popen", "run", "check_output"):
         monkeypatch.setattr(pilot_build.subprocess, forbidden, lambda *a, **k: pytest.fail("process ran"))
+    monkeypatch.setattr(pilot_build.os, "system", lambda *a, **k: pytest.fail("process ran"))
+    for probe_name in ("probe_identity", "make_environment_snapshot"):
+        if hasattr(pilot_build, probe_name):
+            monkeypatch.setattr(
+                pilot_build, probe_name,
+                lambda *a, **k: pytest.fail("probe or environment snapshot ran"),
+            )
     evidence = pilot_build.read_v5_qualification_evidence(root)
     assert set(evidence) == set(pilot_build.ATTEMPT2_QUALIFICATION_EVIDENCE_EXACT)
     assert evidence["requested_compiler"] == "c++"
@@ -2598,19 +2645,133 @@ def test_attempt2_v5_adapter_each_missing_rejected(tmp_path, monkeypatch, name):
         pilot_build.read_v5_qualification_evidence(root)
 
 
-def test_attempt2_v5_adapter_hash_noncanonical_symlink_and_realpath_rejected(tmp_path, monkeypatch):
+def test_attempt2_v5_adapter_frozen_file_hash_mismatch_rejected(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
-    root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
     monkeypatch.setitem(pilot_build.QUALIFICATION_FIXED_HASHES, pilot_build.QUALIFICATION_SOURCE_NAME, "0" * 64)
     with pytest.raises(EvidenceError):
         pilot_build.read_v5_qualification_evidence(root)
-    monkeypatch.setitem(pilot_build.QUALIFICATION_FIXED_HASHES, pilot_build.QUALIFICATION_SOURCE_NAME,
-                        hashlib.sha256(named[pilot_build.QUALIFICATION_SOURCE_NAME]).hexdigest())
+
+
+def test_attempt2_v5_adapter_noncanonical_core_json_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    path = root / pilot_build.QUALIFICATION_INTENT_NAME
+    noncanonical = json.dumps(_read_json_object(path), indent=2).encode() + b"\n"
+    path.write_bytes(noncanonical)
+    monkeypatch.setitem(
+        pilot_build.QUALIFICATION_FIXED_HASHES,
+        pilot_build.QUALIFICATION_INTENT_NAME,
+        hashlib.sha256(noncanonical).hexdigest(),
+    )
+    with pytest.raises(EvidenceError, match="not one canonical JSON object"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_evidence_file_symlink_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
     target = root / "outside"
     target.write_bytes(named[pilot_build.QUALIFICATION_CXX_STDERR_NAME])
     (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).unlink()
     (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).symlink_to(target)
     with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_qualification_root_symlink_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    actual = tmp_path / "qualification-actual"
+    root.rename(actual)
+    root.symlink_to(actual, target_is_directory=True)
+    with pytest.raises(EvidenceError, match="qualification root is unsafe"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_current_compiler_realpath_mismatch_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(pilot_build.os.path, "realpath", lambda path: "/different/c++")
+    with pytest.raises(EvidenceError, match="current compiler differs"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_host_snapshot_cross_link_mismatch_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+
+    def mutate(result):
+        host = dict(result["host_snapshot"])
+        host["node_name"] = "different-host"
+        host = pilot_build.qualification_contract._self_hash(host)
+        result["host_snapshot"] = host
+        result["host_snapshot_sha256"] = host["artifact_sha256"]
+
+    _rewrite_v5_result_and_manifest(root, monkeypatch, mutate)
+    with pytest.raises(EvidenceError, match="host snapshot differs"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+@pytest.mark.parametrize("log_name", [
+    "METADATA_CXX_VERSION.stdout", "METADATA_CXX_VERSION.stderr",
+])
+def test_attempt2_v5_adapter_compiler_version_raw_log_mismatch_rejected(
+    tmp_path, monkeypatch, log_name
+):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    raw = b"different compiler metadata\n"
+    (root / log_name).write_bytes(raw)
+    manifest_path = root / pilot_build.QUALIFICATION_MANIFEST_NAME
+    manifest = _read_json_object(manifest_path)
+    for entry in manifest["files"]:
+        if entry["path"] == log_name:
+            entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            entry["bytes"] = len(raw)
+    manifest = pilot_build.qualification_contract._self_hash(manifest)
+    manifest_raw = pilot_build.canonical_json_bytes(manifest)
+    manifest_path.write_bytes(manifest_raw)
+    monkeypatch.setitem(
+        pilot_build.QUALIFICATION_FIXED_HASHES,
+        pilot_build.QUALIFICATION_MANIFEST_NAME,
+        hashlib.sha256(manifest_raw).hexdigest(),
+    )
+    with pytest.raises(EvidenceError, match="compiler version output differs"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+@pytest.mark.parametrize("link_name", ["intent_sha256", "result_sha256"])
+def test_attempt2_v5_adapter_manifest_cross_link_mismatch_rejected(
+    tmp_path, monkeypatch, link_name
+):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    manifest_path = root / pilot_build.QUALIFICATION_MANIFEST_NAME
+    manifest = _read_json_object(manifest_path)
+    manifest[link_name] = "0" * 64
+    manifest = pilot_build.qualification_contract._self_hash(manifest)
+    raw = pilot_build.canonical_json_bytes(manifest)
+    manifest_path.write_bytes(raw)
+    monkeypatch.setitem(
+        pilot_build.QUALIFICATION_FIXED_HASHES,
+        pilot_build.QUALIFICATION_MANIFEST_NAME,
+        hashlib.sha256(raw).hexdigest(),
+    )
+    with pytest.raises(EvidenceError, match="manifest cross-link differs"):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_non_pass_result_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+
+    def mutate(result):
+        result["terminal_status"] = "FAIL"
+        result["failure_reason"] = "SYNTHETIC_FAILURE"
+
+    _rewrite_v5_result_and_manifest(root, monkeypatch, mutate)
+    with pytest.raises(EvidenceError, match="qualification is not PASS"):
         pilot_build.read_v5_qualification_evidence(root)
 
 
@@ -2693,7 +2854,7 @@ def test_attempt2_implementation_verdict_exact_rejects_constraints(tmp_path, mon
         pilot_build.validate_attempt2_implementation_verdict(payload)
 
 
-def test_attempt2_implementation_verdict_exact_rejects_keys_and_file_drift(tmp_path, monkeypatch):
+def test_attempt2_implementation_verdict_exact_rejects_keys(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
     path, payload = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
     missing = dict(payload)
@@ -2703,9 +2864,27 @@ def test_attempt2_implementation_verdict_exact_rejects_keys_and_file_drift(tmp_p
     extra = dict(payload, invented=False)
     with pytest.raises(EvidenceError):
         pilot_build.validate_attempt2_implementation_verdict(extra)
-    reviewed_path = next(iter(pilot_build.ATTEMPT2_REVIEWED_FILES.values()))
+
+
+def test_attempt2_implementation_verdict_exact_rejects_ordinary_reviewed_file_drift(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_build
+    path, _ = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
+    reviewed_path = pilot_build.ATTEMPT2_REVIEWED_FILES["scripts/p3_v3/pilot.py"]
     reviewed_path.write_bytes(b"drift\n")
     with pytest.raises(EvidenceError):
+        pilot_build.read_attempt2_implementation_verdict(path)
+
+
+def test_attempt2_implementation_verdict_exact_rejects_authority_design_file_drift(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_build
+    path, _ = _write_attempt2_verdict_fixture(tmp_path, monkeypatch)
+    authority_path, _frozen_hash = pilot_build.ATTEMPT2_AUTHORITY_HASHES["v2_design_sha256"]
+    authority_path.write_bytes(b"authority design drift\n")
+    with pytest.raises(EvidenceError, match="v2_design_sha256 differs"):
         pilot_build.read_attempt2_implementation_verdict(path)
 def test_attempt2_descriptor_dependency_and_environment():
     from p3_v3 import pilot_build

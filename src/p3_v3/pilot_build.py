@@ -3007,7 +3007,9 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
     for phase in checked:
         if failed and phase["terminal_status"] != "NOT_STARTED":
             raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "phase after failure was started")
-        failed |= phase["terminal_status"] != "PASS"
+        if phase["terminal_status"] == "NOT_STARTED" and not failed:
+            raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "NOT_STARTED requires a prior real terminal failure")
+        failed |= phase["terminal_status"] in {"FAIL", "TIMEOUT", "FAIL_INFRASTRUCTURE"}
     first = next((p for p in checked if p["terminal_status"] != "PASS"), None)
     aggregate_status = "PASS" if first is None else first["terminal_status"]
     aggregate_failure = None if first is None else first["failure_reason"]
@@ -3020,15 +3022,20 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "restoration disposition differs")
     evidence_requirements = (("cmake_cache_sha256", 2), ("compile_commands_sha256", 2),
                              ("compiler_depfile_sha256", 3), ("dependency_list_sha256", 3),
-                             ("smoke_executable_sha256", 4))
+                             ("smoke_executable_sha256", 3))
     for key, index in evidence_requirements:
         digest = validated[key]
         if digest is not None:
             validate_sha256(digest, key)
         if (checked[index]["terminal_status"] == "PASS") != (digest is not None):
             raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "build evidence reach differs")
-    if validated["build_root_exists"] is not True or validated["build_root_is_symlink"] is not False:
+    if validated["build_root_is_symlink"] is not False:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "unsafe build root")
+    metadata_passed = checked[0]["terminal_status"] == "PASS"
+    cmake_version = environment["cmake_version"]
+    if (metadata_passed and (type(cmake_version) is not str or not cmake_version)
+            or not metadata_passed and cmake_version is not None):
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "CMake version does not match metadata reach")
     required = [validated[k] for k in ("intent_sha256", "attempt1_implementation_verdict_sha256",
         "attempt2_implementation_verdict_sha256", "authorization_sha256",
         "qualification_evidence_sha256", "source_preparation_verdict_sha256",

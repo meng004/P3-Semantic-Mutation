@@ -2942,6 +2942,9 @@ def test_attempt2_execute_job_metadata_processes_copied_environment(tmp_path, mo
     monkeypatch.setattr(pilot_build, "reject_unbound_toolchain", lambda env, cxx: env.update(SEEN_CXX=cxx))
     sentinel = {"sentinel": True}
     monkeypatch.setattr(pilot_build, "execute_job", lambda spec, **kwargs: calls.append((spec, kwargs)) or sentinel)
+    monkeypatch.setattr(pilot_build.subprocess, "run", lambda *a, **k: pytest.fail("subprocess.run used"))
+    monkeypatch.setattr(pilot_build.subprocess, "check_output", lambda *a, **k: pytest.fail("check_output used"))
+    monkeypatch.setattr(pilot_build.os, "system", lambda *a, **k: pytest.fail("os.system used"))
     assert pilot_build.run_metadata_cmake_version("/opt/cmake", tmp_path) is sentinel
     assert len(calls) == 1
     spec, kwargs = calls[0]
@@ -2975,3 +2978,153 @@ def test_attempt2_not_started_phase_has_no_process_evidence():
     assert phase["terminal_status"] == "NOT_STARTED"
     assert phase["process_started"] is False
     assert phase["exit_code"] is None and phase["started_at"] is None
+
+
+def _attempt2_environment_fixture(pilot_build, cmake_version="cmake version 3.28.3"):
+    value = {"schema_version": pilot_build.ATTEMPT2_ENVIRONMENT_SCHEMA,
+        "execution_class": "PILOT_ONLY", "denominator": "PILOT_ONLY",
+        "cmake_executable": "cmake", "cmake_executable_path": "/usr/bin/cmake",
+        "cmake_version": cmake_version, "cxx_compiler_executable": "c++",
+        "cxx_compiler_path": pilot_build.FROZEN_CXX_PATH,
+        "cxx_compiler_identity": "clang", "cxx_compiler_version": "18.0.0",
+        "cmake_generator": "Unix Makefiles", "os_name": "Linux", "os_release": "synthetic",
+        "python_version": "3.11", "git_version": "git version synthetic",
+        "build_parallelism": 4, "nvcc_present": False, "native_profiling_present": False,
+        "cuda_absence_blocking": False, "fetchcontent_fully_disconnected": True,
+        "system_boost_fallback_accepted": False,
+        "disconnected_environment": dict(pilot_build.DISCONNECTED_ENVIRONMENT),
+        "qualification_evidence_sha256": "1" * 64,
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None, "claims": "blocked"}
+    value["artifact_sha256"] = pilot_build.canonical_sha256(value)
+    return value
+
+
+def _attempt2_phase_fixture(pilot_build, descriptor, status="PASS"):
+    value = {"schema_version": pilot_build.ATTEMPT2_PHASE_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", **descriptor, "process_started": True,
+        "process_group_terminated": False, "infrastructure_phase": None,
+        "terminal_status": status, "failure_reason": None, "exit_code": 0,
+        "stdout_sha256": "2" * 64, "stderr_sha256": "3" * 64,
+        "stdout_bytes": 1, "stderr_bytes": 0, "started_at": "2026-01-01T00:00:00Z",
+        "ended_at": "2026-01-01T00:00:01Z", "wall_seconds": 1.0,
+        "cpu_seconds": 0.1, "peak_rss_bytes": 1, "source_restoration_evidence": None,
+        "claims": "blocked"}
+    if descriptor["phase_id"] == "SOURCE_RESTORE":
+        from p3_v3 import pilot_source
+        evidence = {"schema_version": pilot_source.SOURCE_RESTORATION_SCHEMA,
+            "execution_class": "PILOT_ONLY", "claims": "blocked", "disposition": "REVALIDATED",
+            "archive_sha256": pilot_source.ATTEMPT2_ARCHIVE_SHA256,
+            "archive_bytes": pilot_source.ATTEMPT2_ARCHIVE_BYTES,
+            "normalized_tree_sha256": pilot_source.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+            "materialized_file_count": 4396,
+            "materialized_total_bytes": 95635487,
+            "staging_published": False, "root_published": False,
+            "started_at": "2026-01-01T00:00:00Z", "ended_at": "2026-01-01T00:00:01Z",
+            "terminal_status": "PASS", "failure_reason": None}
+        evidence["artifact_sha256"] = pilot_build.canonical_sha256(evidence)
+        value.update(process_started=False, process_group_terminated=None, exit_code=None,
+            stdout_sha256=None, stderr_sha256=None, stdout_bytes=None, stderr_bytes=None,
+            started_at=None, ended_at=None, wall_seconds=None, cpu_seconds=None,
+            peak_rss_bytes=None, source_restoration_evidence=evidence)
+    value["artifact_sha256"] = pilot_build.canonical_sha256(value)
+    return value
+
+
+def _attempt2_result_fixture(pilot_build, statuses=None, root=(True, False)):
+    statuses = statuses or ["PASS"] * 5
+    descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    phases = []
+    for descriptor, status in zip(descriptors, statuses, strict=True):
+        phases.append(pilot_build.make_attempt2_not_started(descriptor) if status == "NOT_STARTED"
+                      else _attempt2_phase_fixture(pilot_build, descriptor, status))
+    environment = _attempt2_environment_fixture(
+        pilot_build, None if statuses[0] != "PASS" else "cmake version 3.28.3")
+    fixed = {"schema_version": pilot_build.ATTEMPT2_RESULT_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", "p12_item_id": pilot_build.P12_ITEM_ID,
+        "neutral_snapshot_id": pilot_build.NEUTRAL_SNAPSHOT_ID,
+        "normalized_source_tree_sha256": pilot_build.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "controlled_subject_id": pilot_build.CONTROLLED_SUBJECT_ID,
+        "controlled_subject_source_id": pilot_build.CONTROLLED_SUBJECT_SOURCE_ID,
+        "build_descriptor_sha256": pilot_build.BUILD_DESCRIPTOR_SHA256,
+        "source_preparation_verdict_sha256": pilot_build.SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        "source_manifest_sha256": pilot_build.SOURCE_MANIFEST_FILE_SHA256,
+        "source_preparation_result_sha256": pilot_build.SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        "attempt1_implementation_verdict_sha256": "4" * 64,
+        "attempt2_implementation_verdict_sha256": "5" * 64, "intent_sha256": "6" * 64,
+        "authorization_sha256": "7" * 64, "qualification_base_head": pilot_build.QUALIFICATION_BASE_HEAD,
+        "qualification_evidence_sha256": "1" * 64, "environment_snapshot": environment,
+        "environment_snapshot_sha256": environment["artifact_sha256"],
+        "harness_cmake_sha256": pilot_build.HARNESS_CMAKE_SHA256,
+        "harness_cxx_sha256": pilot_build.HARNESS_CXX_SHA256,
+        "source_root": str(pilot_build.ATTEMPT2_SOURCE_ROOT), "build_root": str(pilot_build.ATTEMPT2_BUILD_ROOT),
+        "harness_root": str(pilot_build.ATTEMPT2_HARNESS_ROOT), "log_root": str(pilot_build.ATTEMPT2_LOG_ROOT),
+        "archive_path": str(pilot_build.ATTEMPT2_ARCHIVE_PATH), "planned_count": 5,
+        "started_count": sum(p["process_started"] for p in phases),
+        "terminal_count": sum(p["terminal_status"] != "NOT_STARTED" for p in phases),
+        "not_started_count": sum(p["terminal_status"] == "NOT_STARTED" for p in phases),
+        "phase_order": [d["phase_id"] for d in descriptors], "phases": phases,
+        "source_restoration_disposition": (phases[1]["source_restoration_evidence"]["disposition"]
+            if phases[1]["terminal_status"] != "NOT_STARTED" else None),
+        "terminal_status": next((p["terminal_status"] for p in phases if p["terminal_status"] != "PASS"), "PASS"),
+        "failure_reason": next((p["failure_reason"] for p in phases if p["terminal_status"] != "PASS"), None),
+        "build_root_exists": root[0], "build_root_is_symlink": root[1], "no_retry": True,
+        "claims": "blocked", "formal_denominator_membership": False, "rq4_supported": False,
+        "attempt_2_authorized": False, "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None}
+    fixed.update(cmake_cache_sha256="8" * 64 if statuses[2] == "PASS" else None,
+        compile_commands_sha256="9" * 64 if statuses[2] == "PASS" else None,
+        compiler_depfile_sha256="a" * 64 if statuses[3] == "PASS" else None,
+        dependency_list_sha256="b" * 64 if statuses[3] == "PASS" else None,
+        smoke_executable_sha256="c" * 64 if statuses[3] == "PASS" else None)
+    required = [fixed[k] for k in ("intent_sha256", "attempt1_implementation_verdict_sha256",
+        "attempt2_implementation_verdict_sha256", "authorization_sha256", "qualification_evidence_sha256",
+        "source_preparation_verdict_sha256", "source_manifest_sha256",
+        "source_preparation_result_sha256", "environment_snapshot_sha256")]
+    fixed["predecessor_sha256"] = sorted(required)
+    fixed["artifact_sha256"] = pilot_build.canonical_sha256(fixed)
+    return fixed
+
+
+def test_attempt2_result_contract_rejects_not_started_as_first_failure():
+    from p3_v3 import pilot_build
+    with pytest.raises(EvidenceError, match="real terminal failure"):
+        pilot_build.validate_attempt2_result(_attempt2_result_fixture(pilot_build, ["PASS", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"]))
+
+
+def test_attempt2_result_contract_smoke_failure_retains_built_executable():
+    from p3_v3 import pilot_build
+    result = _attempt2_result_fixture(pilot_build, ["PASS", "PASS", "PASS", "PASS", "NOT_STARTED"])
+    result["phases"][4] = _attempt2_phase_fixture(pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[4], "FAIL")
+    result["phases"][4].update(failure_reason="NONZERO_EXIT", exit_code=1)
+    result["phases"][4]["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result["phases"][4].items() if k != "artifact_sha256"})
+    result.update(started_count=sum(p["process_started"] for p in result["phases"]),
+                  terminal_status="FAIL", failure_reason="NONZERO_EXIT", terminal_count=5,
+                  not_started_count=0)
+    result["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result.items() if k != "artifact_sha256"})
+    assert pilot_build.validate_attempt2_result(result)["smoke_executable_sha256"] == "c" * 64
+
+
+def test_attempt2_result_contract_metadata_failure_allows_absent_safe_root():
+    from p3_v3 import pilot_build
+    result = _attempt2_result_fixture(pilot_build,
+        ["NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], root=(False, False))
+    first = _attempt2_phase_fixture(pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0], "FAIL")
+    first.update(failure_reason="NONZERO_EXIT", exit_code=1)
+    first["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in first.items() if k != "artifact_sha256"})
+    result["phases"][0] = first
+    result.update(started_count=1, terminal_count=1, not_started_count=4,
+                  terminal_status="FAIL", failure_reason="NONZERO_EXIT")
+    result["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result.items() if k != "artifact_sha256"})
+    assert pilot_build.validate_attempt2_result(result)["build_root_exists"] is False
+
+
+def test_attempt2_result_contract_cmake_version_matches_metadata_reach():
+    from p3_v3 import pilot_build
+    result = _attempt2_result_fixture(pilot_build)
+    result["environment_snapshot"] = _attempt2_environment_fixture(pilot_build, None)
+    result["environment_snapshot_sha256"] = result["environment_snapshot"]["artifact_sha256"]
+    result["predecessor_sha256"] = sorted(set(result["predecessor_sha256"] + [result["environment_snapshot_sha256"]]))
+    result["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result.items() if k != "artifact_sha256"})
+    with pytest.raises(EvidenceError, match="CMake version"):
+        pilot_build.validate_attempt2_result(result)

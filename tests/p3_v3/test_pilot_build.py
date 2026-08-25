@@ -3109,6 +3109,67 @@ def _attempt2_result_fixture(pilot_build, statuses=None, root=(True, False)):
     return fixed
 
 
+def _attempt2_intent_fixture(pilot_build):
+    """Construct the closed pre-metadata intent without consulting the host."""
+    environment = _attempt2_environment_fixture(pilot_build, None)
+    descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    value = {"schema_version": pilot_build.ATTEMPT2_INTENT_SCHEMA,
+        "execution_class": "PILOT_ONLY", "denominator": "PILOT_ONLY",
+        "plan_class": "PILOT_BUILD_PREFLIGHT_ATTEMPT_2_ONLY",
+        "p12_item_id": pilot_build.P12_ITEM_ID, "neutral_snapshot_id": pilot_build.NEUTRAL_SNAPSHOT_ID,
+        "normalized_source_tree_sha256": pilot_build.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "controlled_subject_id": pilot_build.CONTROLLED_SUBJECT_ID,
+        "controlled_subject_source_id": pilot_build.CONTROLLED_SUBJECT_SOURCE_ID,
+        "build_descriptor_sha256": pilot_build.BUILD_DESCRIPTOR_SHA256,
+        "source_preparation_verdict_sha256": pilot_build.SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        "source_manifest_sha256": pilot_build.SOURCE_MANIFEST_FILE_SHA256,
+        "source_preparation_result_sha256": pilot_build.SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        "source_preparation_reviewed_commit": pilot_build.SOURCE_PREPARATION_REVIEWED_COMMIT,
+        "attempt1_implementation_verdict_sha256": "4" * 64,
+        "attempt2_implementation_verdict_sha256": "5" * 64,
+        "authorization_sha256": "7" * 64,
+        "harness_cmake_sha256": pilot_build.HARNESS_CMAKE_SHA256,
+        "harness_cxx_sha256": pilot_build.HARNESS_CXX_SHA256,
+        "source_root": str(pilot_build.ATTEMPT2_SOURCE_ROOT),
+        "build_root": str(pilot_build.ATTEMPT2_BUILD_ROOT),
+        "harness_root": str(pilot_build.ATTEMPT2_HARNESS_ROOT),
+        "log_root": str(pilot_build.ATTEMPT2_LOG_ROOT),
+        "archive_path": str(pilot_build.ATTEMPT2_ARCHIVE_PATH),
+        "qualification_base_head": pilot_build.QUALIFICATION_BASE_HEAD,
+        "qualification_evidence_sha256": "1" * 64,
+        "cmake_metadata_argv": descriptors[0]["argv"],
+        "cmake_configure_argv": descriptors[2]["argv"],
+        "baseline_build_argv": descriptors[3]["argv"],
+        "baseline_smoke_argv": descriptors[4]["argv"],
+        "cmake_version_timeout_seconds": 10, "cmake_configure_timeout_seconds": 900,
+        "baseline_build_timeout_seconds": 3600, "baseline_smoke_timeout_seconds": 1800,
+        "outer_timeout_seconds": 7200, "build_parallelism": 4, "planned_count": 5,
+        "dependency_dag": [item["dependency_phase_ids"] for item in descriptors],
+        "phase_order": [item["phase_id"] for item in descriptors],
+        "environment_snapshot": environment,
+        "environment_snapshot_sha256": environment["artifact_sha256"],
+        "producer_pid": 17, "producer_starttime": "synthetic-starttime", "no_retry": True,
+        "claims": "blocked", "formal_denominator_membership": False, "rq4_supported": False,
+        "attempt_2_authorized": False, "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None}
+    value["predecessor_sha256"] = sorted(value[key] for key in (
+        "attempt1_implementation_verdict_sha256", "attempt2_implementation_verdict_sha256",
+        "authorization_sha256", "qualification_evidence_sha256",
+        "source_preparation_verdict_sha256", "source_manifest_sha256",
+        "source_preparation_result_sha256", "environment_snapshot_sha256"))
+    return _attempt2_rehash(pilot_build, value)
+
+
+def _attempt2_rebind_environment(pilot_build, value, environment):
+    old = value["environment_snapshot_sha256"]
+    value["environment_snapshot"] = environment
+    value["environment_snapshot_sha256"] = environment["artifact_sha256"]
+    value["predecessor_sha256"] = sorted(
+        environment["artifact_sha256"] if item == old else item
+        for item in value["predecessor_sha256"])
+    return _attempt2_rehash(pilot_build, value)
+
+
 def test_attempt2_result_contract_rejects_not_started_as_first_failure():
     from p3_v3 import pilot_build
     with pytest.raises(EvidenceError, match="real terminal failure"):
@@ -3128,16 +3189,15 @@ def test_attempt2_result_contract_smoke_failure_retains_built_executable():
     assert pilot_build.validate_attempt2_result(result)["smoke_executable_sha256"] == "c" * 64
 
 
-def test_attempt2_result_contract_metadata_failure_allows_absent_safe_root():
+def test_attempt2_result_contract_metadata_pre_process_failure_allows_absent_safe_root():
     from p3_v3 import pilot_build
     result = _attempt2_result_fixture(pilot_build,
         ["NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], root=(False, False))
-    first = _attempt2_phase_fixture(pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0], "FAIL")
-    first.update(failure_reason="NONZERO_EXIT", exit_code=1)
-    first["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in first.items() if k != "artifact_sha256"})
+    first = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0], "FAIL_INFRASTRUCTURE")
     result["phases"][0] = first
-    result.update(started_count=1, terminal_count=1, not_started_count=4,
-                  terminal_status="FAIL", failure_reason="NONZERO_EXIT")
+    result.update(started_count=0, terminal_count=1, not_started_count=4,
+                  terminal_status="FAIL_INFRASTRUCTURE", failure_reason="MISSING_DEPENDENCY")
     result["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result.items() if k != "artifact_sha256"})
     assert pilot_build.validate_attempt2_result(result)["build_root_exists"] is False
 
@@ -3158,6 +3218,317 @@ def _attempt2_rehash(pilot_build, value):
         {key: item for key, item in value.items() if key != "artifact_sha256"}
     )
     return value
+
+
+def test_attempt2_intent_contract_accepts_exact_fixture_and_extra_predecessor():
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    assert pilot_build.validate_attempt2_intent(value) == value
+    value["predecessor_sha256"] = sorted([*value["predecessor_sha256"], "e" * 64])
+    _attempt2_rehash(pilot_build, value)
+    assert pilot_build.validate_attempt2_intent(value) == value
+    assert type(value["producer_pid"]) is int and value["producer_pid"] > 0
+
+
+@pytest.mark.parametrize("validator,fixture", [
+    ("validate_attempt2_intent", _attempt2_intent_fixture),
+    ("validate_attempt2_result", _attempt2_result_fixture),
+])
+def test_attempt2_intent_contract_and_result_contract_validation_are_pure(
+        monkeypatch, validator, fixture):
+    from p3_v3 import pilot_build
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("validator attempted process, probe, read, or publication")
+    for name in ("execute_job", "probe_identity", "make_environment_snapshot",
+                 "read_authority_snapshot", "read_json", "write_canonical_json"):
+        if hasattr(pilot_build, name):
+            monkeypatch.setattr(pilot_build, name, forbidden)
+    assert getattr(pilot_build, validator)(fixture(pilot_build)) == fixture(pilot_build)
+
+
+@pytest.mark.parametrize("group,key,replacement", [
+    ("plan_class", "plan_class", "OTHER"), ("planned_count", "planned_count", 4),
+    ("phase_order", "phase_order", ["SMOKE"]), ("dependency_dag", "dependency_dag", [[]] * 5),
+    ("p12", "p12_item_id", "OTHER"), ("snapshot", "neutral_snapshot_id", "OTHER"),
+    ("tree", "normalized_source_tree_sha256", "f" * 64),
+    ("subject", "controlled_subject_id", "OTHER"),
+    ("subject_source", "controlled_subject_source_id", "OTHER"),
+    ("descriptor", "build_descriptor_sha256", "f" * 64),
+    ("source_verdict", "source_preparation_verdict_sha256", "f" * 64),
+    ("manifest", "source_manifest_sha256", "f" * 64),
+    ("source_result", "source_preparation_result_sha256", "f" * 64),
+    ("attempt1", "attempt1_implementation_verdict_sha256", "bad"),
+    ("attempt2", "attempt2_implementation_verdict_sha256", "bad"),
+    ("authorization", "authorization_sha256", "bad"),
+    ("qualification", "qualification_evidence_sha256", "bad"),
+    ("source_root", "source_root", "/other"), ("build_root", "build_root", "/other"),
+    ("harness_root", "harness_root", "/other"), ("log_root", "log_root", "/other"),
+    ("archive", "archive_path", "/other"), ("base_head", "qualification_base_head", "other"),
+    ("metadata_argv", "cmake_metadata_argv", ["other"]),
+    ("configure_argv", "cmake_configure_argv", ["other"]),
+    ("build_argv", "baseline_build_argv", ["other"]),
+    ("smoke_argv", "baseline_smoke_argv", ["other"]),
+    ("metadata_timeout", "cmake_version_timeout_seconds", 11),
+    ("configure_timeout", "cmake_configure_timeout_seconds", 901),
+    ("build_timeout", "baseline_build_timeout_seconds", 3601),
+    ("smoke_timeout", "baseline_smoke_timeout_seconds", 1801),
+    ("outer_timeout", "outer_timeout_seconds", 7201), ("parallelism", "build_parallelism", 3),
+    ("reviewed_commit", "source_preparation_reviewed_commit", "other"),
+    ("pid_bool", "producer_pid", True), ("pid_zero", "producer_pid", 0),
+    ("starttime", "producer_starttime", ""), ("claims", "claims", "allowed"),
+    ("scope", "verification_scope", "OTHER"), ("cloud_run", "executor_cloud_run_id", "id"),
+    ("cloud_snapshot", "executor_build_snapshot_id", "id"),
+])
+def test_attempt2_intent_contract_rejects_semantic_drift(group, key, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    value[key] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_intent(value)
+
+
+@pytest.mark.parametrize("group,mutation", [
+    ("environment_invalid", "claims"), ("environment_nonnull_cmake", "cmake_version"),
+])
+def test_attempt2_intent_contract_rejects_rehashed_environment_drift(group, mutation):
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    environment = dict(value["environment_snapshot"])
+    environment[mutation] = "allowed" if mutation == "claims" else "cmake version synthetic"
+    _attempt2_rehash(pilot_build, environment)
+    _attempt2_rebind_environment(pilot_build, value, environment)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_intent(value)
+
+
+def test_attempt2_intent_contract_rejects_nested_hash_mismatch():
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    value["environment_snapshot_sha256"] = "e" * 64
+    value["predecessor_sha256"] = sorted(
+        "e" * 64 if item == value["environment_snapshot"]["artifact_sha256"] else item
+        for item in value["predecessor_sha256"])
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError, match="environment binding"):
+        pilot_build.validate_attempt2_intent(value)
+
+
+@pytest.mark.parametrize("group,change", [
+    ("malformed", "malformed"), ("unsorted", "unsorted"), ("duplicate", "duplicate"),
+    ("missing_attempt1", 0), ("missing_attempt2", 1), ("missing_authorization", 2),
+    ("missing_environment", 3), ("missing_qualification", 4), ("missing_manifest", 5),
+    ("missing_source_result", 6), ("missing_source_verdict", 7),
+])
+def test_attempt2_intent_contract_rejects_predecessor_drift(group, change):
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    if change == "malformed": value["predecessor_sha256"][0] = "bad"
+    elif change == "unsorted": value["predecessor_sha256"].reverse()
+    elif change == "duplicate": value["predecessor_sha256"].append(value["predecessor_sha256"][-1])
+    else: value["predecessor_sha256"].pop(change)
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_intent(value)
+
+
+@pytest.mark.parametrize("change", ["missing", "extra"])
+def test_attempt2_intent_contract_rejects_exact_key_drift(change):
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    if change == "missing": value.pop("plan_class")
+    else: value["extra"] = None
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_intent(value)
+
+
+def test_attempt2_intent_contract_rejects_stale_self_hash():
+    from p3_v3 import pilot_build
+    value = _attempt2_intent_fixture(pilot_build)
+    value["planned_count"] = 4
+    with pytest.raises(EvidenceError, match="self-hash"):
+        pilot_build.validate_attempt2_intent(value)
+
+
+@pytest.mark.parametrize("statuses,root,expected", [
+    (["PASS"] * 5, (True, False), (4, 5, 0, "PASS", None)),
+    (["FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], (True, False), (1, 1, 4, "FAIL", "NONZERO_EXIT")),
+    (["PASS", "FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], (True, False), (1, 2, 3, "FAIL", "TREE_HASH_MISMATCH")),
+    (["PASS", "PASS", "FAIL", "NOT_STARTED", "NOT_STARTED"], (True, False), (2, 3, 2, "FAIL", "NONZERO_EXIT")),
+    (["PASS", "PASS", "PASS", "FAIL", "NOT_STARTED"], (True, False), (3, 4, 1, "FAIL", "NONZERO_EXIT")),
+    (["PASS", "PASS", "PASS", "PASS", "FAIL"], (True, False), (4, 5, 0, "FAIL", "NONZERO_EXIT")),
+    (["FAIL_INFRASTRUCTURE", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], (False, False), (0, 1, 4, "FAIL_INFRASTRUCTURE", "MISSING_DEPENDENCY")),
+])
+def test_attempt2_result_contract_accepts_exact_terminal_states(statuses, root, expected):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build, statuses, root)
+    assert (value["started_count"], value["terminal_count"], value["not_started_count"],
+            value["terminal_status"], value["failure_reason"]) == expected
+    assert (value["build_root_exists"], value["build_root_is_symlink"]) == root
+    assert value["environment_snapshot"]["cmake_version"] == (None if statuses[0] != "PASS" else "cmake version 3.28.3")
+    assert value["source_restoration_disposition"] == (None if statuses[1] == "NOT_STARTED" else
+        value["phases"][1]["source_restoration_evidence"]["disposition"])
+    assert (value["cmake_cache_sha256"] is not None) == (statuses[2] == "PASS")
+    assert (value["smoke_executable_sha256"] is not None) == (statuses[3] == "PASS")
+    assert pilot_build.validate_attempt2_result(value) == value
+
+
+@pytest.mark.parametrize("statuses,root", [
+    (["PASS"] * 5, (False, False)),
+    (["FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], (False, False)),
+    (["PASS"] * 5, (True, True)),
+])
+def test_attempt2_result_contract_rejects_invalid_root_reach(statuses, root):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build, statuses, root)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+def test_attempt2_result_contract_accepts_extra_predecessor():
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    value["predecessor_sha256"] = sorted([*value["predecessor_sha256"], "e" * 64])
+    _attempt2_rehash(pilot_build, value)
+    assert pilot_build.validate_attempt2_result(value) == value
+
+
+@pytest.mark.parametrize("group,key,replacement", [
+    ("p12", "p12_item_id", "OTHER"), ("snapshot", "neutral_snapshot_id", "OTHER"),
+    ("tree", "normalized_source_tree_sha256", "f" * 64),
+    ("subject", "controlled_subject_id", "OTHER"),
+    ("subject_source", "controlled_subject_source_id", "OTHER"),
+    ("descriptor", "build_descriptor_sha256", "f" * 64),
+    ("source_verdict", "source_preparation_verdict_sha256", "f" * 64),
+    ("manifest", "source_manifest_sha256", "f" * 64),
+    ("source_result", "source_preparation_result_sha256", "f" * 64),
+    ("attempt1", "attempt1_implementation_verdict_sha256", "bad"),
+    ("attempt2", "attempt2_implementation_verdict_sha256", "bad"),
+    ("intent", "intent_sha256", "bad"), ("authorization", "authorization_sha256", "bad"),
+    ("qualification", "qualification_evidence_sha256", "bad"),
+    ("harness_cmake", "harness_cmake_sha256", "f" * 64),
+    ("harness_cxx", "harness_cxx_sha256", "f" * 64),
+    ("source_root", "source_root", "/other"), ("build_root", "build_root", "/other"),
+    ("harness_root", "harness_root", "/other"), ("log_root", "log_root", "/other"),
+    ("archive", "archive_path", "/other"), ("base_head", "qualification_base_head", "other"),
+    ("planned", "planned_count", 4), ("phase_order", "phase_order", ["SMOKE"]),
+    ("started_count", "started_count", 3), ("terminal_count", "terminal_count", 4),
+    ("not_started_count", "not_started_count", 1),
+    ("aggregate_status", "terminal_status", "FAIL"),
+    ("aggregate_failure", "failure_reason", "NONZERO_EXIT"),
+    ("disposition", "source_restoration_disposition", "RESTORED"),
+    ("scope", "verification_scope", "OTHER"), ("claims", "claims", "allowed"),
+    ("cloud_run", "executor_cloud_run_id", "id"),
+    ("cloud_snapshot", "executor_build_snapshot_id", "id"),
+])
+def test_attempt2_result_contract_rejects_semantic_drift(group, key, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    value[key] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+@pytest.mark.parametrize("group,statuses,key,replacement", [
+    ("configure_cache_absent", ["PASS"] * 5, "cmake_cache_sha256", None),
+    ("configure_commands_absent", ["PASS"] * 5, "compile_commands_sha256", None),
+    ("depfile_absent", ["PASS"] * 5, "compiler_depfile_sha256", None),
+    ("dependency_absent", ["PASS"] * 5, "dependency_list_sha256", None),
+    ("smoke_hash_absent", ["PASS"] * 5, "smoke_executable_sha256", None),
+    ("configure_cache_early", ["FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], "cmake_cache_sha256", "d" * 64),
+    ("depfile_early", ["PASS", "PASS", "FAIL", "NOT_STARTED", "NOT_STARTED"], "compiler_depfile_sha256", "d" * 64),
+    ("dependency_early", ["PASS", "PASS", "FAIL", "NOT_STARTED", "NOT_STARTED"], "dependency_list_sha256", "d" * 64),
+    ("smoke_early", ["PASS", "PASS", "PASS", "FAIL", "NOT_STARTED"], "smoke_executable_sha256", "d" * 64),
+    ("malformed_evidence", ["PASS"] * 5, "cmake_cache_sha256", "bad"),
+])
+def test_attempt2_result_contract_rejects_evidence_reach(group, statuses, key, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build, statuses)
+    value[key] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+@pytest.mark.parametrize("group,statuses,version", [
+    ("pass_null", ["PASS"] * 5, None), ("pass_empty", ["PASS"] * 5, ""),
+    ("failure_version", ["FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"], "cmake version synthetic"),
+])
+def test_attempt2_result_contract_rejects_metadata_version_drift(group, statuses, version):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build, statuses)
+    environment = _attempt2_environment_fixture(pilot_build, version)
+    _attempt2_rebind_environment(pilot_build, value, environment)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+@pytest.mark.parametrize("group,change", [
+    ("malformed", "malformed"), ("unsorted", "unsorted"), ("duplicate", "duplicate"),
+    *[(f"missing_{index}", index) for index in range(9)],
+])
+def test_attempt2_result_contract_rejects_predecessor_drift(group, change):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    if change == "malformed": value["predecessor_sha256"][0] = "bad"
+    elif change == "unsorted": value["predecessor_sha256"].reverse()
+    elif change == "duplicate": value["predecessor_sha256"].append(value["predecessor_sha256"][-1])
+    else: value["predecessor_sha256"].pop(change)
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+@pytest.mark.parametrize("group,change", [
+    ("fewer", "fewer"), ("more", "more"), ("wrong_id", "phase_id"),
+    ("wrong_kind", "phase_kind"), ("wrong_deps", "dependency_phase_ids"),
+    ("wrong_argv", "argv"), ("wrong_timeout", "timeout_seconds"),
+])
+def test_attempt2_result_contract_rejects_phase_shape_drift(group, change):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    if change == "fewer": value["phases"].pop()
+    elif change == "more": value["phases"].append(dict(value["phases"][-1]))
+    else:
+        value["phases"][0][change] = (["OTHER"] if change == "dependency_phase_ids" else []) if change in {"dependency_phase_ids", "argv"} else (
+            11 if change == "timeout_seconds" else "OTHER")
+        _attempt2_rehash(pilot_build, value["phases"][0])
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+def test_attempt2_result_contract_rejects_reached_phase_after_failure():
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build,
+        ["FAIL", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED", "NOT_STARTED"])
+    value["phases"][2] = _attempt2_phase_fixture(
+        pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[2], "FAIL")
+    value.update(started_count=2, terminal_count=2, not_started_count=3)
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError, match="phase after failure"):
+        pilot_build.validate_attempt2_result(value)
+
+
+@pytest.mark.parametrize("change", ["missing", "extra"])
+def test_attempt2_result_contract_rejects_exact_key_drift(change):
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    if change == "missing": value.pop("planned_count")
+    else: value["extra"] = None
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+def test_attempt2_result_contract_rejects_stale_self_hash():
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    value["planned_count"] = 4
+    with pytest.raises(EvidenceError, match="self-hash"):
+        pilot_build.validate_attempt2_result(value)
 
 
 @pytest.mark.parametrize("cmake_version", [None, "cmake version synthetic"])

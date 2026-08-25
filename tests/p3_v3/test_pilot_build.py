@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -3010,7 +3011,13 @@ def _attempt2_phase_fixture(pilot_build, descriptor, status="PASS"):
         "ended_at": "2026-01-01T00:00:01Z", "wall_seconds": 1.0,
         "cpu_seconds": 0.1, "peak_rss_bytes": 1, "source_restoration_evidence": None,
         "claims": "blocked"}
-    if descriptor["phase_id"] == "SOURCE_RESTORE":
+    if status == "NOT_STARTED":
+        value.update(process_started=False, process_group_terminated=None,
+            infrastructure_phase=None, failure_reason=None, exit_code=None,
+            stdout_sha256=None, stderr_sha256=None, stdout_bytes=None, stderr_bytes=None,
+            started_at=None, ended_at=None, wall_seconds=None, cpu_seconds=None,
+            peak_rss_bytes=None, source_restoration_evidence=None)
+    elif descriptor["phase_id"] == "SOURCE_RESTORE":
         from p3_v3 import pilot_source
         evidence = {"schema_version": pilot_source.SOURCE_RESTORATION_SCHEMA,
             "execution_class": "PILOT_ONLY", "claims": "blocked", "disposition": "REVALIDATED",
@@ -3021,12 +3028,28 @@ def _attempt2_phase_fixture(pilot_build, descriptor, status="PASS"):
             "materialized_total_bytes": 95635487,
             "staging_published": False, "root_published": False,
             "started_at": "2026-01-01T00:00:00Z", "ended_at": "2026-01-01T00:00:01Z",
-            "terminal_status": "PASS", "failure_reason": None}
+            "terminal_status": status,
+            "failure_reason": None if status == "PASS" else "TREE_HASH_MISMATCH"}
+        if status == "FAIL":
+            evidence.update(disposition="NOT_APPLIED", staging_published=False,
+                root_published=False)
         evidence["artifact_sha256"] = pilot_build.canonical_sha256(evidence)
         value.update(process_started=False, process_group_terminated=None, exit_code=None,
             stdout_sha256=None, stderr_sha256=None, stdout_bytes=None, stderr_bytes=None,
             started_at=None, ended_at=None, wall_seconds=None, cpu_seconds=None,
             peak_rss_bytes=None, source_restoration_evidence=evidence)
+        value["failure_reason"] = evidence["failure_reason"]
+    elif status == "FAIL":
+        value.update(failure_reason="NONZERO_EXIT", exit_code=1)
+    elif status == "TIMEOUT":
+        value.update(failure_reason="TIMEOUT", exit_code=None,
+            process_group_terminated=True)
+    elif status == "FAIL_INFRASTRUCTURE":
+        value.update(process_started=False, process_group_terminated=None,
+            infrastructure_phase="PRE_PROCESS", failure_reason="MISSING_DEPENDENCY",
+            exit_code=None, stdout_sha256=None, stderr_sha256=None, stdout_bytes=None,
+            stderr_bytes=None, started_at=None, ended_at=None, wall_seconds=None,
+            cpu_seconds=None, peak_rss_bytes=None)
     value["artifact_sha256"] = pilot_build.canonical_sha256(value)
     return value
 
@@ -3128,3 +3151,251 @@ def test_attempt2_result_contract_cmake_version_matches_metadata_reach():
     result["artifact_sha256"] = pilot_build.canonical_sha256({k: v for k, v in result.items() if k != "artifact_sha256"})
     with pytest.raises(EvidenceError, match="CMake version"):
         pilot_build.validate_attempt2_result(result)
+
+
+def _attempt2_rehash(pilot_build, value):
+    value["artifact_sha256"] = pilot_build.canonical_sha256(
+        {key: item for key, item in value.items() if key != "artifact_sha256"}
+    )
+    return value
+
+
+@pytest.mark.parametrize("cmake_version", [None, "cmake version synthetic"])
+def test_attempt2_environment_contract_accepts_exact_before_and_after_metadata(cmake_version):
+    from p3_v3 import pilot_build
+    value = _attempt2_environment_fixture(pilot_build, cmake_version)
+    assert pilot_build.validate_attempt2_environment(value) == value
+
+
+def test_attempt2_environment_contract_validation_is_pure(monkeypatch):
+    from p3_v3 import pilot_build
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("environment validation invoked an external entry point")
+    for owner, name in ((pilot_build.subprocess, "run"),
+                        (pilot_build.subprocess, "check_output"),
+                        (pilot_build.os, "system"), (pilot_build, "execute_job"),
+                        (pilot_build, "resolve_cmake_executable_path"),
+                        (pilot_build, "write_canonical_json")):
+        monkeypatch.setattr(owner, name, forbidden)
+    for version in (None, "cmake version synthetic"):
+        value = _attempt2_environment_fixture(pilot_build, version)
+        assert pilot_build.validate_attempt2_environment(value) == value
+
+
+@pytest.mark.parametrize(("group", "path", "replacement"), [
+    ("cmake-executable", ("cmake_executable",), "cmake3"),
+    ("cmake-path-relative", ("cmake_executable_path",), "cmake"),
+    ("cmake-path-empty", ("cmake_executable_path",), ""),
+    ("cmake-version-empty", ("cmake_version",), ""),
+    ("compiler-executable", ("cxx_compiler_executable",), "clang++"),
+    ("compiler-path", ("cxx_compiler_path",), "/usr/bin/clang++"),
+    ("compiler-identity-empty", ("cxx_compiler_identity",), ""),
+    ("compiler-version-empty", ("cxx_compiler_version",), ""),
+    ("os-name-empty", ("os_name",), ""), ("os-release-empty", ("os_release",), ""),
+    ("python-version-empty", ("python_version",), ""),
+    ("git-version-empty", ("git_version",), ""),
+    ("generator", ("cmake_generator",), "Ninja"),
+    ("parallelism", ("build_parallelism",), 3),
+    ("parallelism-bool", ("build_parallelism",), True),
+    ("nvcc-non-bool", ("nvcc_present",), 0),
+    ("native-profiling", ("native_profiling_present",), True),
+    ("cuda-blocking", ("cuda_absence_blocking",), True),
+    ("disconnected-flag", ("fetchcontent_fully_disconnected",), False),
+    ("system-boost", ("system_boost_fallback_accepted",), True),
+    ("disconnected-changed", ("disconnected_environment", "GIT_CONFIG_NOSYSTEM"), "0"),
+    ("qualification-hash", ("qualification_evidence_sha256",), "bad"),
+    ("verification-scope", ("verification_scope",), "HOST_ONLY"),
+    ("cloud-run-id", ("executor_cloud_run_id",), "run"),
+    ("cloud-snapshot-id", ("executor_build_snapshot_id",), "snapshot"),
+    ("class", ("execution_class",), "CONFIRMATORY"),
+    ("denominator", ("denominator",), "FORMAL"),
+    ("claims", ("claims",), "supported"),
+])
+def test_attempt2_environment_contract_rejects_semantic_drift(group, path, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_environment_fixture(pilot_build)
+    target = value
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_environment(value)
+
+
+@pytest.mark.parametrize("change", ["disconnected-extra", "disconnected-missing", "missing-key", "extra-key"])
+def test_attempt2_environment_contract_rejects_exact_key_drift(change):
+    from p3_v3 import pilot_build
+    value = _attempt2_environment_fixture(pilot_build)
+    if change == "disconnected-extra": value["disconnected_environment"]["EXTRA"] = "1"
+    elif change == "disconnected-missing": value["disconnected_environment"].pop(next(iter(value["disconnected_environment"])))
+    elif change == "missing-key": value.pop("os_name")
+    else: value["extra"] = None
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_environment(value)
+
+
+def test_attempt2_environment_contract_rejects_stale_self_hash():
+    from p3_v3 import pilot_build
+    value = _attempt2_environment_fixture(pilot_build)
+    value["os_release"] = "changed"
+    with pytest.raises(EvidenceError, match="self-hash"):
+        pilot_build.validate_attempt2_environment(value)
+
+
+@pytest.mark.parametrize(("phase_index", "status", "post_process"), [
+    (0, "PASS", False), (0, "FAIL", False), (0, "TIMEOUT", False),
+    (0, "FAIL_INFRASTRUCTURE", False), (0, "FAIL_INFRASTRUCTURE", True),
+    (1, "PASS", False), (1, "FAIL", False), (4, "NOT_STARTED", False),
+])
+def test_attempt2_phase_contract_accepts_all_legal_status_fixtures(phase_index, status, post_process):
+    from p3_v3 import pilot_build
+    descriptor = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[phase_index]
+    value = _attempt2_phase_fixture(pilot_build, descriptor, status)
+    if post_process:
+        value.update(process_started=True, process_group_terminated=False,
+            infrastructure_phase="POST_PROCESS", failure_reason="SOURCE_TREE_DRIFT",
+            exit_code=0, stdout_sha256="2" * 64, stderr_sha256="3" * 64,
+            stdout_bytes=1, stderr_bytes=0, started_at="2026-01-01T00:00:00Z",
+            ended_at="2026-01-01T00:00:01Z", wall_seconds=1.0,
+            cpu_seconds=0.1, peak_rss_bytes=1)
+        _attempt2_rehash(pilot_build, value)
+    assert pilot_build.validate_attempt2_phase_result(value) == value
+
+
+@pytest.mark.parametrize(("group", "phase_index", "field", "replacement"), [
+    ("unknown-identity", 0, "phase_id", "UNKNOWN"),
+    ("mismatched-identity", 0, "phase_kind", "BASELINE_BUILD"),
+    ("metadata-dependencies", 0, "dependency_phase_ids", ["X"]),
+    ("source-dependencies", 1, "dependency_phase_ids", []),
+    ("configure-dependencies", 2, "dependency_phase_ids", []),
+    ("build-dependencies", 3, "dependency_phase_ids", []),
+    ("smoke-dependencies", 4, "dependency_phase_ids", []),
+    ("metadata-argv", 0, "argv", ["/usr/bin/cmake", "-E"]),
+    ("source-argv", 1, "argv", ["forged"]),
+    ("configure-argv", 2, "argv", ["/usr/bin/cmake"]),
+    ("build-argv", 3, "argv", ["/usr/bin/cmake"]),
+    ("smoke-argv", 4, "argv", ["forged"]),
+    ("metadata-timeout", 0, "timeout_seconds", 11),
+    ("source-timeout", 1, "timeout_seconds", 1),
+    ("configure-timeout", 2, "timeout_seconds", 1),
+    ("build-timeout", 3, "timeout_seconds", 1),
+    ("smoke-timeout", 4, "timeout_seconds", 1),
+    ("argv-member", 0, "argv", ["/usr/bin/cmake", 1]),
+    ("class", 0, "execution_class", "CONFIRMATORY"),
+    ("denominator", 0, "denominator", "FORMAL"),
+    ("claims", 0, "claims", "supported"),
+    ("terminal-status", 0, "terminal_status", "CANCELLED"),
+])
+def test_attempt2_phase_contract_rejects_descriptor_and_identity_drift(group, phase_index, field, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[phase_index])
+    value[field] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+@pytest.mark.parametrize(("status", "field", "replacement"), [
+    ("PASS", "process_started", False), ("PASS", "exit_code", 1),
+    ("PASS", "failure_reason", "NONZERO_EXIT"), ("PASS", "process_group_terminated", True),
+    ("FAIL", "process_started", False), ("FAIL", "exit_code", 0),
+    ("FAIL", "failure_reason", "TIMEOUT"), ("FAIL", "infrastructure_phase", "POST_PROCESS"),
+    ("TIMEOUT", "process_started", False), ("TIMEOUT", "exit_code", 1),
+    ("TIMEOUT", "failure_reason", "NONZERO_EXIT"), ("TIMEOUT", "process_group_terminated", False),
+    ("FAIL_INFRASTRUCTURE", "process_started", True),
+    ("FAIL_INFRASTRUCTURE", "infrastructure_phase", "POST_PROCESS"),
+    ("FAIL_INFRASTRUCTURE", "failure_reason", "SOURCE_TREE_DRIFT"),
+])
+def test_attempt2_phase_contract_rejects_process_status_incoherence(status, field, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0], status)
+    value[field] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+@pytest.mark.parametrize(("field", "replacement"), [
+    ("stdout_sha256", None), ("stderr_sha256", "bad"), ("stdout_bytes", None),
+    ("started_at", None), ("ended_at", None), ("wall_seconds", None),
+    ("cpu_seconds", None), ("peak_rss_bytes", None),
+])
+def test_attempt2_phase_contract_rejects_started_process_evidence_drift(field, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0])
+    value[field] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+@pytest.mark.parametrize(("group", "field", "replacement"), [
+    ("source-status", "terminal_status", "FAIL"),
+    ("source-failure", "failure_reason", "TREE_HASH_MISMATCH"),
+    ("source-missing-evidence", "source_restoration_evidence", None),
+    ("source-process", "process_started", True), ("source-log", "stdout_sha256", "2" * 64),
+    ("source-resource", "peak_rss_bytes", 1),
+])
+def test_attempt2_phase_contract_rejects_source_evidence_disagreement(group, field, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[1])
+    value[field] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+def test_attempt2_phase_contract_rejects_restoration_evidence_on_process_phase():
+    from p3_v3 import pilot_build
+    descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    value = _attempt2_phase_fixture(pilot_build, descriptors[0])
+    value["source_restoration_evidence"] = deepcopy(
+        _attempt2_phase_fixture(pilot_build, descriptors[1])["source_restoration_evidence"])
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+@pytest.mark.parametrize(("field", "replacement"), [
+    ("process_started", True), ("process_group_terminated", False),
+    ("infrastructure_phase", "PRE_PROCESS"), ("failure_reason", "NONZERO_EXIT"),
+    ("exit_code", 1), ("stdout_sha256", "2" * 64), ("stderr_sha256", "3" * 64),
+    ("stdout_bytes", 0), ("stderr_bytes", 0), ("started_at", "2026-01-01T00:00:00Z"),
+    ("ended_at", "2026-01-01T00:00:01Z"), ("wall_seconds", 0.0),
+    ("cpu_seconds", 0.0), ("peak_rss_bytes", 0), ("source_restoration_evidence", {}),
+])
+def test_attempt2_phase_contract_rejects_forged_not_started_evidence(field, replacement):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[4], "NOT_STARTED")
+    value[field] = replacement
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+@pytest.mark.parametrize("change", ["missing-key", "extra-key"])
+def test_attempt2_phase_contract_rejects_exact_key_drift(change):
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0])
+    if change == "missing-key": value.pop("claims")
+    else: value["extra"] = None
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_phase_result(value)
+
+
+def test_attempt2_phase_contract_rejects_stale_self_hash():
+    from p3_v3 import pilot_build
+    value = _attempt2_phase_fixture(pilot_build,
+        pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[0])
+    value["stdout_bytes"] = 2
+    with pytest.raises(EvidenceError, match="self-hash"):
+        pilot_build.validate_attempt2_phase_result(value)

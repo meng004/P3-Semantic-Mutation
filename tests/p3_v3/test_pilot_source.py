@@ -2216,5 +2216,12 @@ def test_attempt2_source_restoration_evidence_canonical_lf():
 def test_attempt2_restore_rejects_nonfrozen_paths(tmp_path):
     from p3_v3 import pilot_source
 
-    with pytest.raises(EvidenceError):
-        pilot_source.run_restore_production_source(tmp_path / "archive", tmp_path / "root")
+    evidence = pilot_source.run_restore_production_source(
+        tmp_path / "archive", tmp_path / "root"
+    )
+    assert evidence["terminal_status"] == "FAIL"
+    assert evidence["disposition"] == "NOT_APPLIED"
+    assert evidence["failure_reason"] == "WRONG_ARCHIVE_PATH"
+    assert evidence["staging_published"] is False
+    assert evidence["root_published"] is False
+    assert pilot_source.validate_source_restoration_evidence(evidence) == evidence

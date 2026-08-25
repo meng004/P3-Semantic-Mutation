@@ -27,6 +27,8 @@ from p3_v3.artifacts import (
     write_canonical_json,
 )
 from p3_v3.pilot_source import (
+    ATTEMPT2_ARCHIVE_PATH,
+    ATTEMPT2_SOURCE_ROOT,
     capture_materialized_tree,
     validate_materialized_tree_with_phase1,
 )
@@ -51,8 +53,6 @@ QUALIFICATION_FIXED_HASHES = {
 }
 FROZEN_CXX_PATH = "/usr/bin/c++"
 FROZEN_CXX_REALPATH = "/usr/lib/llvm-18/bin/clang"
-ATTEMPT2_ARCHIVE_PATH = Path("/tmp/p3-boost-math-public-source-discovery/content-equivalence-r1/boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar")
-ATTEMPT2_SOURCE_ROOT = Path("/tmp/p3-boost-math-pilot-production-source")
 ATTEMPT2_BUILD_ROOT = Path("/tmp/p3-boost-math-pilot-build-preflight-attempt-2")
 ATTEMPT2_LOG_ROOT = ATTEMPT2_BUILD_ROOT / "logs"
 ATTEMPT2_HARNESS_ROOT = Path("/tmp/p3-boost-math-pilot-build-preflight-attempt-2-harness")
@@ -91,6 +91,56 @@ ATTEMPT2_PHASE_EXACT = {
  "wall_seconds": (float, type(None)), "cpu_seconds": (float, type(None)),
  "peak_rss_bytes": (int, type(None)), "source_restoration_evidence": (dict, type(None)),
  "claims": str, "artifact_sha256": str,
+}
+ATTEMPT2_INTENT_EXACT = {
+ "schema_version": str, "execution_class": str, "denominator": str, "plan_class": str,
+ "p12_item_id": str, "neutral_snapshot_id": str, "normalized_source_tree_sha256": str,
+ "controlled_subject_id": str, "controlled_subject_source_id": str, "build_descriptor_sha256": str,
+ "source_preparation_verdict_sha256": str, "source_manifest_sha256": str,
+ "source_preparation_result_sha256": str, "source_preparation_reviewed_commit": str,
+ "attempt1_implementation_verdict_sha256": str, "attempt2_implementation_verdict_sha256": str,
+ "authorization_sha256": str, "harness_cmake_sha256": str, "harness_cxx_sha256": str,
+ "source_root": str, "build_root": str, "harness_root": str, "log_root": str, "archive_path": str,
+ "qualification_base_head": str, "qualification_evidence_sha256": str,
+ "cmake_metadata_argv": list, "cmake_configure_argv": list, "baseline_build_argv": list,
+ "baseline_smoke_argv": list, "cmake_version_timeout_seconds": int,
+ "cmake_configure_timeout_seconds": int, "baseline_build_timeout_seconds": int,
+ "baseline_smoke_timeout_seconds": int, "outer_timeout_seconds": int, "build_parallelism": int,
+ "planned_count": int, "dependency_dag": list, "phase_order": list,
+ "environment_snapshot": dict, "environment_snapshot_sha256": str, "producer_pid": int,
+ "producer_starttime": str, "predecessor_sha256": list, "no_retry": bool, "claims": str,
+ "formal_denominator_membership": bool, "rq4_supported": bool, "attempt_2_authorized": bool,
+ "verification_scope": str, "executor_cloud_run_id": (str, type(None)),
+ "executor_build_snapshot_id": (str, type(None)), "artifact_sha256": str,
+}
+ATTEMPT2_RESULT_EXACT = {
+ "schema_version": str, "execution_class": str, "denominator": str, "p12_item_id": str,
+ "neutral_snapshot_id": str, "normalized_source_tree_sha256": str, "controlled_subject_id": str,
+ "controlled_subject_source_id": str, "build_descriptor_sha256": str,
+ "source_preparation_verdict_sha256": str, "source_manifest_sha256": str,
+ "source_preparation_result_sha256": str, "attempt1_implementation_verdict_sha256": str,
+ "attempt2_implementation_verdict_sha256": str, "intent_sha256": str, "authorization_sha256": str,
+ "qualification_base_head": str, "qualification_evidence_sha256": str,
+ "environment_snapshot": dict, "environment_snapshot_sha256": str,
+ "harness_cmake_sha256": str, "harness_cxx_sha256": str,
+ "cmake_cache_sha256": (str, type(None)), "compile_commands_sha256": (str, type(None)),
+ "compiler_depfile_sha256": (str, type(None)), "dependency_list_sha256": (str, type(None)),
+ "smoke_executable_sha256": (str, type(None)), "source_root": str, "build_root": str,
+ "harness_root": str, "log_root": str, "archive_path": str, "planned_count": int,
+ "started_count": int, "terminal_count": int, "not_started_count": int, "phase_order": list,
+ "phases": list, "source_restoration_disposition": (str, type(None)), "terminal_status": str,
+ "failure_reason": (str, type(None)), "build_root_exists": bool, "build_root_is_symlink": bool,
+ "no_retry": bool, "claims": str, "formal_denominator_membership": bool, "rq4_supported": bool,
+ "attempt_2_authorized": bool, "verification_scope": str,
+ "executor_cloud_run_id": (str, type(None)), "executor_build_snapshot_id": (str, type(None)),
+ "predecessor_sha256": list, "artifact_sha256": str,
+}
+IMPLEMENTATION_VERDICT_EXACT = {
+ "schema_version": str, "verdict": str, "reviewed_commit": str,
+ "qualification_base_head": str, "v1_design_sha256": str, "v2_design_sha256": str,
+ "v3_design_sha256": str, "approved_implementation_plan_sha256": str,
+ "reviewed_blob_sha256": dict, "formal_denominator_membership": bool, "claims": str,
+ "attempt_2_authorized": bool, "rq4_supported": bool, "artifact_sha256": str,
 }
 IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT = {
  "rejected_plan_v1": str, "src/p3_v3/pilot_source.py": str,
@@ -1033,6 +1083,23 @@ def validate_attempt2_environment(value: object) -> dict[str, Any]:
 def resolve_cmake_executable_path() -> str:
     path = shutil.which("cmake")
     if path is None:
+        raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY")
+    if not os.path.isabs(path):
+        raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY")
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY") from exc
+    if stat.S_ISLNK(info.st_mode):
+        target = os.path.realpath(path)
+        try:
+            target_info = os.lstat(target)
+        except OSError as exc:
+            raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY") from exc
+        if not stat.S_ISREG(target_info.st_mode) or not os.path.isabs(target):
+            raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY")
+        return target
+    if not stat.S_ISREG(info.st_mode):
         raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY")
     return path
 
@@ -2617,10 +2684,9 @@ def run_build_preflight(source_root: Path, build_root: Path) -> dict[str, Any]:
     )
 
 
-def _validate_attempt2_common(value: object, schema: str, context: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise EvidenceError(context, "object required")
-    validated = dict(value)
+def _validate_attempt2_common(value: object, schema: str, context: str,
+                              exact: dict[str, object]) -> dict[str, Any]:
+    validated = validate_exact_object(value, exact, context)
     if (validated.get("schema_version") != schema
             or validated.get("execution_class") != "PILOT_ONLY"
             or validated.get("denominator") != "PILOT_ONLY"
@@ -2637,16 +2703,37 @@ def _validate_attempt2_common(value: object, schema: str, context: str) -> dict[
 
 
 def validate_attempt2_intent(value: object) -> dict[str, Any]:
-    return _validate_attempt2_common(value, ATTEMPT2_INTENT_SCHEMA, "E_PILOT_ATTEMPT2_INTENT")
+    validated = _validate_attempt2_common(value, ATTEMPT2_INTENT_SCHEMA,
+                                          "E_PILOT_ATTEMPT2_INTENT", ATTEMPT2_INTENT_EXACT)
+    environment = validate_attempt2_environment(validated["environment_snapshot"])
+    if validated["environment_snapshot_sha256"] != environment["artifact_sha256"]:
+        raise EvidenceError("E_PILOT_ATTEMPT2_INTENT", "environment binding differs")
+    return validated
 
 
 def validate_attempt2_result(value: object) -> dict[str, Any]:
-    validated = _validate_attempt2_common(value, ATTEMPT2_RESULT_SCHEMA, "E_PILOT_ATTEMPT2_RESULT")
+    validated = _validate_attempt2_common(value, ATTEMPT2_RESULT_SCHEMA,
+                                          "E_PILOT_ATTEMPT2_RESULT", ATTEMPT2_RESULT_EXACT)
+    environment = validate_attempt2_environment(validated["environment_snapshot"])
+    if validated["environment_snapshot_sha256"] != environment["artifact_sha256"]:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "environment binding differs")
     phases = validated.get("phases")
     if not isinstance(phases, list) or len(phases) != 5:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "five phases required")
-    for phase in phases:
-        validate_attempt2_phase_result(phase)
+    checked = [validate_attempt2_phase_result(phase) for phase in phases]
+    if validated["phase_order"] != [p["phase_id"] for p in checked]:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "phase order differs")
+    if validated["started_count"] != sum(p["process_started"] for p in checked):
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "started count differs")
+    if validated["terminal_count"] != sum(p["terminal_status"] != "NOT_STARTED" for p in checked):
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "terminal count differs")
+    if validated["not_started_count"] != sum(p["terminal_status"] == "NOT_STARTED" for p in checked):
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "not-started count differs")
+    failed = False
+    for phase in checked:
+        if failed and phase["terminal_status"] != "NOT_STARTED":
+            raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "phase after failure was started")
+        failed |= phase["terminal_status"] not in {"PASS", "NOT_STARTED"}
     return validated
 
 

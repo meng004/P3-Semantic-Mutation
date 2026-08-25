@@ -337,3 +337,24 @@ def test_build_preflight_cli_rejects_overrides():
         except SystemExit:
             continue
         raise AssertionError(f"override was accepted: {argv}")
+def test_build_preflight_attempt_2_cli_delegates_frozen_arguments(monkeypatch):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("pilot_cli_attempt2", "scripts/p3_v3/pilot.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    called = []
+    from p3_v3 import pilot_build
+    monkeypatch.setattr(pilot_build, "run_build_preflight_attempt_2", lambda *args: called.append(args))
+    assert module.main(["build-preflight-attempt-2", "--archive", pilot_build.ATTEMPT2_ARCHIVE_PATH.as_posix(),
+        "--source-root", pilot_build.ATTEMPT2_SOURCE_ROOT.as_posix(),
+        "--build-root", pilot_build.ATTEMPT2_BUILD_ROOT.as_posix()]) == 0
+    assert called == [(pilot_build.ATTEMPT2_ARCHIVE_PATH, pilot_build.ATTEMPT2_SOURCE_ROOT,
+                       pilot_build.ATTEMPT2_BUILD_ROOT)]
+
+
+def test_attempt1_observable_e_pilot_build_preexisting_constant():
+    from p3_v3 import pilot_build
+    assert pilot_build.INTENT_PATH.name == "build-preflight-intent.json"
+    assert pilot_build.RESULT_PATH.name == "build-preflight-result.json"

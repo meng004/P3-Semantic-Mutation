@@ -33,6 +33,71 @@ from p3_v3.pilot_source import (
 
 PILOT_EXECUTION_CLASS = "PILOT_ONLY"
 PILOT_DENOMINATOR = "PILOT_ONLY"
+QUALIFICATION_BASE_HEAD = "0e51252f23dc3be4f82eb99e4f493c103f38c620"
+QUALIFICATION_ROOT = Path("/tmp/p3-cxx-link-qualification")
+QUALIFICATION_INTENT_NAME = "qualification-intent.json"
+QUALIFICATION_RESULT_NAME = "qualification-result.json"
+QUALIFICATION_MANIFEST_NAME = "qualification-manifest.json"
+QUALIFICATION_SOURCE_NAME = "qualify.cpp"
+QUALIFICATION_EXECUTABLE_NAME = "qualify"
+QUALIFICATION_CXX_STDOUT_NAME = "METADATA_CXX_VERSION.stdout"
+QUALIFICATION_CXX_STDERR_NAME = "METADATA_CXX_VERSION.stderr"
+QUALIFICATION_FIXED_HASHES = {
+    QUALIFICATION_INTENT_NAME: "0a13766c565e89e32a21bc69ba0f449dc8a79c48a66a7bcace54c63faa224860",
+    QUALIFICATION_RESULT_NAME: "68aaac07c2d5ad4f834f114e1a0ac011052176f2a20ea63793f483357c31f6c2",
+    QUALIFICATION_MANIFEST_NAME: "5ef4c89e9601303b9e40e3fcda07c68055664cf53fb578d6efb1d39fc5f27c9a",
+    QUALIFICATION_SOURCE_NAME: "91193433e324b0a1e525cfecac51f43ca0f6bd882e1c34292510c9740115bf5c",
+    QUALIFICATION_EXECUTABLE_NAME: "9d24d5298272942e95333acf18b05052b4c9d701aeaf92f7252a4d9666228b3b",
+}
+FROZEN_CXX_PATH = "/usr/bin/c++"
+FROZEN_CXX_REALPATH = "/usr/lib/llvm-18/bin/clang"
+ATTEMPT2_ARCHIVE_PATH = Path("/tmp/p3-boost-math-public-source-discovery/content-equivalence-r1/boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar")
+ATTEMPT2_SOURCE_ROOT = Path("/tmp/p3-boost-math-pilot-production-source")
+ATTEMPT2_BUILD_ROOT = Path("/tmp/p3-boost-math-pilot-build-preflight-attempt-2")
+ATTEMPT2_LOG_ROOT = ATTEMPT2_BUILD_ROOT / "logs"
+ATTEMPT2_HARNESS_ROOT = Path("/tmp/p3-boost-math-pilot-build-preflight-attempt-2-harness")
+ATTEMPT2_INTENT_PATH = Path("data/p3_v3/pilot/boost_math/build-preflight-attempt-2-intent.json")
+ATTEMPT2_RESULT_PATH = Path("data/p3_v3/pilot/boost_math/build-preflight-attempt-2-result.json")
+ATTEMPT2_AUTHORIZATION_PATH = Path("data/p3_v3/pilot/boost_math/user-auth-build-preflight-attempt-2.txt")
+ATTEMPT2_AUTHORIZATION_BYTES = b"P3_BUILD_PREFLIGHT_ATTEMPT_2_AUTHORIZED=true\n"
+ATTEMPT2_AUTHORIZATION_SHA256 = "fdb55d342c8e132a7377e4dcde1be16c3a2f736e76fe3edfc0cdc85bcfc79201"
+
+ATTEMPT2_ENVIRONMENT_SCHEMA = "p3-pilot-build-preflight-attempt-2-environment-v1"
+ATTEMPT2_PHASE_SCHEMA = "p3-pilot-build-preflight-attempt-2-phase-v1"
+ATTEMPT2_INTENT_SCHEMA = "p3-pilot-build-preflight-attempt-2-intent-v1"
+ATTEMPT2_RESULT_SCHEMA = "p3-pilot-build-preflight-attempt-2-result-v1"
+ATTEMPT2_ENVIRONMENT_EXACT = {
+ "schema_version": str, "execution_class": str, "denominator": str,
+ "cmake_executable": str, "cmake_executable_path": str, "cmake_version": (str, type(None)),
+ "cxx_compiler_executable": (str, type(None)), "cxx_compiler_path": (str, type(None)),
+ "cxx_compiler_identity": (str, type(None)), "cxx_compiler_version": (str, type(None)),
+ "cmake_generator": str, "os_name": str, "os_release": str, "python_version": str,
+ "git_version": (str, type(None)), "build_parallelism": int, "nvcc_present": bool,
+ "native_profiling_present": bool, "cuda_absence_blocking": bool,
+ "fetchcontent_fully_disconnected": bool, "system_boost_fallback_accepted": bool,
+ "disconnected_environment": dict, "qualification_evidence_sha256": str,
+ "verification_scope": str, "executor_cloud_run_id": (str, type(None)),
+ "executor_build_snapshot_id": (str, type(None)), "claims": str, "artifact_sha256": str,
+}
+ATTEMPT2_PHASE_EXACT = {
+ "schema_version": str, "execution_class": str, "denominator": str, "phase_id": str,
+ "phase_kind": str, "dependency_phase_ids": list, "argv": list, "timeout_seconds": int,
+ "process_started": bool, "process_group_terminated": (bool, type(None)),
+ "infrastructure_phase": (str, type(None)), "terminal_status": str,
+ "failure_reason": (str, type(None)), "exit_code": (int, type(None)),
+ "stdout_sha256": (str, type(None)), "stderr_sha256": (str, type(None)),
+ "stdout_bytes": (int, type(None)), "stderr_bytes": (int, type(None)),
+ "started_at": (str, type(None)), "ended_at": (str, type(None)),
+ "wall_seconds": (float, type(None)), "cpu_seconds": (float, type(None)),
+ "peak_rss_bytes": (int, type(None)), "source_restoration_evidence": (dict, type(None)),
+ "claims": str, "artifact_sha256": str,
+}
+IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT = {
+ "rejected_plan_v1": str, "src/p3_v3/pilot_source.py": str,
+ "src/p3_v3/pilot_build.py": str, "scripts/p3_v3/pilot.py": str,
+ "tests/p3_v3/test_pilot_source.py": str, "tests/p3_v3/test_pilot_build.py": str,
+ "tests/p3_v3/test_pilot.py": str,
+}
 P12_ITEM_ID = "C-BOOSTMATH-001"
 NEUTRAL_SNAPSHOT_ID = (
     "74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886"
@@ -550,6 +615,69 @@ def parse_canonical_json_object(raw: bytes, context: str) -> dict[str, Any]:
     return value
 
 
+def read_v5_qualification_evidence(
+    qualification_root: Path = QUALIFICATION_ROOT,
+) -> dict[str, Any]:
+    """Adapt frozen V5 files without rerunning any qualification or metadata tool."""
+    root = Path(qualification_root)
+    records: dict[str, bytes] = {}
+    digests: dict[str, str] = {}
+    for name in (*QUALIFICATION_FIXED_HASHES,
+                 QUALIFICATION_CXX_STDOUT_NAME, QUALIFICATION_CXX_STDERR_NAME):
+        raw, _mode = read_regular_file_snapshot(root / name, f"qualification-{name}")
+        records[name] = raw
+        digests[name] = _sha256_bytes(raw)
+        expected = QUALIFICATION_FIXED_HASHES.get(name)
+        if expected is not None and digests[name] != expected:
+            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", f"{name} hash differs")
+    intent = parse_canonical_json_object(records[QUALIFICATION_INTENT_NAME], "qualification-intent")
+    result = parse_canonical_json_object(records[QUALIFICATION_RESULT_NAME], "qualification-result")
+    manifest = parse_canonical_json_object(records[QUALIFICATION_MANIFEST_NAME], "qualification-manifest")
+    if result.get("terminal_status") != "PASS" or result.get("failure_reason") is not None:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification is not PASS")
+    if os.path.realpath(FROZEN_CXX_PATH) != FROZEN_CXX_REALPATH:
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "current compiler differs")
+    stdout = records[QUALIFICATION_CXX_STDOUT_NAME]
+    stderr = records[QUALIFICATION_CXX_STDERR_NAME]
+    # V5 field names are intentionally accepted only when mutually consistent.
+    def common(key: str) -> Any:
+        values = [obj[key] for obj in (intent, result) if key in obj]
+        if not values or any(item != values[0] for item in values):
+            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", f"{key} cross-link differs")
+        return values[0]
+    host_git = common("git_version")
+    host_snapshot = common("host_snapshot_sha256")
+    payload = {
+        "schema_version": "p3-pilot-attempt-2-qualification-evidence-v1",
+        "execution_class": "PILOT_ONLY", "claims": "blocked",
+        "qualification_root": QUALIFICATION_ROOT.as_posix(),
+        "qualification_base_head": QUALIFICATION_BASE_HEAD,
+        "intent_sha256": digests[QUALIFICATION_INTENT_NAME],
+        "result_sha256": digests[QUALIFICATION_RESULT_NAME],
+        "manifest_sha256": digests[QUALIFICATION_MANIFEST_NAME],
+        "source_sha256": digests[QUALIFICATION_SOURCE_NAME],
+        "executable_sha256": digests[QUALIFICATION_EXECUTABLE_NAME],
+        "compiler_version_stdout_sha256": _sha256_bytes(stdout),
+        "compiler_version_stderr_sha256": _sha256_bytes(stderr),
+        "compiler_version_stdout": stdout.decode("utf-8"),
+        "compiler_version_stderr": stderr.decode("utf-8"),
+        "requested_compiler": FROZEN_CXX_PATH,
+        "resolved_compiler_path": FROZEN_CXX_PATH,
+        "resolved_compiler_realpath": FROZEN_CXX_REALPATH,
+        "current_cxx_realpath": os.path.realpath(FROZEN_CXX_PATH),
+        "host_git_version": host_git, "host_snapshot_sha256": host_snapshot,
+        "terminal_status": "PASS", "failure_reason": None,
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+    }
+    # Manifest must at least bind the frozen source and executable.
+    encoded_manifest = json.dumps(manifest, sort_keys=True)
+    for digest in (payload["source_sha256"], payload["executable_sha256"]):
+        if digest not in encoded_manifest:
+            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "manifest cross-link differs")
+    payload["artifact_sha256"] = canonical_sha256(payload)
+    return payload
+
+
 def require_safe_directory(path: Path, expected: Path, context: str) -> Path:
     if path != expected:
         raise EvidenceError(
@@ -832,6 +960,89 @@ def bind_job_specs(environment: dict[str, Any]) -> tuple[dict[str, Any], ...]:
         item["argv"] = list(argv)
         bound.append(item)
     return tuple(bound)
+
+
+def attempt2_phase_descriptors(cmake_path: str) -> list[dict[str, Any]]:
+    configure = [cmake_path, "-S", ATTEMPT2_HARNESS_ROOT.as_posix(), "-B",
+        ATTEMPT2_BUILD_ROOT.as_posix(), "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_CXX_STANDARD=14", "-DCMAKE_CXX_STANDARD_REQUIRED=ON",
+        "-DBOOST_MATH_STANDALONE=1",
+        "-DBOOST_MATH_PILOT_SOURCE_INCLUDE=/tmp/p3-boost-math-pilot-production-source/include",
+        "-DCMAKE_DISABLE_SOURCE_CHANGES=ON", "-DCMAKE_DISABLE_IN_SOURCE_BUILD=ON",
+        "-DFETCHCONTENT_FULLY_DISCONNECTED=ON", "-DFETCHCONTENT_UPDATES_DISCONNECTED=ON",
+        "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF", "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_CXX_COMPILER=/usr/bin/c++"]
+    rows = [
+        ("METADATA_CMAKE_VERSION", [], [cmake_path, "--version"], 10),
+        ("SOURCE_RESTORE", ["METADATA_CMAKE_VERSION"], [], 0),
+        ("CMAKE_CONFIGURE", ["SOURCE_RESTORE"], configure, 900),
+        ("BASELINE_BUILD", ["CMAKE_CONFIGURE"], [cmake_path, "--build",
+         ATTEMPT2_BUILD_ROOT.as_posix(), "--parallel", "4"], 3600),
+        ("BASELINE_SMOKE", ["BASELINE_BUILD"],
+         [(ATTEMPT2_BUILD_ROOT / "boost_math_pilot_smoke").as_posix()], 1800),
+    ]
+    return [{"phase_id": phase, "phase_kind": phase,
+             "dependency_phase_ids": deps, "argv": argv,
+             "timeout_seconds": timeout} for phase, deps, argv, timeout in rows]
+
+
+def make_attempt2_not_started(spec: dict[str, Any]) -> dict[str, Any]:
+    payload = {"schema_version": ATTEMPT2_PHASE_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", **spec, "process_started": False,
+        "process_group_terminated": None, "infrastructure_phase": None,
+        "terminal_status": "NOT_STARTED", "failure_reason": None, "exit_code": None,
+        "stdout_sha256": None, "stderr_sha256": None, "stdout_bytes": None,
+        "stderr_bytes": None, "started_at": None, "ended_at": None,
+        "wall_seconds": None, "cpu_seconds": None, "peak_rss_bytes": None,
+        "source_restoration_evidence": None, "claims": "blocked"}
+    payload["artifact_sha256"] = canonical_sha256(payload)
+    return validate_attempt2_phase_result(payload)
+
+
+def validate_attempt2_phase_result(value: object) -> dict[str, Any]:
+    validated = validate_exact_object(value, ATTEMPT2_PHASE_EXACT, "attempt2-phase")
+    if validated["schema_version"] != ATTEMPT2_PHASE_SCHEMA or validated["phase_id"] != validated["phase_kind"]:
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "phase identity differs")
+    if validated["execution_class"] != "PILOT_ONLY" or validated["denominator"] != "PILOT_ONLY" or validated["claims"] != "blocked":
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "claim ceiling differs")
+    if validated["terminal_status"] not in {"PASS", "FAIL", "TIMEOUT", "FAIL_INFRASTRUCTURE", "NOT_STARTED"}:
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "status differs")
+    if validated["terminal_status"] == "NOT_STARTED":
+        forbidden = ("exit_code", "stdout_sha256", "stderr_sha256", "stdout_bytes",
+                     "stderr_bytes", "started_at", "ended_at", "wall_seconds",
+                     "cpu_seconds", "peak_rss_bytes")
+        if validated["process_started"] or any(validated[key] is not None for key in forbidden):
+            raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "NOT_STARTED carries evidence")
+    body = {key: validated[key] for key in validated if key != "artifact_sha256"}
+    if validated["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("E_PILOT_ATTEMPT2_PHASE", "self-hash differs")
+    return validated
+
+
+def validate_attempt2_environment(value: object) -> dict[str, Any]:
+    validated = validate_exact_object(value, ATTEMPT2_ENVIRONMENT_EXACT, "attempt2-environment")
+    if (validated["schema_version"] != ATTEMPT2_ENVIRONMENT_SCHEMA
+            or validated["execution_class"] != "PILOT_ONLY"
+            or validated["denominator"] != "PILOT_ONLY" or validated["claims"] != "blocked"):
+        raise EvidenceError("E_PILOT_ATTEMPT2_ENVIRONMENT", "identity or ceiling differs")
+    if validated["artifact_sha256"] != canonical_sha256({k: v for k, v in validated.items() if k != "artifact_sha256"}):
+        raise EvidenceError("E_PILOT_ATTEMPT2_ENVIRONMENT", "self-hash differs")
+    return validated
+
+
+def resolve_cmake_executable_path() -> str:
+    path = shutil.which("cmake")
+    if path is None:
+        raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "MISSING_DEPENDENCY")
+    return path
+
+
+def run_metadata_cmake_version(cmake_path: str, log_root: Path) -> dict[str, Any]:
+    descriptor = attempt2_phase_descriptors(cmake_path)[0]
+    spec = {"job_id": descriptor["phase_id"], "job_kind": descriptor["phase_kind"],
+            "dependency_job_ids": descriptor["dependency_phase_ids"],
+            "argv": descriptor["argv"], "timeout_seconds": descriptor["timeout_seconds"]}
+    return execute_job(spec, env=dict(os.environ), log_root=log_root)
 
 
 def reject_unbound_toolchain(env: dict[str, str], resolved_cxx: str | None) -> None:
@@ -2404,3 +2615,116 @@ def run_build_preflight(source_root: Path, build_root: Path) -> dict[str, Any]:
         implementation_verdict_sha256=impl_digest,
         evidence=evidence,
     )
+
+
+def _validate_attempt2_common(value: object, schema: str, context: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise EvidenceError(context, "object required")
+    validated = dict(value)
+    if (validated.get("schema_version") != schema
+            or validated.get("execution_class") != "PILOT_ONLY"
+            or validated.get("denominator") != "PILOT_ONLY"
+            or validated.get("claims") != "blocked"
+            or validated.get("no_retry") is not True
+            or validated.get("formal_denominator_membership") is not False
+            or validated.get("rq4_supported") is not False
+            or validated.get("attempt_2_authorized") is not False):
+        raise EvidenceError(context, "identity or claim ceiling differs")
+    digest = validated.get("artifact_sha256")
+    if digest != canonical_sha256({k: v for k, v in validated.items() if k != "artifact_sha256"}):
+        raise EvidenceError(context, "self-hash differs")
+    return validated
+
+
+def validate_attempt2_intent(value: object) -> dict[str, Any]:
+    return _validate_attempt2_common(value, ATTEMPT2_INTENT_SCHEMA, "E_PILOT_ATTEMPT2_INTENT")
+
+
+def validate_attempt2_result(value: object) -> dict[str, Any]:
+    validated = _validate_attempt2_common(value, ATTEMPT2_RESULT_SCHEMA, "E_PILOT_ATTEMPT2_RESULT")
+    phases = validated.get("phases")
+    if not isinstance(phases, list) or len(phases) != 5:
+        raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "five phases required")
+    for phase in phases:
+        validate_attempt2_phase_result(phase)
+    return validated
+
+
+def run_build_preflight_attempt_2(
+    archive: Path, source_root: Path, build_root: Path,
+) -> dict[str, Any]:
+    """Execute the frozen one-shot Attempt-2 adapter; durable preexistence is final."""
+    if (Path(archive), Path(source_root), Path(build_root)) != (
+            ATTEMPT2_ARCHIVE_PATH, ATTEMPT2_SOURCE_ROOT, ATTEMPT2_BUILD_ROOT):
+        raise EvidenceError("E_PILOT_ATTEMPT2_PATH", "CLI paths must equal frozen paths")
+    if os.path.lexists(ATTEMPT2_INTENT_PATH) or os.path.lexists(ATTEMPT2_RESULT_PATH):
+        raise EvidenceError("E_PILOT_ATTEMPT2_PREEXISTING", "intent or result already exists")
+    for path in (ATTEMPT2_BUILD_ROOT, ATTEMPT2_HARNESS_ROOT):
+        require_absent_path(path, "attempt2-runtime-root")
+    auth, auth_digest = read_authority_snapshot(ATTEMPT2_AUTHORIZATION_PATH, "attempt2-auth")
+    if auth != ATTEMPT2_AUTHORIZATION_BYTES or auth_digest != ATTEMPT2_AUTHORIZATION_SHA256:
+        raise EvidenceError("E_PILOT_ATTEMPT2_AUTH", "authorization bytes differ")
+    qualification = read_v5_qualification_evidence()
+    cmake_path = resolve_cmake_executable_path()
+    env = dict(os.environ)
+    reject_system_boost_environment(env)
+    env.update(DISCONNECTED_ENVIRONMENT)
+    reject_unbound_toolchain(env, FROZEN_CXX_PATH)
+    descriptors = attempt2_phase_descriptors(cmake_path)
+    pid, starttime = producer_identity()
+    intent = {"schema_version": ATTEMPT2_INTENT_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", "plan_class": "PILOT_BUILD_PREFLIGHT_ATTEMPT_2_ONLY",
+        "archive_path": archive.as_posix(), "source_root": source_root.as_posix(),
+        "build_root": build_root.as_posix(), "harness_root": ATTEMPT2_HARNESS_ROOT.as_posix(),
+        "log_root": ATTEMPT2_LOG_ROOT.as_posix(), "planned_count": 5,
+        "phase_order": [item["phase_id"] for item in descriptors],
+        "dependency_dag": [item["dependency_phase_ids"] for item in descriptors],
+        "qualification_evidence_sha256": qualification["artifact_sha256"],
+        "authorization_sha256": auth_digest, "producer_pid": pid,
+        "producer_starttime": starttime, "no_retry": True, "claims": "blocked",
+        "formal_denominator_membership": False, "rq4_supported": False,
+        "attempt_2_authorized": False}
+    intent["artifact_sha256"] = canonical_sha256(intent)
+    validate_attempt2_intent(intent)
+    write_canonical_json(ATTEMPT2_INTENT_PATH, intent, exclusive=True)
+    # Runtime publication begins only after the durable intent.
+    os.mkdir(ATTEMPT2_BUILD_ROOT)
+    ensure_safe_log_root(ATTEMPT2_LOG_ROOT)
+    from p3_v3.pilot_source import run_restore_production_source
+    phases: list[dict[str, Any]] = []
+    prior_pass = True
+    for descriptor in descriptors:
+        if not prior_pass:
+            phases.append(make_attempt2_not_started(descriptor))
+            continue
+        if descriptor["phase_id"] == "SOURCE_RESTORE":
+            restoration = run_restore_production_source(archive, source_root)
+            phase = make_attempt2_not_started(descriptor)
+            phase.update({"terminal_status": "PASS", "source_restoration_evidence": restoration})
+            phase["artifact_sha256"] = canonical_sha256({k: v for k, v in phase.items() if k != "artifact_sha256"})
+            phase = validate_attempt2_phase_result(phase)
+        else:
+            spec = {"job_id": descriptor["phase_id"], "job_kind": descriptor["phase_kind"],
+                "dependency_job_ids": descriptor["dependency_phase_ids"], "argv": descriptor["argv"],
+                "timeout_seconds": descriptor["timeout_seconds"]}
+            job = execute_job(spec, env=env, log_root=ATTEMPT2_LOG_ROOT)
+            phase = {("phase_id" if k == "job_id" else "phase_kind" if k == "job_kind"
+                      else "dependency_phase_ids" if k == "dependency_job_ids" else k): v
+                     for k, v in job.items()}
+            phase["schema_version"] = ATTEMPT2_PHASE_SCHEMA
+            phase["source_restoration_evidence"] = None
+            phase["artifact_sha256"] = canonical_sha256({k: v for k, v in phase.items() if k != "artifact_sha256"})
+            phase = validate_attempt2_phase_result(phase)
+        phases.append(phase)
+        prior_pass = phase["terminal_status"] == "PASS"
+    result = {"schema_version": ATTEMPT2_RESULT_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", "phases": phases, "planned_count": 5,
+        "started_count": sum(p["process_started"] for p in phases), "terminal_count": 5,
+        "not_started_count": sum(p["terminal_status"] == "NOT_STARTED" for p in phases),
+        "terminal_status": next((p["terminal_status"] for p in phases if p["terminal_status"] != "PASS"), "PASS"),
+        "no_retry": True, "claims": "blocked", "formal_denominator_membership": False,
+        "rq4_supported": False, "attempt_2_authorized": False}
+    result["artifact_sha256"] = canonical_sha256(result)
+    validate_attempt2_result(result)
+    write_canonical_json(ATTEMPT2_RESULT_PATH, result, exclusive=True)
+    return result

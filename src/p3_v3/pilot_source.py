@@ -11,6 +11,7 @@ import shutil
 import stat
 import tarfile
 import zipfile
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -71,6 +72,30 @@ NEUTRAL_SNAPSHOT_ID = (
 FROZEN_NORMALIZED_SOURCE_TREE_SHA256 = (
     "93a62859d7fdd6b2068e494bbe6e3e27180b874cbd27055ac27f941e507a90d8"
 )
+ATTEMPT2_ARCHIVE_PATH = Path("/tmp/p3-boost-math-public-source-discovery/content-equivalence-r1/boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar")
+ATTEMPT2_SOURCE_ROOT = Path("/tmp/p3-boost-math-pilot-production-source")
+ATTEMPT2_SOURCE_STAGING_ROOT = Path("/tmp/p3-boost-math-pilot-production-source.staging")
+ATTEMPT2_ARCHIVE_SHA256 = "6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392"
+ATTEMPT2_ARCHIVE_BYTES = 99676160
+ATTEMPT2_FILE_COUNT = 4396
+ATTEMPT2_TOTAL_BYTES = 95635487
+SOURCE_RESTORATION_SCHEMA = "p3-pilot-source-restoration-evidence-v1"
+SOURCE_RESTORATION_FAILURE_REASONS = frozenset({
+    "WRONG_ARCHIVE_PATH", "WRONG_SOURCE_ROOT", "ARCHIVE_UNSAFE",
+    "ARCHIVE_HASH_MISMATCH", "ARCHIVE_SIZE_MISMATCH", "ARCHIVE_FORMAT_MISMATCH",
+    "EXTRACTION_UNSAFE", "STAGING_EXISTS", "STAGING_SYMLINK", "ROOT_SYMLINK",
+    "INVALID_RECONCILIATION_STATE", "TREE_HASH_MISMATCH", "FILE_COUNT_MISMATCH",
+    "BYTE_COUNT_MISMATCH", "INVALID_PASS_PAIR",
+})
+SOURCE_RESTORATION_EVIDENCE_EXACT = {
+    "schema_version": str, "execution_class": str, "claims": str,
+    "disposition": str, "archive_sha256": str, "archive_bytes": int,
+    "normalized_tree_sha256": str, "materialized_file_count": int,
+    "materialized_total_bytes": int, "staging_published": bool,
+    "root_published": bool, "started_at": str, "ended_at": str,
+    "terminal_status": str, "failure_reason": (str, type(None)),
+    "artifact_sha256": str,
+}
 CONTROLLED_SUBJECT_SOURCE_ID = (
     "e5f21a7d067d641d0a20bfc57c61e630d6f7588ef30235cea49c9a9cf950c7a7"
 )
@@ -1922,6 +1947,93 @@ def run_validate_source(archive: Path, materialize_root: Path) -> None:
     if state == "ORPHAN_ROOT":
         raise EvidenceError("E_PILOT_SOURCE_ORPHAN_ROOT", "materialize root is orphaned")
     raise EvidenceError("E_PILOT_SOURCE_OUTPUT_EXISTS", f"reconciliation state {state}")
+
+
+def validate_source_restoration_evidence(value: object) -> dict[str, object]:
+    validated = validate_exact_object(
+        value, SOURCE_RESTORATION_EVIDENCE_EXACT, "source-restoration-evidence"
+    )
+    if validated["schema_version"] != SOURCE_RESTORATION_SCHEMA:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "schema differs")
+    if validated["execution_class"] != "PILOT_ONLY" or validated["claims"] != "blocked":
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "claim ceiling differs")
+    if validated["disposition"] not in {"RESTORED", "REVALIDATED", "NOT_APPLIED"}:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "disposition differs")
+    try:
+        start = datetime.fromisoformat(validated["started_at"].replace("Z", "+00:00"))
+        end = datetime.fromisoformat(validated["ended_at"].replace("Z", "+00:00"))
+    except (ValueError, AttributeError) as exc:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid") from exc
+    if start.tzinfo is None or end.tzinfo is None or start > end:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid")
+    passed = validated["terminal_status"] == "PASS"
+    if validated["terminal_status"] not in {"PASS", "FAIL"}:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "terminal status differs")
+    if passed:
+        expected = (ATTEMPT2_ARCHIVE_SHA256, ATTEMPT2_ARCHIVE_BYTES,
+                    FROZEN_NORMALIZED_SOURCE_TREE_SHA256, ATTEMPT2_FILE_COUNT,
+                    ATTEMPT2_TOTAL_BYTES)
+        actual = tuple(validated[k] for k in ("archive_sha256", "archive_bytes",
+            "normalized_tree_sha256", "materialized_file_count", "materialized_total_bytes"))
+        flags = (validated["staging_published"], validated["root_published"])
+        legal = ((validated["disposition"], flags) in {
+            ("RESTORED", (True, True)), ("REVALIDATED", (False, False))})
+        if actual != expected or validated["failure_reason"] is not None or not legal:
+            raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "invalid PASS evidence")
+    elif (validated["disposition"] != "NOT_APPLIED"
+          or validated["failure_reason"] not in SOURCE_RESTORATION_FAILURE_REASONS
+          or validated["staging_published"] or validated["root_published"]):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "invalid FAIL evidence")
+    body = {key: validated[key] for key in validated if key != "artifact_sha256"}
+    if validated["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "self-hash differs")
+    return validated
+
+
+def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, object]:
+    """Restore only the frozen missing production root, or fully revalidate it."""
+    if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "WRONG_ARCHIVE_PATH")
+    if Path(materialize_root) != ATTEMPT2_SOURCE_ROOT:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "WRONG_SOURCE_ROOT")
+    if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "STAGING_EXISTS")
+    if os.path.islink(ATTEMPT2_SOURCE_ROOT):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "ROOT_SYMLINK")
+    started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    snapshot = read_production_archive_bytes(archive)
+    if snapshot.sha256 != ATTEMPT2_ARCHIVE_SHA256:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "ARCHIVE_HASH_MISMATCH")
+    if snapshot.size != ATTEMPT2_ARCHIVE_BYTES:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "ARCHIVE_SIZE_MISMATCH")
+    if snapshot.archive_format != "TAR":
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "ARCHIVE_FORMAT_MISMATCH")
+    restored = not os.path.lexists(ATTEMPT2_SOURCE_ROOT)
+    root = ATTEMPT2_SOURCE_ROOT
+    if restored:
+        root = extract_archive_to_staging(snapshot, ATTEMPT2_SOURCE_STAGING_ROOT)
+    tree = capture_materialized_tree(root)
+    tree_hash = canonical_source_tree_sha256(tree)
+    count, total = _tree_metrics(tree)
+    if tree_hash != FROZEN_NORMALIZED_SOURCE_TREE_SHA256 or count != ATTEMPT2_FILE_COUNT or total != ATTEMPT2_TOTAL_BYTES:
+        if restored:
+            shutil.rmtree(ATTEMPT2_SOURCE_STAGING_ROOT, ignore_errors=True)
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "TREE_HASH_MISMATCH")
+    boost_math = root / "include" / "boost" / "math"
+    if not boost_math.is_dir() or boost_math.is_symlink():
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "TREE_HASH_MISMATCH")
+    if restored:
+        os.replace(ATTEMPT2_SOURCE_STAGING_ROOT, ATTEMPT2_SOURCE_ROOT)
+    ended = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    payload = {"schema_version": SOURCE_RESTORATION_SCHEMA, "execution_class": "PILOT_ONLY",
+        "claims": "blocked", "disposition": "RESTORED" if restored else "REVALIDATED",
+        "archive_sha256": snapshot.sha256, "archive_bytes": snapshot.size,
+        "normalized_tree_sha256": tree_hash, "materialized_file_count": count,
+        "materialized_total_bytes": total, "staging_published": restored,
+        "root_published": restored, "started_at": started, "ended_at": ended,
+        "terminal_status": "PASS", "failure_reason": None}
+    payload["artifact_sha256"] = canonical_sha256(payload)
+    return validate_source_restoration_evidence(payload)
 
 
 if canonical_sha256(EXTRACTOR_POLICY_V1) != EXTRACTOR_POLICY_SHA256:

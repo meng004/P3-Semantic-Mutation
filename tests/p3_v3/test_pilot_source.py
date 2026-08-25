@@ -2195,3 +2195,26 @@ def test_dangling_staging_symlink_is_rejected_before_archive_snapshot(
     assert not materialize.exists()
     assert not (tmp_path / "source-manifest.json").exists()
     assert not (tmp_path / "source-preparation-result.json").exists()
+def test_attempt2_source_restoration_evidence_canonical_lf():
+    from p3_v3.artifacts import canonical_sha256
+    from p3_v3 import pilot_source
+
+    value = {
+        "schema_version": "p3-pilot-source-restoration-evidence-v1",
+        "execution_class": "PILOT_ONLY", "claims": "blocked",
+        "disposition": "REVALIDATED", "archive_sha256": "6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392",
+        "archive_bytes": 99676160, "normalized_tree_sha256": pilot_source.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "materialized_file_count": 4396, "materialized_total_bytes": 95635487,
+        "staging_published": False, "root_published": False,
+        "started_at": "2026-08-25T00:00:00Z", "ended_at": "2026-08-25T00:00:01Z",
+        "terminal_status": "PASS", "failure_reason": None,
+    }
+    value["artifact_sha256"] = canonical_sha256(value)
+    assert pilot_source.validate_source_restoration_evidence(value) == value
+
+
+def test_attempt2_restore_rejects_nonfrozen_paths(tmp_path):
+    from p3_v3 import pilot_source
+
+    with pytest.raises(EvidenceError):
+        pilot_source.run_restore_production_source(tmp_path / "archive", tmp_path / "root")

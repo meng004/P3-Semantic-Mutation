@@ -2446,3 +2446,80 @@ def test_preexisting_identity_collision_is_started_failure_and_reaped(tmp_path):
         time.sleep(0.05)
     assert gone is True
     assert pilot_build.process_group_has_members(seen["pgid"]) is False
+def test_attempt2_exact_schema_and_canonical_lf():
+    from p3_v3 import pilot_build
+
+    assert set(pilot_build.ATTEMPT2_ENVIRONMENT_EXACT) == {
+        "schema_version", "execution_class", "denominator", "cmake_executable",
+        "cmake_executable_path", "cmake_version", "cxx_compiler_executable",
+        "cxx_compiler_path", "cxx_compiler_identity", "cxx_compiler_version",
+        "cmake_generator", "os_name", "os_release", "python_version", "git_version",
+        "build_parallelism", "nvcc_present", "native_profiling_present",
+        "cuda_absence_blocking", "fetchcontent_fully_disconnected",
+        "system_boost_fallback_accepted", "disconnected_environment",
+        "qualification_evidence_sha256", "verification_scope", "executor_cloud_run_id",
+        "executor_build_snapshot_id", "claims", "artifact_sha256",
+    }
+    assert pilot_build.canonical_json_bytes({"a": 1}).endswith(b"\n")
+
+
+def test_attempt2_v5_adapter_missing_evidence_fails_without_process(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+
+    monkeypatch.setattr(pilot_build.subprocess, "Popen", lambda *a, **k: pytest.fail("process ran"))
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(tmp_path)
+
+
+def test_implementation_verdict_exact_has_seven_reviewed_blobs():
+    from p3_v3 import pilot_build
+
+    assert set(pilot_build.IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT) == {
+        "rejected_plan_v1", "src/p3_v3/pilot_source.py", "src/p3_v3/pilot_build.py",
+        "scripts/p3_v3/pilot.py", "tests/p3_v3/test_pilot_source.py",
+        "tests/p3_v3/test_pilot_build.py", "tests/p3_v3/test_pilot.py",
+    }
+def test_attempt2_descriptor_dependency_and_environment():
+    from p3_v3 import pilot_build
+
+    specs = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    assert [s["phase_id"] for s in specs] == [
+        "METADATA_CMAKE_VERSION", "SOURCE_RESTORE", "CMAKE_CONFIGURE",
+        "BASELINE_BUILD", "BASELINE_SMOKE",
+    ]
+    assert [s["dependency_phase_ids"] for s in specs] == [
+        [], ["METADATA_CMAKE_VERSION"], ["SOURCE_RESTORE"],
+        ["CMAKE_CONFIGURE"], ["BASELINE_BUILD"],
+    ]
+    assert all(isinstance(arg, str) for spec in specs for arg in spec["argv"])
+    assert specs[1]["argv"] == [] and specs[1]["timeout_seconds"] == 0
+
+
+def test_attempt2_execute_job_uses_existing_callable():
+    from p3_v3 import pilot_build
+
+    assert callable(pilot_build.execute_job)
+    assert pilot_build.ATTEMPT2_LOG_ROOT == pilot_build.ATTEMPT2_BUILD_ROOT / "logs"
+def test_attempt2_orchestration_publication_preexisting_is_permanent(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+
+    intent = tmp_path / "intent.json"
+    intent.write_text("{}\n")
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_INTENT_PATH", intent)
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_RESULT_PATH", tmp_path / "result.json")
+    with pytest.raises(EvidenceError, match="E_PILOT_ATTEMPT2_PREEXISTING"):
+        pilot_build.run_build_preflight_attempt_2(
+            pilot_build.ATTEMPT2_ARCHIVE_PATH, pilot_build.ATTEMPT2_SOURCE_ROOT,
+            pilot_build.ATTEMPT2_BUILD_ROOT,
+        )
+
+
+def test_attempt2_not_started_phase_has_no_process_evidence():
+    from p3_v3 import pilot_build
+
+    phase = pilot_build.make_attempt2_not_started(
+        pilot_build.attempt2_phase_descriptors("/cmake")[-1]
+    )
+    assert phase["terminal_status"] == "NOT_STARTED"
+    assert phase["process_started"] is False
+    assert phase["exit_code"] is None and phase["started_at"] is None

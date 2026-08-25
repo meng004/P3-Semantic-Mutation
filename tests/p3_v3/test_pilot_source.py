@@ -2221,8 +2221,12 @@ def _attempt2_fixture(tmp_path, monkeypatch, members=None):
     monkeypatch.setattr(pilot_source, "ATTEMPT2_TOTAL_BYTES", total)
     monkeypatch.setattr(pilot_source, "SOURCE_MANIFEST_PATH", manifest_path)
     monkeypatch.setattr(pilot_source, "SOURCE_PREPARATION_RESULT_PATH", result_path)
+    chain = pilot_source._GateChain(*("1" * 64, "2" * 64, "3" * 64,
+                                      "4" * 64, "5" * 64, "6" * 64,
+                                      "7" * 64))
+    monkeypatch.setattr(pilot_source, "verify_production_gate_chain", lambda: chain)
     manifest = _canonical_manifest(
-        predecessors=[], archive_sha256=snapshot.sha256, archive_bytes=snapshot.size,
+        predecessors=chain.predecessors(), archive_sha256=snapshot.sha256, archive_bytes=snapshot.size,
         archive_format="TAR", file_count=count, total_bytes=total,
     )
     manifest["normalized_source_tree_sha256"] = tree_hash
@@ -2231,7 +2235,7 @@ def _attempt2_fixture(tmp_path, monkeypatch, members=None):
     )
     manifest_digest = hashlib.sha256(canonical_json_bytes(manifest)).hexdigest()
     result = _canonical_result(
-        predecessors=[manifest_digest], terminal_status="PASS", failure_reason=None,
+        predecessors=sorted([*chain.predecessors(), manifest_digest]), terminal_status="PASS", failure_reason=None,
         source_manifest_sha256=manifest_digest, archive_sha256=snapshot.sha256,
         archive_bytes=snapshot.size, materialized_tree_sha256=tree_hash,
     )
@@ -2375,3 +2379,96 @@ def test_attempt2_restore_never_starts_subprocess(tmp_path, monkeypatch):
     def forbidden(*args, **kwargs): raise AssertionError("subprocess forbidden")
     monkeypatch.setattr(subprocess, "run", forbidden); monkeypatch.setattr(subprocess, "Popen", forbidden)
     assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+
+
+def test_attempt2_restore_reuses_verified_chain_for_state_inspection(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    calls = []
+    original_inspect = ps._inspect_state
+    monkeypatch.setattr(ps, "verify_production_gate_chain",
+                        lambda: calls.append(("verify", chain)) or chain)
+
+    def inspect(actual_chain, actual_root):
+        calls.append(("inspect", actual_chain, actual_root))
+        return original_inspect(actual_chain, actual_root)
+
+    monkeypatch.setattr(ps, "_inspect_state", inspect)
+    assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+    assert calls == [("verify", chain), ("inspect", chain, root)]
+    assert not hasattr(ps, "_read_restoration_pass_pair")
+
+
+def test_attempt2_restore_rejects_forged_predecessor_chain_before_mutation(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    before = (manifest.read_bytes(), result.read_bytes())
+    wrong_chain = ps._GateChain(*("a" * 64, "b" * 64, "c" * 64, "d" * 64,
+                                  "e" * 64, "f" * 64, "0" * 64))
+    monkeypatch.setattr(ps, "verify_production_gate_chain", lambda: wrong_chain)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_PASS_PAIR"
+    assert not os.path.lexists(staging) and not os.path.lexists(root)
+    assert before == (manifest.read_bytes(), result.read_bytes())
+
+
+def test_attempt2_restore_uses_inspected_state_not_hard_coded_flags(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    _, manifest, result = ps._inspect_state(chain, root)
+    monkeypatch.setattr(ps, "_inspect_state",
+                        lambda actual_chain, actual_root: ("CROSSED_PAIR", manifest, result))
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_RECONCILIATION_STATE"
+    assert not os.path.lexists(staging) and not os.path.lexists(root)
+
+
+def test_attempt2_restore_maps_error_code_without_message_token_search(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        ps, "_require_tree_matches_manifest",
+        lambda *_: (_ for _ in ()).throw(EvidenceError(
+            "E_PILOT_SOURCE_TREE_MISMATCH",
+            "ARCHIVE_UNSAFE FILE_COUNT_MISMATCH EXTRACTION_UNSAFE",
+        )),
+    )
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "TREE_HASH_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [("read_production_archive_bytes", "ARCHIVE_UNSAFE"),
+     ("capture_materialized_tree", "EXTRACTION_UNSAFE"),
+     ("replace", "EXTRACTION_UNSAFE")],
+)
+def test_attempt2_restore_maps_operation_local_oserror(tmp_path, monkeypatch, operation, expected):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    if operation == "replace":
+        monkeypatch.setattr(ps.os, operation, lambda *_: (_ for _ in ()).throw(OSError("boom")))
+    else:
+        monkeypatch.setattr(ps, operation, lambda *_: (_ for _ in ()).throw(OSError("boom")))
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == expected
+    assert not os.path.lexists(root)
+
+
+def test_attempt2_restore_cleanup_failure_is_observable(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_extract = ps.extract_archive_to_staging
+
+    def fail_after_creation(snapshot, destination):
+        original_extract(snapshot, destination)
+        raise EvidenceError("E_PILOT_EXTRACT_UNSAFE", "stop")
+
+    monkeypatch.setattr(ps, "extract_archive_to_staging", fail_after_creation)
+    monkeypatch.setattr(ps.shutil, "rmtree",
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup")))
+    with pytest.raises(EvidenceError, match="E_PILOT_SOURCE_RESTORATION_CLEANUP"):
+        ps.run_restore_production_source(archive, root)
+    assert os.path.lexists(staging)
+
+
+def test_attempt2_restore_preserves_preexisting_staging_when_cleanup_not_owned(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    staging.mkdir()
+    inode = staging.stat().st_ino
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "STAGING_EXISTS"
+    assert staging.stat().st_ino == inode

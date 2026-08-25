@@ -3247,6 +3247,13 @@ def test_attempt2_intent_contract_and_result_contract_validation_are_pure(
 
 
 @pytest.mark.parametrize("group,key,replacement", [
+    ("schema_version", "schema_version", "wrong"),
+    ("execution_class", "execution_class", "OTHER"),
+    ("denominator", "denominator", "OTHER"),
+    ("no_retry", "no_retry", False),
+    ("formal_denominator_membership", "formal_denominator_membership", True),
+    ("rq4_supported", "rq4_supported", True),
+    ("attempt_2_authorized", "attempt_2_authorized", True),
     ("plan_class", "plan_class", "OTHER"), ("planned_count", "planned_count", 4),
     ("phase_order", "phase_order", ["SMOKE"]), ("dependency_dag", "dependency_dag", [[]] * 5),
     ("p12", "p12_item_id", "OTHER"), ("snapshot", "neutral_snapshot_id", "OTHER"),
@@ -3316,9 +3323,7 @@ def test_attempt2_intent_contract_rejects_nested_hash_mismatch():
 
 @pytest.mark.parametrize("group,change", [
     ("malformed", "malformed"), ("unsorted", "unsorted"), ("duplicate", "duplicate"),
-    ("missing_attempt1", 0), ("missing_attempt2", 1), ("missing_authorization", 2),
-    ("missing_environment", 3), ("missing_qualification", 4), ("missing_manifest", 5),
-    ("missing_source_result", 6), ("missing_source_verdict", 7),
+    *[(f"missing_index_{index}", index) for index in range(8)],
 ])
 def test_attempt2_intent_contract_rejects_predecessor_drift(group, change):
     from p3_v3 import pilot_build
@@ -3395,6 +3400,13 @@ def test_attempt2_result_contract_accepts_extra_predecessor():
 
 
 @pytest.mark.parametrize("group,key,replacement", [
+    ("schema_version", "schema_version", "wrong"),
+    ("execution_class", "execution_class", "OTHER"),
+    ("denominator", "denominator", "OTHER"),
+    ("no_retry", "no_retry", False),
+    ("formal_denominator_membership", "formal_denominator_membership", True),
+    ("rq4_supported", "rq4_supported", True),
+    ("attempt_2_authorized", "attempt_2_authorized", True),
     ("p12", "p12_item_id", "OTHER"), ("snapshot", "neutral_snapshot_id", "OTHER"),
     ("tree", "normalized_source_tree_sha256", "f" * 64),
     ("subject", "controlled_subject_id", "OTHER"),
@@ -3428,6 +3440,20 @@ def test_attempt2_result_contract_rejects_semantic_drift(group, key, replacement
     value[key] = replacement
     _attempt2_rehash(pilot_build, value)
     with pytest.raises(EvidenceError):
+        pilot_build.validate_attempt2_result(value)
+
+
+def test_attempt2_result_contract_rejects_nested_environment_hash_mismatch():
+    from p3_v3 import pilot_build
+    value = _attempt2_result_fixture(pilot_build)
+    old_environment_sha256 = value["environment_snapshot_sha256"]
+    value["environment_snapshot_sha256"] = "e" * 64
+    value["predecessor_sha256"] = sorted(
+        "e" * 64 if item == old_environment_sha256 else item
+        for item in value["predecessor_sha256"]
+    )
+    _attempt2_rehash(pilot_build, value)
+    with pytest.raises(EvidenceError, match="environment binding"):
         pilot_build.validate_attempt2_result(value)
 
 

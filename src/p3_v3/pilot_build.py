@@ -3029,7 +3029,14 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
             validate_sha256(digest, key)
         if (checked[index]["terminal_status"] == "PASS") != (digest is not None):
             raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "build evidence reach differs")
-    if validated["build_root_is_symlink"] is not False:
+    absent_root_before_process = (
+        checked[0]["terminal_status"] == "FAIL_INFRASTRUCTURE"
+        and checked[0]["infrastructure_phase"] == "PRE_PROCESS"
+        and checked[0]["process_started"] is False
+        and all(p["terminal_status"] == "NOT_STARTED" for p in checked[1:])
+    )
+    if (validated["build_root_is_symlink"] is not False
+            or validated["build_root_exists"] is False and not absent_root_before_process):
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "unsafe build root")
     metadata_passed = checked[0]["terminal_status"] == "PASS"
     cmake_version = environment["cmake_version"]

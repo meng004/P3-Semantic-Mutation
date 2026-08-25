@@ -2608,6 +2608,10 @@ def test_attempt2_v5_adapter_complete_success_and_no_process(tmp_path, monkeypat
                 lambda *a, **k: pytest.fail("probe or environment snapshot ran"),
             )
     evidence = pilot_build.read_v5_qualification_evidence(root)
+    assert evidence["execution_class"] == "PILOT_ONLY"
+    assert evidence["claims"] == "blocked"
+    assert evidence["terminal_status"] == "PASS"
+    assert evidence["failure_reason"] is None
     assert set(evidence) == set(pilot_build.ATTEMPT2_QUALIFICATION_EVIDENCE_EXACT)
     assert evidence["requested_compiler"] == "c++"
     assert evidence["qualification_root"] == str(root)

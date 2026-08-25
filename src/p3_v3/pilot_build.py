@@ -730,8 +730,8 @@ def read_v5_qualification_evidence(
         observed_names = {entry.name for entry in root.iterdir()}
     except OSError as exc:
         raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification inventory is unavailable") from exc
-    if observed_names != required:
-        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification inventory differs")
+    if not required.issubset(observed_names):
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification core evidence is absent")
     records: dict[str, bytes] = {}
     digests: dict[str, str] = {}
     for name in (*QUALIFICATION_FIXED_HASHES,
@@ -752,6 +752,22 @@ def read_v5_qualification_evidence(
         parse_canonical_json_object(records[QUALIFICATION_MANIFEST_NAME], "qualification-manifest")
     )
     qualification_contract.validate_attempt_pair(intent, digests[QUALIFICATION_INTENT_NAME], result)
+    manifest_names = {entry["path"] for entry in manifest["files"]}
+    if (observed_names != manifest_names | {QUALIFICATION_MANIFEST_NAME}
+            or QUALIFICATION_MANIFEST_NAME in manifest_names):
+        raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification inventory differs")
+    manifest_inventory = {
+        entry["path"]: {"sha256": entry["sha256"], "bytes": entry["bytes"]}
+        for entry in manifest["files"]
+    }
+    for name in manifest_names:
+        if name not in records:
+            raw, _mode = read_regular_file_snapshot(root / name, f"qualification-{name}")
+            records[name] = raw
+            digests[name] = _sha256_bytes(raw)
+        if (digests[name] != manifest_inventory[name]["sha256"]
+                or len(records[name]) != manifest_inventory[name]["bytes"]):
+            raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", f"{name} manifest evidence differs")
     if result.get("terminal_status") != "PASS" or result.get("failure_reason") is not None:
         raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "qualification is not PASS")
     if os.path.realpath(FROZEN_CXX_PATH) != FROZEN_CXX_REALPATH:
@@ -779,16 +795,7 @@ def read_v5_qualification_evidence(
             or version["stdout_bytes"] != len(stdout)
             or version["stderr_bytes"] != len(stderr)):
         raise EvidenceError("E_PILOT_ATTEMPT2_QUALIFICATION", "compiler version output differs")
-    expected_inventory = {
-        name: {"sha256": digests[name], "bytes": len(records[name])}
-        for name in required if name != QUALIFICATION_MANIFEST_NAME
-    }
-    actual_inventory = {
-        entry["path"]: {"sha256": entry["sha256"], "bytes": entry["bytes"]}
-        for entry in manifest["files"]
-    }
-    if (actual_inventory != expected_inventory
-            or manifest["intent_sha256"] != digests[QUALIFICATION_INTENT_NAME]
+    if (manifest["intent_sha256"] != digests[QUALIFICATION_INTENT_NAME]
             or manifest["result_sha256"] != digests[QUALIFICATION_RESULT_NAME]
             or result["source_sha256"] != digests[QUALIFICATION_SOURCE_NAME]
             or result["executable_sha256"] != digests[QUALIFICATION_EXECUTABLE_NAME]

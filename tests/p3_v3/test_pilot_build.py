@@ -2530,6 +2530,10 @@ def _write_attempt2_v5_fixture(tmp_path, monkeypatch):
         pilot_build.QUALIFICATION_EXECUTABLE_NAME: executable,
         pilot_build.QUALIFICATION_CXX_STDOUT_NAME: stdout,
         pilot_build.QUALIFICATION_CXX_STDERR_NAME: stderr,
+        "CXX_COMPILE_LINK.stdout": b"",
+        "CXX_COMPILE_LINK.stderr": b"",
+        "QUALIFIED_BINARY_RUN.stdout": b"",
+        "QUALIFIED_BINARY_RUN.stderr": b"",
     }
     manifest = q._self_hash({
         "schema_version": q.MANIFEST_SCHEMA, "execution_class": q.EXECUTION_CLASS, "claims": q.CLAIMS,
@@ -2564,9 +2568,27 @@ def test_attempt2_v5_adapter_complete_success_and_no_process(tmp_path, monkeypat
         {k: v for k, v in evidence.items() if k != "artifact_sha256"})
 
 
+def test_attempt2_v5_adapter_undeclared_extra_root_entry_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    (root / "undeclared.log").write_bytes(b"extra")
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
+def test_attempt2_v5_adapter_declared_workload_log_tamper_rejected(tmp_path, monkeypatch):
+    from p3_v3 import pilot_build
+    root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    (root / "CXX_COMPILE_LINK.stdout").write_bytes(b"tampered")
+    with pytest.raises(EvidenceError):
+        pilot_build.read_v5_qualification_evidence(root)
+
+
 @pytest.mark.parametrize("name", [
     "qualification-intent.json", "qualification-result.json", "qualification-manifest.json",
     "qualify.cpp", "qualify", "METADATA_CXX_VERSION.stdout", "METADATA_CXX_VERSION.stderr",
+    "CXX_COMPILE_LINK.stdout", "CXX_COMPILE_LINK.stderr",
+    "QUALIFIED_BINARY_RUN.stdout", "QUALIFIED_BINARY_RUN.stderr",
 ])
 def test_attempt2_v5_adapter_each_missing_rejected(tmp_path, monkeypatch, name):
     from p3_v3 import pilot_build

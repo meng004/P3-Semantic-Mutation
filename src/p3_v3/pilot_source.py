@@ -14,6 +14,7 @@ import zipfile
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from p3_v3.artifacts import (
     EvidenceError,
@@ -1949,7 +1950,7 @@ def run_validate_source(archive: Path, materialize_root: Path) -> None:
     raise EvidenceError("E_PILOT_SOURCE_OUTPUT_EXISTS", f"reconciliation state {state}")
 
 
-def validate_source_restoration_evidence(value: object) -> dict[str, object]:
+def validate_source_restoration_evidence(value: object) -> dict[str, Any]:
     validated = validate_exact_object(
         value, SOURCE_RESTORATION_EVIDENCE_EXACT, "source-restoration-evidence"
     )
@@ -1964,7 +1965,15 @@ def validate_source_restoration_evidence(value: object) -> dict[str, object]:
         end = datetime.fromisoformat(validated["ended_at"].replace("Z", "+00:00"))
     except (ValueError, AttributeError) as exc:
         raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid") from exc
-    if start.tzinfo is None or end.tzinfo is None or start > end:
+    if (
+        not validated["started_at"]
+        or not validated["ended_at"]
+        or not validated["started_at"].endswith("Z")
+        or not validated["ended_at"].endswith("Z")
+        or start.utcoffset() != timezone.utc.utcoffset(start)
+        or end.utcoffset() != timezone.utc.utcoffset(end)
+        or start > end
+    ):
         raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid")
     passed = validated["terminal_status"] == "PASS"
     if validated["terminal_status"] not in {"PASS", "FAIL"}:
@@ -1990,12 +1999,57 @@ def validate_source_restoration_evidence(value: object) -> dict[str, object]:
     return validated
 
 
-def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, object]:
+def _read_restoration_pass_pair() -> tuple[dict, str, dict]:
+    """Read and validate the tracked closed PASS pair without rewriting it."""
+    try:
+        manifest_raw, _ = read_regular_file_snapshot(
+            SOURCE_MANIFEST_PATH, "source-restoration-manifest"
+        )
+        result_raw, _ = read_regular_file_snapshot(
+            SOURCE_PREPARATION_RESULT_PATH, "source-restoration-result"
+        )
+        manifest_object = json.loads(manifest_raw.decode("utf-8"))
+        result_object = json.loads(result_raw.decode("utf-8"))
+        if canonical_json_bytes(manifest_object) != manifest_raw:
+            raise EvidenceError("E_PILOT_SOURCE_MANIFEST", "manifest is not canonical")
+        if canonical_json_bytes(result_object) != result_raw:
+            raise EvidenceError("E_PILOT_SOURCE_RESULT", "result is not canonical")
+        manifest = validate_pilot_source_manifest(manifest_object)
+        result = validate_pilot_source_preparation_result(result_object)
+    except (OSError, UnicodeError, json.JSONDecodeError, EvidenceError) as exc:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "INVALID_PASS_PAIR") from exc
+
+    manifest_digest = hashlib.sha256(manifest_raw).hexdigest()
+    expected_result_predecessors = sorted(
+        [*manifest["predecessor_sha256"], manifest_digest]
+    )
+    pair_matches = (
+        result["terminal_status"] == "PASS"
+        and result["source_manifest_sha256"] == manifest_digest
+        and result["predecessor_sha256"] == expected_result_predecessors
+        and manifest["archive_sha256"] == ATTEMPT2_ARCHIVE_SHA256
+        and manifest["archive_bytes"] == ATTEMPT2_ARCHIVE_BYTES
+        and manifest["archive_format"] == "TAR"
+        and manifest["normalized_source_tree_sha256"]
+        == FROZEN_NORMALIZED_SOURCE_TREE_SHA256
+        and manifest["materialized_file_count"] == ATTEMPT2_FILE_COUNT
+        and manifest["materialized_total_bytes"] == ATTEMPT2_TOTAL_BYTES
+        and result["archive_sha256"] == ATTEMPT2_ARCHIVE_SHA256
+        and result["archive_bytes"] == ATTEMPT2_ARCHIVE_BYTES
+        and result["materialized_tree_sha256"]
+        == FROZEN_NORMALIZED_SOURCE_TREE_SHA256
+    )
+    if not pair_matches:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "INVALID_PASS_PAIR")
+    return manifest, manifest_digest, result
+
+
+def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, Any]:
     """Restore only the frozen missing production root, or fully revalidate it."""
     started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     def evidence(status: str, reason: str | None = None, *, restored: bool = False,
                  snapshot: ArchiveSnapshot | None = None, tree_hash: str | None = None,
-                 count: int = 0, total: int = 0) -> dict[str, object]:
+                 count: int = 0, total: int = 0) -> dict[str, Any]:
         payload = {"schema_version": SOURCE_RESTORATION_SCHEMA, "execution_class": "PILOT_ONLY",
             "claims": "blocked", "disposition": ("RESTORED" if restored else "REVALIDATED")
             if status == "PASS" else "NOT_APPLIED",
@@ -2012,6 +2066,7 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
         return validate_source_restoration_evidence(payload)
 
     snapshot = None
+    created_staging = False
     try:
         if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
             return evidence("FAIL", "WRONG_ARCHIVE_PATH")
@@ -2022,20 +2077,47 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
                             else "STAGING_EXISTS")
         if os.path.islink(ATTEMPT2_SOURCE_ROOT):
             return evidence("FAIL", "ROOT_SYMLINK")
-        snapshot = read_production_archive_bytes(archive)
+        try:
+            snapshot = read_production_archive_bytes(archive)
+        except EvidenceError as exc:
+            reason = (
+                "ARCHIVE_FORMAT_MISMATCH"
+                if exc.code == "E_PILOT_ARCHIVE_FORMAT"
+                else "ARCHIVE_UNSAFE"
+            )
+            return evidence("FAIL", reason)
         if snapshot.sha256 != ATTEMPT2_ARCHIVE_SHA256:
             return evidence("FAIL", "ARCHIVE_HASH_MISMATCH", snapshot=snapshot)
         if snapshot.size != ATTEMPT2_ARCHIVE_BYTES:
             return evidence("FAIL", "ARCHIVE_SIZE_MISMATCH", snapshot=snapshot)
         if snapshot.archive_format != "TAR":
             return evidence("FAIL", "ARCHIVE_FORMAT_MISMATCH", snapshot=snapshot)
-        chain = verify_production_gate_chain()
-        state, manifest_snap, result_snap = _inspect_state(chain, ATTEMPT2_SOURCE_ROOT)
+        manifest_present = os.path.lexists(SOURCE_MANIFEST_PATH)
+        result_present = os.path.lexists(SOURCE_PREPARATION_RESULT_PATH)
+        root_present = os.path.lexists(ATTEMPT2_SOURCE_ROOT)
+        if not (manifest_present and result_present):
+            return evidence("FAIL", "INVALID_RECONCILIATION_STATE", snapshot=snapshot)
+        try:
+            manifest, _manifest_digest, _result = _read_restoration_pass_pair()
+        except EvidenceError:
+            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        state = classify_reconciliation(
+            manifest_present=True,
+            result_present=True,
+            root_present=root_present,
+            manifest_valid=True,
+            result_valid=True,
+            result_status="PASS",
+            closed_pair_consistent=True,
+        )
         if state not in {"INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"}:
             return evidence("FAIL", "INVALID_RECONCILIATION_STATE", snapshot=snapshot)
         restored = state == "INVALID_PASS_NO_ROOT"
-        root = (extract_archive_to_staging(snapshot, ATTEMPT2_SOURCE_STAGING_ROOT)
-                if restored else ATTEMPT2_SOURCE_ROOT)
+        if restored:
+            root = extract_archive_to_staging(snapshot, ATTEMPT2_SOURCE_STAGING_ROOT)
+            created_staging = True
+        else:
+            root = ATTEMPT2_SOURCE_ROOT
         tree = capture_materialized_tree(root)
         tree_hash = canonical_source_tree_sha256(tree)
         count, total = _tree_metrics(tree)
@@ -2045,16 +2127,14 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
             return evidence("FAIL", "FILE_COUNT_MISMATCH", snapshot=snapshot)
         if total != ATTEMPT2_TOTAL_BYTES:
             return evidence("FAIL", "BYTE_COUNT_MISMATCH", snapshot=snapshot)
-        if manifest_snap.value is None or result_snap.value is None or manifest_snap.digest is None:
-            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
-        _require_tree_matches_manifest(tree, tree_hash, manifest_snap.value)
-        if result_snap.value.get("source_manifest_sha256") != manifest_snap.digest:
-            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        validate_materialized_tree_with_phase1(tree)
+        _require_tree_matches_manifest(tree, tree_hash, manifest)
         boost_math = root / "include" / "boost" / "math"
         if not boost_math.is_dir() or boost_math.is_symlink():
             return evidence("FAIL", "TREE_HASH_MISMATCH", snapshot=snapshot)
         if restored:
             os.replace(ATTEMPT2_SOURCE_STAGING_ROOT, ATTEMPT2_SOURCE_ROOT)
+            created_staging = False
         return evidence("PASS", restored=restored, snapshot=snapshot,
                         tree_hash=tree_hash, count=count, total=total)
     except EvidenceError as exc:
@@ -2064,6 +2144,11 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
             reason = ("EXTRACTION_UNSAFE" if "EXTRACT" in detail else
                       "ARCHIVE_UNSAFE" if "ARCHIVE" in detail else "INVALID_PASS_PAIR")
         return evidence("FAIL", reason, snapshot=snapshot)
+    except OSError:
+        return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+    finally:
+        if created_staging and os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+            shutil.rmtree(ATTEMPT2_SOURCE_STAGING_ROOT, ignore_errors=True)
 
 
 if canonical_sha256(EXTRACTOR_POLICY_V1) != EXTRACTOR_POLICY_SHA256:

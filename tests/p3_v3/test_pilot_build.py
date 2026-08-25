@@ -2671,11 +2671,11 @@ def test_attempt2_v5_adapter_noncanonical_core_json_rejected(tmp_path, monkeypat
 def test_attempt2_v5_adapter_evidence_file_symlink_rejected(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
     root, named = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
-    target = root / "outside"
+    target = tmp_path / "outside"
     target.write_bytes(named[pilot_build.QUALIFICATION_CXX_STDERR_NAME])
     (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).unlink()
     (root / pilot_build.QUALIFICATION_CXX_STDERR_NAME).symlink_to(target)
-    with pytest.raises(EvidenceError):
+    with pytest.raises(EvidenceError, match="E_AUTHORITY_LOCK_PATH.*path is not symlink-free"):
         pilot_build.read_v5_qualification_evidence(root)
 
 

@@ -12,6 +12,9 @@ release stream.
 ## [Unreleased]
 
 ### Added
+- Cloud Agent bootstrap: `.cursor/environment.json` plus
+  `scripts/cloud-agent-install.sh` / `scripts/cloud-agent-start.sh`
+  so new conversations can reuse a prebuilt Python environment.
 - `archive/` directory: historical snapshots of v1-v8 manuscripts,
   cover letters, build scripts, process summaries, and v2 figures.
 - `PROJECT_STRUCTURE.md`: file-by-file walkthrough of every top-level

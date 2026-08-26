@@ -2594,7 +2594,24 @@ def test_attempt2_source_entry_accepts_only_legal_read_only_states(
     ):
         monkeypatch.setattr(owner, name, forbidden)
 
-    assert ps.inspect_attempt2_source_entry(archive, root) == state
+    assert ps._inspect_attempt2_source_entry(archive, root) == state
+    assert _attempt2_source_entry_snapshot(watched) == before
+
+
+def test_attempt2_source_entry_rejects_complete_but_drifted_tree_before_intent(
+    tmp_path, monkeypatch
+):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(
+        tmp_path, monkeypatch
+    )
+    snapshot = ps.read_production_archive_bytes(archive)
+    ps.extract_archive_to_staging(snapshot, root)
+    changed = root / "x.txt"
+    changed.write_bytes(b"drift\n")
+    watched = [archive, root, staging, manifest, result]
+    before = _attempt2_source_entry_snapshot(watched)
+    with pytest.raises(EvidenceError, match="source tree differs"):
+        ps._inspect_attempt2_source_entry(archive, root)
     assert _attempt2_source_entry_snapshot(watched) == before
 
 
@@ -2614,7 +2631,7 @@ def test_attempt2_source_entry_rejects_every_other_reconciliation_state(
     monkeypatch.setattr(ps, "_inspect_state", lambda *_: (state, manifest, result))
     before = _attempt2_source_entry_snapshot([archive, root, staging])
     with pytest.raises(EvidenceError):
-        ps.inspect_attempt2_source_entry(archive, root)
+        ps._inspect_attempt2_source_entry(archive, root)
     assert _attempt2_source_entry_snapshot([archive, root, staging]) == before
 
 
@@ -2644,5 +2661,5 @@ def test_attempt2_source_entry_rejects_path_safety_and_authority_drift(
         )
     before = _attempt2_source_entry_snapshot([archive, root, staging])
     with pytest.raises(EvidenceError):
-        ps.inspect_attempt2_source_entry(actual_archive, actual_root)
+        ps._inspect_attempt2_source_entry(actual_archive, actual_root)
     assert _attempt2_source_entry_snapshot([archive, root, staging]) == before

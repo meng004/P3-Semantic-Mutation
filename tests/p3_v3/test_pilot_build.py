@@ -1287,6 +1287,33 @@ def test_collect_baseline_build_evidence_pass(tmp_path, monkeypatch):
     assert evidence["compiler_depfile_sha256"] != evidence["dependency_list_sha256"]
 
 
+def test_attempt2_collect_baseline_build_evidence_uses_attempt2_roots(
+    tmp_path, monkeypatch
+):
+    import p3_v3.pilot_build as pilot_build
+
+    build, env = _synthetic_build_evidence_tree(tmp_path, pilot_build, monkeypatch)
+    attempt2_harness = tmp_path / "attempt2-harness"
+    attempt2_harness.mkdir()
+    original_harness = tmp_path / "harness"
+    for path in (
+        build / "CMakeCache.txt",
+        build / "compile_commands.json",
+        build / pilot_build.COMPILER_DEPFILE_RELATIVE,
+    ):
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                original_harness.as_posix(), attempt2_harness.as_posix()
+            ),
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_BUILD_ROOT", build)
+    monkeypatch.setattr(pilot_build, "ATTEMPT2_HARNESS_ROOT", attempt2_harness)
+    assert pilot_build.collect_baseline_build_evidence(build, env)[
+        "smoke_executable_sha256"
+    ] == hashlib.sha256((build / "boost_math_pilot_smoke").read_bytes()).hexdigest()
+
+
 def test_collect_baseline_build_evidence_missing_frozen_include(tmp_path, monkeypatch):
     import p3_v3.pilot_build as pilot_build
 
@@ -3095,8 +3122,8 @@ def _attempt2_result_fixture(pilot_build, statuses=None, root=(True, False)):
         "claims": "blocked", "formal_denominator_membership": False, "rq4_supported": False,
         "attempt_2_authorized": False, "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
         "executor_cloud_run_id": None, "executor_build_snapshot_id": None}
-    fixed.update(cmake_cache_sha256="8" * 64 if statuses[2] == "PASS" else None,
-        compile_commands_sha256="9" * 64 if statuses[2] == "PASS" else None,
+    fixed.update(cmake_cache_sha256="8" * 64 if statuses[3] == "PASS" else None,
+        compile_commands_sha256="9" * 64 if statuses[3] == "PASS" else None,
         compiler_depfile_sha256="a" * 64 if statuses[3] == "PASS" else None,
         dependency_list_sha256="b" * 64 if statuses[3] == "PASS" else None,
         smoke_executable_sha256="c" * 64 if statuses[3] == "PASS" else None)
@@ -3207,6 +3234,11 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
     monkeypatch.setattr(
         pilot_build, "read_v5_qualification_evidence", lambda *_args: qualification
     )
+    monkeypatch.setattr(
+        pilot_build,
+        "read_attempt2_implementation_verdict",
+        lambda: ({"reviewed_commit": "a" * 40}, "5" * 64),
+    )
     monkeypatch.setattr(pilot_build, "resolve_cmake_executable_path", lambda: "/usr/bin/cmake")
     monkeypatch.setattr(pilot_build, "producer_identity", lambda: (17, "synthetic"))
     real_validate_intent = pilot_build.validate_attempt2_intent
@@ -3219,7 +3251,8 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
 
     def validate_result(value):
         validated = real_validate_result(value)
-        events.append("validate-result")
+        if not paths["result"].exists():
+            events.append("validate-result")
         return validated
 
     monkeypatch.setattr(pilot_build, "validate_attempt2_intent", validate_intent)
@@ -3248,7 +3281,7 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
         path.write_bytes(pilot_build.canonical_json_bytes(value))
 
     monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
-    monkeypatch.setattr(pilot_source, "inspect_attempt2_source_entry", lambda *_: events.append("source-entry") or "INVALID_PASS_NO_ROOT", raising=False)
+    monkeypatch.setattr(pilot_source, "_inspect_attempt2_source_entry", lambda *_: events.append("source-entry") or "INVALID_PASS_NO_ROOT")
     restoration = _attempt2_phase_fixture(
         pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[1]
     )["source_restoration_evidence"]
@@ -3274,6 +3307,11 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
 
     def collect(*args, **kwargs):
         events.append("build-evidence")
+        executable = paths["build"] / "boost_math_pilot_smoke"
+        executable.write_bytes(b"synthetic executable")
+        build_evidence["smoke_executable_sha256"] = hashlib.sha256(
+            executable.read_bytes()
+        ).hexdigest()
         return dict(build_evidence)
 
     monkeypatch.setattr(pilot_build, "collect_baseline_build_evidence", collect)
@@ -3282,9 +3320,18 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
         assert "cwd" not in kwargs
         events.append(spec["job_id"])
         calls.append((spec, kwargs))
+        if spec["job_id"] == "METADATA_CMAKE_VERSION":
+            (kwargs["log_root"] / "METADATA_CMAKE_VERSION.stdout").write_bytes(
+                b"cmake version 3.28.3\n"
+            )
         descriptor = next(d for d in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake") if d["phase_id"] == spec["job_id"])
         phase = _attempt2_phase_fixture(pilot_build, descriptor)
-        return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in phase.items() if k not in {"schema_version", "source_restoration_evidence"}}
+        job = {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in phase.items() if k != "source_restoration_evidence"}
+        job["schema_version"] = "p3-pilot-build-preflight-job-result-v1"
+        job["artifact_sha256"] = pilot_build.canonical_sha256(
+            {key: item for key, item in job.items() if key != "artifact_sha256"}
+        )
+        return job
 
     monkeypatch.setattr(pilot_build, "execute_job", execute)
     for forbidden in ("run", "check_output"):
@@ -3312,6 +3359,21 @@ def test_attempt2_publication_preexisting_is_refusal_not_resume(tmp_path, monkey
     assert events == []
 
 
+def test_attempt2_missing_attempt1_result_refuses_before_publication(tmp_path, monkeypatch):
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(pilot_build, "RESULT_PATH", tmp_path / "missing-attempt1-result.json")
+    with pytest.raises(EvidenceError):
+        pilot_build.run_build_preflight_attempt_2(
+            paths["archive"], paths["source"], paths["build"]
+        )
+    assert events == ["source-entry"]
+    assert not paths["intent"].exists() and not paths["result"].exists()
+    assert not paths["build"].exists() and not paths["harness"].exists()
+    assert calls == []
+
+
 def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monkeypatch):
     pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
     original_environment = dict(pilot_build.os.environ)
@@ -3323,7 +3385,10 @@ def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monke
         "BASELINE_SMOKE", "validate-result", "result",
     ]
     assert pilot_build.os.environ == original_environment
-    assert [phase["phase_id"] for phase in result["phases"]] == list(pilot_build.ATTEMPT2_PHASE_ORDER)
+    assert [phase["phase_id"] for phase in result["phases"]] == [
+        item["phase_id"]
+        for item in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    ]
     process_descriptors = [
         descriptor for descriptor in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
         if descriptor["phase_id"] != "SOURCE_RESTORE"
@@ -3357,12 +3422,21 @@ def test_attempt2_not_started_after_first_terminal_failure(tmp_path, monkeypatch
     descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
     executed = []
 
-    def execute(spec, **_kwargs):
+    def execute(spec, **kwargs):
         index = next(i for i, d in enumerate(descriptors) if d["phase_id"] == spec["job_id"])
         executed.append(spec["job_id"])
         chosen = status if index == phase else "PASS"
+        if spec["job_id"] == "METADATA_CMAKE_VERSION" and chosen == "PASS":
+            (kwargs["log_root"] / "METADATA_CMAKE_VERSION.stdout").write_bytes(
+                b"cmake version 3.28.3\n"
+            )
         value = _attempt2_phase_fixture(pilot_build, descriptors[index], chosen)
-        return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in value.items() if k not in {"schema_version", "source_restoration_evidence"}}
+        job = {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in value.items() if k != "source_restoration_evidence"}
+        job["schema_version"] = "p3-pilot-build-preflight-job-result-v1"
+        job["artifact_sha256"] = pilot_build.canonical_sha256(
+            {key: item for key, item in job.items() if key != "artifact_sha256"}
+        )
+        return job
 
     monkeypatch.setattr(pilot_build, "execute_job", execute)
     if phase == 1:
@@ -3698,7 +3772,7 @@ def test_attempt2_result_contract_accepts_exact_terminal_states(statuses, root, 
     assert value["environment_snapshot"]["cmake_version"] == (None if statuses[0] != "PASS" else "cmake version 3.28.3")
     assert value["source_restoration_disposition"] == (None if statuses[1] == "NOT_STARTED" else
         value["phases"][1]["source_restoration_evidence"]["disposition"])
-    assert (value["cmake_cache_sha256"] is not None) == (statuses[2] == "PASS")
+    assert (value["cmake_cache_sha256"] is not None) == (statuses[3] == "PASS")
     assert (value["smoke_executable_sha256"] is not None) == (statuses[3] == "PASS")
     assert pilot_build.validate_attempt2_result(value) == value
 

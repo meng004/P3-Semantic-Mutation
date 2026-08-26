@@ -1999,6 +1999,50 @@ def validate_source_restoration_evidence(value: object) -> dict[str, Any]:
     return validated
 
 
+def _inspect_attempt2_source_entry(archive: Path, materialize_root: Path) -> str:
+    """Validate the frozen archive and one legal source state without mutation."""
+    if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive path differs")
+    if Path(materialize_root) != ATTEMPT2_SOURCE_ROOT:
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source root differs")
+    if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "staging exists")
+    if os.path.islink(ATTEMPT2_SOURCE_ROOT):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source root is a symlink")
+
+    snapshot = read_production_archive_bytes(archive)
+    if (
+        snapshot.sha256 != ATTEMPT2_ARCHIVE_SHA256
+        or snapshot.size != ATTEMPT2_ARCHIVE_BYTES
+        or snapshot.archive_format != "TAR"
+    ):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive identity differs")
+    chain = verify_production_gate_chain()
+    state, manifest, _result = _inspect_state(chain, ATTEMPT2_SOURCE_ROOT)
+    if state not in {"INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"}:
+        raise EvidenceError(
+            "E_PILOT_ATTEMPT2_SOURCE_ENTRY", f"illegal reconciliation state {state}"
+        )
+    if state == "ALREADY_COMPLETE":
+        if not manifest.valid or manifest.value is None:
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "manifest is invalid")
+        tree = capture_materialized_tree(ATTEMPT2_SOURCE_ROOT)
+        tree_hash = canonical_source_tree_sha256(tree)
+        count, total = _tree_metrics(tree)
+        if (
+            tree_hash != FROZEN_NORMALIZED_SOURCE_TREE_SHA256
+            or count != ATTEMPT2_FILE_COUNT
+            or total != ATTEMPT2_TOTAL_BYTES
+        ):
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source tree differs")
+        validate_materialized_tree_with_phase1(tree)
+        _require_tree_matches_manifest(tree, tree_hash, manifest.value)
+        boost_math = ATTEMPT2_SOURCE_ROOT / "include" / "boost" / "math"
+        if not boost_math.is_dir() or boost_math.is_symlink():
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "Boost.Math root differs")
+    return state
+
+
 def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, Any]:
     """Restore only the frozen missing production root, or fully revalidate it."""
     started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

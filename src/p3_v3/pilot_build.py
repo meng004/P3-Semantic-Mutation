@@ -2097,6 +2097,14 @@ def collect_baseline_build_evidence(
     build_root: Path,
     environment: dict[str, Any],
 ) -> dict[str, str]:
+    if build_root == ATTEMPT2_BUILD_ROOT:
+        expected_build_root = ATTEMPT2_BUILD_ROOT
+        expected_harness_root = ATTEMPT2_HARNESS_ROOT
+    elif build_root == FROZEN_BUILD_ROOT:
+        expected_build_root = FROZEN_BUILD_ROOT
+        expected_harness_root = FROZEN_HARNESS_ROOT
+    else:
+        raise EvidenceError("E_PILOT_BUILD_ENVIRONMENT", "build root differs")
     cache = build_root / "CMakeCache.txt"
     commands = build_root / "compile_commands.json"
     executable = build_root / "boost_math_pilot_smoke"
@@ -2119,9 +2127,9 @@ def collect_baseline_build_evidence(
         raise EvidenceError("E_PILOT_BUILD_ENVIRONMENT", "CMakeCache compiler differs")
     source_dir = values.get("CMAKE_HOME_DIRECTORY") or values.get("CMAKE_SOURCE_DIR")
     binary_dir = values.get("CMAKE_BINARY_DIR") or values.get("CMAKE_CACHEFILE_DIR")
-    if source_dir != FROZEN_HARNESS_ROOT.as_posix():
+    if source_dir != expected_harness_root.as_posix():
         raise EvidenceError("E_PILOT_BUILD_ENVIRONMENT", "CMake source directory differs")
-    if binary_dir != FROZEN_BUILD_ROOT.as_posix():
+    if binary_dir != expected_build_root.as_posix():
         raise EvidenceError("E_PILOT_BUILD_ENVIRONMENT", "CMake build directory differs")
     try:
         compile_db = json.loads(commands.read_text(encoding="utf-8"))
@@ -2143,7 +2151,7 @@ def collect_baseline_build_evidence(
     dep_text = dep_raw.decode("utf-8")
     paths = parse_dependency_paths(dep_text)
     reject_nonfrozen_boost_headers(paths)
-    smoke_path = (FROZEN_HARNESS_ROOT / "smoke.cpp").as_posix()
+    smoke_path = (expected_harness_root / "smoke.cpp").as_posix()
     if smoke_path not in paths and "smoke.cpp" not in dep_text:
         raise EvidenceError("E_PILOT_MISSING_DEPENDENCY", "UNSUPPORTED_TOOLCHAIN")
     if FROZEN_CONSTANTS_HEADER not in paths and FROZEN_CONSTANTS_HEADER not in dep_text:
@@ -3020,7 +3028,7 @@ def validate_attempt2_result(value: object) -> dict[str, Any]:
                    source["source_restoration_evidence"]["disposition"])
     if validated["source_restoration_disposition"] != disposition:
         raise EvidenceError("E_PILOT_ATTEMPT2_RESULT", "restoration disposition differs")
-    evidence_requirements = (("cmake_cache_sha256", 2), ("compile_commands_sha256", 2),
+    evidence_requirements = (("cmake_cache_sha256", 3), ("compile_commands_sha256", 3),
                              ("compiler_depfile_sha256", 3), ("dependency_list_sha256", 3),
                              ("smoke_executable_sha256", 3))
     for key, index in evidence_requirements:
@@ -3065,66 +3073,294 @@ def run_build_preflight_attempt_2(
     auth, auth_digest = read_authority_snapshot(ATTEMPT2_AUTHORIZATION_PATH, "attempt2-auth")
     if auth != ATTEMPT2_AUTHORIZATION_BYTES or auth_digest != ATTEMPT2_AUTHORIZATION_SHA256:
         raise EvidenceError("E_PILOT_ATTEMPT2_AUTH", "authorization bytes differ")
+    from p3_v3 import pilot_source
+
+    _require_source_preparation_identities()
+    pilot_source._inspect_attempt2_source_entry(archive, source_root)
     qualification = read_v5_qualification_evidence()
+    _attempt2_verdict, attempt2_verdict_digest = read_attempt2_implementation_verdict()
+    _plan_raw, plan_digest = read_authority_snapshot(PLAN_PATH, "attempt1-plan")
+    plan_verdict_raw, plan_verdict_digest = read_authority_snapshot(
+        PLAN_VERDICT_PATH, "attempt1-plan-verdict"
+    )
+    validate_plan_verdict(
+        parse_canonical_json_object(plan_verdict_raw, "attempt1-plan-verdict"),
+        plan_digest,
+    )
+    attempt1_raw, attempt1_verdict_digest = read_authority_snapshot(
+        IMPLEMENTATION_VERDICT_PATH, "attempt1-implementation-verdict"
+    )
+    validate_implementation_verdict(
+        parse_canonical_json_object(attempt1_raw, "attempt1-implementation-verdict"),
+        plan_digest,
+        plan_verdict_digest,
+    )
+    attempt1_intent_raw, attempt1_intent_digest = read_authority_snapshot(
+        INTENT_PATH, "attempt1-intent"
+    )
+    attempt1_result_raw, _attempt1_result_digest = read_authority_snapshot(
+        RESULT_PATH, "attempt1-result"
+    )
+    _attempt1_intent, attempt1_result = validate_attempt_pair(
+        parse_canonical_json_object(attempt1_intent_raw, "attempt1-intent"),
+        attempt1_intent_digest,
+        parse_canonical_json_object(attempt1_result_raw, "attempt1-result"),
+    )
+    if (
+        attempt1_result["terminal_status"] != "FAIL"
+        or attempt1_result["failure_reason"] != "NONZERO_EXIT"
+        or [job["terminal_status"] for job in attempt1_result["jobs"]]
+        != ["FAIL", "NOT_STARTED", "NOT_STARTED"]
+    ):
+        raise EvidenceError("E_PILOT_ATTEMPT2_IDENTITY", "Attempt-1 outcome differs")
     cmake_path = resolve_cmake_executable_path()
     env = dict(os.environ)
     reject_system_boost_environment(env)
     env.update(DISCONNECTED_ENVIRONMENT)
     reject_unbound_toolchain(env, FROZEN_CXX_PATH)
     descriptors = attempt2_phase_descriptors(cmake_path)
+    compiler_version = qualification["compiler_version_stdout"].strip()
+    environment = {
+        "schema_version": ATTEMPT2_ENVIRONMENT_SCHEMA,
+        "execution_class": "PILOT_ONLY", "denominator": "PILOT_ONLY",
+        "cmake_executable": "cmake", "cmake_executable_path": cmake_path,
+        "cmake_version": None, "cxx_compiler_executable": "c++",
+        "cxx_compiler_path": FROZEN_CXX_PATH,
+        "cxx_compiler_identity": compiler_version,
+        "cxx_compiler_version": compiler_version,
+        "cmake_generator": "Unix Makefiles", "os_name": platform.system(),
+        "os_release": platform.release(), "python_version": platform.python_version(),
+        "git_version": qualification["host_git_version"], "build_parallelism": 4,
+        "nvcc_present": shutil.which("nvcc") is not None,
+        "native_profiling_present": False, "cuda_absence_blocking": False,
+        "fetchcontent_fully_disconnected": True,
+        "system_boost_fallback_accepted": False,
+        "disconnected_environment": dict(DISCONNECTED_ENVIRONMENT),
+        "qualification_evidence_sha256": qualification["artifact_sha256"],
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None,
+        "claims": "blocked",
+    }
+    environment["artifact_sha256"] = canonical_sha256(environment)
+    environment = validate_attempt2_environment(environment)
     pid, starttime = producer_identity()
-    intent = {"schema_version": ATTEMPT2_INTENT_SCHEMA, "execution_class": "PILOT_ONLY",
+    intent = {
+        "schema_version": ATTEMPT2_INTENT_SCHEMA, "execution_class": "PILOT_ONLY",
         "denominator": "PILOT_ONLY", "plan_class": "PILOT_BUILD_PREFLIGHT_ATTEMPT_2_ONLY",
+        "p12_item_id": P12_ITEM_ID, "neutral_snapshot_id": NEUTRAL_SNAPSHOT_ID,
+        "normalized_source_tree_sha256": FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "controlled_subject_id": CONTROLLED_SUBJECT_ID,
+        "controlled_subject_source_id": CONTROLLED_SUBJECT_SOURCE_ID,
+        "build_descriptor_sha256": BUILD_DESCRIPTOR_SHA256,
+        "source_preparation_verdict_sha256": SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        "source_manifest_sha256": SOURCE_MANIFEST_FILE_SHA256,
+        "source_preparation_result_sha256": SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        "source_preparation_reviewed_commit": SOURCE_PREPARATION_REVIEWED_COMMIT,
+        "attempt1_implementation_verdict_sha256": attempt1_verdict_digest,
+        "attempt2_implementation_verdict_sha256": attempt2_verdict_digest,
+        "authorization_sha256": auth_digest,
+        "harness_cmake_sha256": HARNESS_CMAKE_SHA256,
+        "harness_cxx_sha256": HARNESS_CXX_SHA256,
         "archive_path": archive.as_posix(), "source_root": source_root.as_posix(),
         "build_root": build_root.as_posix(), "harness_root": ATTEMPT2_HARNESS_ROOT.as_posix(),
-        "log_root": ATTEMPT2_LOG_ROOT.as_posix(), "planned_count": 5,
-        "phase_order": [item["phase_id"] for item in descriptors],
-        "dependency_dag": [item["dependency_phase_ids"] for item in descriptors],
+        "log_root": ATTEMPT2_LOG_ROOT.as_posix(),
+        "qualification_base_head": QUALIFICATION_BASE_HEAD,
         "qualification_evidence_sha256": qualification["artifact_sha256"],
-        "authorization_sha256": auth_digest, "producer_pid": pid,
-        "producer_starttime": starttime, "no_retry": True, "claims": "blocked",
-        "formal_denominator_membership": False, "rq4_supported": False,
-        "attempt_2_authorized": False}
+        "cmake_metadata_argv": descriptors[0]["argv"],
+        "cmake_configure_argv": descriptors[2]["argv"],
+        "baseline_build_argv": descriptors[3]["argv"],
+        "baseline_smoke_argv": descriptors[4]["argv"],
+        "cmake_version_timeout_seconds": 10, "cmake_configure_timeout_seconds": 900,
+        "baseline_build_timeout_seconds": 3600, "baseline_smoke_timeout_seconds": 1800,
+        "outer_timeout_seconds": OUTER_TIMEOUT_SECONDS, "build_parallelism": 4,
+        "planned_count": 5, "phase_order": [item["phase_id"] for item in descriptors],
+        "dependency_dag": [item["dependency_phase_ids"] for item in descriptors],
+        "environment_snapshot": environment,
+        "environment_snapshot_sha256": environment["artifact_sha256"],
+        "producer_pid": pid, "producer_starttime": starttime,
+        "no_retry": True, "claims": "blocked", "formal_denominator_membership": False,
+        "rq4_supported": False, "attempt_2_authorized": False,
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None,
+    }
+    intent["predecessor_sha256"] = sorted(set([
+        attempt1_verdict_digest, attempt2_verdict_digest, auth_digest,
+        qualification["artifact_sha256"], SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        SOURCE_MANIFEST_FILE_SHA256, SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        environment["artifact_sha256"],
+    ]))
     intent["artifact_sha256"] = canonical_sha256(intent)
     validate_attempt2_intent(intent)
     write_canonical_json(ATTEMPT2_INTENT_PATH, intent, exclusive=True)
-    # Runtime publication begins only after the durable intent.
-    os.mkdir(ATTEMPT2_BUILD_ROOT)
-    ensure_safe_log_root(ATTEMPT2_LOG_ROOT)
-    from p3_v3.pilot_source import run_restore_production_source
-    phases: list[dict[str, Any]] = []
-    prior_pass = True
-    for descriptor in descriptors:
-        if not prior_pass:
+    intent_digest = _sha256_bytes(canonical_json_bytes(intent))
+
+    def phase_from_job(job: dict[str, Any]) -> dict[str, Any]:
+        if job["terminal_status"] == "NOT_STARTED":
+            descriptor = next(
+                item for item in descriptors if item["phase_id"] == job["job_id"]
+            )
+            return make_attempt2_not_started(descriptor)
+        phase = dict(job)
+        phase.pop("artifact_sha256", None)
+        phase.update(
+            schema_version=ATTEMPT2_PHASE_SCHEMA,
+            phase_id=phase.pop("job_id"),
+            phase_kind=phase.pop("job_kind"),
+            dependency_phase_ids=phase.pop("dependency_job_ids"),
+            source_restoration_evidence=None,
+        )
+        phase["artifact_sha256"] = canonical_sha256(phase)
+        return validate_attempt2_phase_result(phase)
+
+    def source_phase(restoration: dict[str, Any]) -> dict[str, Any]:
+        phase = dict(make_attempt2_not_started(descriptors[1]))
+        phase.update(
+            terminal_status=restoration["terminal_status"],
+            failure_reason=restoration["failure_reason"],
+            source_restoration_evidence=restoration,
+        )
+        phase.pop("artifact_sha256", None)
+        phase["artifact_sha256"] = canonical_sha256(phase)
+        return validate_attempt2_phase_result(phase)
+
+    def pad(phases: list[dict[str, Any]]) -> None:
+        for descriptor in descriptors[len(phases):]:
             phases.append(make_attempt2_not_started(descriptor))
-            continue
-        if descriptor["phase_id"] == "SOURCE_RESTORE":
-            restoration = run_restore_production_source(archive, source_root)
-            phase = make_attempt2_not_started(descriptor)
-            phase.update({"terminal_status": "PASS", "source_restoration_evidence": restoration})
-            phase["artifact_sha256"] = canonical_sha256({k: v for k, v in phase.items() if k != "artifact_sha256"})
-            phase = validate_attempt2_phase_result(phase)
+
+    # Runtime publication begins only after the durable intent.
+    phases: list[dict[str, Any]] = []
+    evidence = None
+    outer_deadline = time.monotonic() + OUTER_TIMEOUT_SECONDS
+    try:
+        os.mkdir(ATTEMPT2_BUILD_ROOT)
+        ensure_safe_log_root(ATTEMPT2_LOG_ROOT)
+    except (EvidenceError, OSError):
+        metadata_spec = {
+            "job_id": descriptors[0]["phase_id"], "job_kind": descriptors[0]["phase_kind"],
+            "dependency_job_ids": descriptors[0]["dependency_phase_ids"],
+            "argv": descriptors[0]["argv"], "timeout_seconds": descriptors[0]["timeout_seconds"],
+        }
+        phases.append(phase_from_job(make_pre_process_infra_job(
+            metadata_spec, "RESULT_PUBLICATION_FAILURE"
+        )))
+    else:
+        metadata_spec = {
+            "job_id": descriptors[0]["phase_id"], "job_kind": descriptors[0]["phase_kind"],
+            "dependency_job_ids": descriptors[0]["dependency_phase_ids"],
+            "argv": descriptors[0]["argv"], "timeout_seconds": descriptors[0]["timeout_seconds"],
+        }
+        metadata_remaining = outer_deadline - time.monotonic()
+        if metadata_remaining <= 0:
+            metadata_job = make_pre_process_infra_job(
+                metadata_spec, "OUTER_DEADLINE_EXHAUSTED"
+            )
         else:
-            spec = {"job_id": descriptor["phase_id"], "job_kind": descriptor["phase_kind"],
-                "dependency_job_ids": descriptor["dependency_phase_ids"], "argv": descriptor["argv"],
-                "timeout_seconds": descriptor["timeout_seconds"]}
-            job = execute_job(spec, env=env, log_root=ATTEMPT2_LOG_ROOT)
-            phase = {("phase_id" if k == "job_id" else "phase_kind" if k == "job_kind"
-                      else "dependency_phase_ids" if k == "dependency_job_ids" else k): v
-                     for k, v in job.items()}
-            phase["schema_version"] = ATTEMPT2_PHASE_SCHEMA
-            phase["source_restoration_evidence"] = None
-            phase["artifact_sha256"] = canonical_sha256({k: v for k, v in phase.items() if k != "artifact_sha256"})
-            phase = validate_attempt2_phase_result(phase)
-        phases.append(phase)
-        prior_pass = phase["terminal_status"] == "PASS"
-    result = {"schema_version": ATTEMPT2_RESULT_SCHEMA, "execution_class": "PILOT_ONLY",
-        "denominator": "PILOT_ONLY", "phases": phases, "planned_count": 5,
-        "started_count": sum(p["process_started"] for p in phases), "terminal_count": 5,
+            metadata_job = execute_job(
+                metadata_spec, env=env, log_root=ATTEMPT2_LOG_ROOT,
+                timeout_seconds=min(
+                    metadata_spec["timeout_seconds"], max(1, int(metadata_remaining))
+                ),
+            )
+        phases.append(phase_from_job(metadata_job))
+        if phases[-1]["terminal_status"] == "PASS":
+            metadata_raw, _mode = read_regular_file_snapshot(
+                ATTEMPT2_LOG_ROOT / "METADATA_CMAKE_VERSION.stdout",
+                "attempt2-cmake-version",
+            )
+            try:
+                cmake_version = metadata_raw.decode("utf-8").strip()
+            except UnicodeDecodeError as exc:
+                raise EvidenceError(
+                    "E_PILOT_ATTEMPT2_METADATA", "CMake version output is not UTF-8"
+                ) from exc
+            if not cmake_version:
+                raise EvidenceError("E_PILOT_ATTEMPT2_METADATA", "CMake version is empty")
+            environment = dict(environment)
+            environment["cmake_version"] = cmake_version
+            environment.pop("artifact_sha256", None)
+            environment["artifact_sha256"] = canonical_sha256(environment)
+            environment = validate_attempt2_environment(environment)
+            restoration = pilot_source.run_restore_production_source(archive, source_root)
+            phases.append(source_phase(restoration))
+        if len(phases) == 2 and phases[-1]["terminal_status"] == "PASS":
+            try:
+                write_harness(ATTEMPT2_HARNESS_ROOT, HARNESS_CMAKE_BYTES, HARNESS_CXX_BYTES)
+            except (EvidenceError, OSError):
+                configure_spec = {
+                    "job_id": descriptors[2]["phase_id"],
+                    "job_kind": descriptors[2]["phase_kind"],
+                    "dependency_job_ids": descriptors[2]["dependency_phase_ids"],
+                    "argv": descriptors[2]["argv"],
+                    "timeout_seconds": descriptors[2]["timeout_seconds"],
+                }
+                phases.append(phase_from_job(make_pre_process_infra_job(
+                    configure_spec, "HARNESS_PUBLICATION_FAILURE"
+                )))
+            else:
+                specs = [{
+                    "job_id": item["phase_id"], "job_kind": item["phase_kind"],
+                    "dependency_job_ids": item["dependency_phase_ids"], "argv": item["argv"],
+                    "timeout_seconds": item["timeout_seconds"],
+                } for item in descriptors[2:]]
+                jobs, evidence = run_three_jobs(
+                    specs, env=env, log_root=ATTEMPT2_LOG_ROOT,
+                    environment=environment, outer_deadline=outer_deadline,
+                    collect_evidence=lambda _root, current: collect_baseline_build_evidence(
+                        ATTEMPT2_BUILD_ROOT, current
+                    ),
+                )
+                phases.extend(phase_from_job(job) for job in jobs)
+    pad(phases)
+    first = next((phase for phase in phases if phase["terminal_status"] != "PASS"), None)
+    result = {
+        "schema_version": ATTEMPT2_RESULT_SCHEMA, "execution_class": "PILOT_ONLY",
+        "denominator": "PILOT_ONLY", "p12_item_id": P12_ITEM_ID,
+        "neutral_snapshot_id": NEUTRAL_SNAPSHOT_ID,
+        "normalized_source_tree_sha256": FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "controlled_subject_id": CONTROLLED_SUBJECT_ID,
+        "controlled_subject_source_id": CONTROLLED_SUBJECT_SOURCE_ID,
+        "build_descriptor_sha256": BUILD_DESCRIPTOR_SHA256,
+        "source_preparation_verdict_sha256": SOURCE_PREPARATION_RESULT_VERDICT_SHA256,
+        "source_manifest_sha256": SOURCE_MANIFEST_FILE_SHA256,
+        "source_preparation_result_sha256": SOURCE_PREPARATION_RESULT_FILE_SHA256,
+        "attempt1_implementation_verdict_sha256": attempt1_verdict_digest,
+        "attempt2_implementation_verdict_sha256": attempt2_verdict_digest,
+        "intent_sha256": intent_digest, "authorization_sha256": auth_digest,
+        "qualification_base_head": QUALIFICATION_BASE_HEAD,
+        "qualification_evidence_sha256": qualification["artifact_sha256"],
+        "environment_snapshot": environment,
+        "environment_snapshot_sha256": environment["artifact_sha256"],
+        "harness_cmake_sha256": HARNESS_CMAKE_SHA256,
+        "harness_cxx_sha256": HARNESS_CXX_SHA256,
+        "cmake_cache_sha256": None if evidence is None else evidence["cmake_cache_sha256"],
+        "compile_commands_sha256": None if evidence is None else evidence["compile_commands_sha256"],
+        "compiler_depfile_sha256": None if evidence is None else evidence["compiler_depfile_sha256"],
+        "dependency_list_sha256": None if evidence is None else evidence["dependency_list_sha256"],
+        "smoke_executable_sha256": None if evidence is None else evidence["smoke_executable_sha256"],
+        "source_root": source_root.as_posix(), "build_root": build_root.as_posix(),
+        "harness_root": ATTEMPT2_HARNESS_ROOT.as_posix(),
+        "log_root": ATTEMPT2_LOG_ROOT.as_posix(), "archive_path": archive.as_posix(),
+        "planned_count": 5, "started_count": sum(p["process_started"] for p in phases),
+        "terminal_count": sum(p["terminal_status"] != "NOT_STARTED" for p in phases),
         "not_started_count": sum(p["terminal_status"] == "NOT_STARTED" for p in phases),
-        "terminal_status": next((p["terminal_status"] for p in phases if p["terminal_status"] != "PASS"), "PASS"),
+        "phase_order": [item["phase_id"] for item in descriptors], "phases": phases,
+        "source_restoration_disposition": (
+            None if phases[1]["terminal_status"] == "NOT_STARTED"
+            else phases[1]["source_restoration_evidence"]["disposition"]
+        ),
+        "terminal_status": "PASS" if first is None else first["terminal_status"],
+        "failure_reason": None if first is None else first["failure_reason"],
+        "build_root_exists": os.path.lexists(ATTEMPT2_BUILD_ROOT),
+        "build_root_is_symlink": os.path.islink(ATTEMPT2_BUILD_ROOT),
         "no_retry": True, "claims": "blocked", "formal_denominator_membership": False,
-        "rq4_supported": False, "attempt_2_authorized": False}
+        "rq4_supported": False, "attempt_2_authorized": False,
+        "verification_scope": "ARTIFACT_HASH_AND_HOST_SNAPSHOT",
+        "executor_cloud_run_id": None, "executor_build_snapshot_id": None,
+        "predecessor_sha256": sorted(set([
+            intent_digest, environment["artifact_sha256"],
+            *intent["predecessor_sha256"],
+        ])),
+    }
     result["artifact_sha256"] = canonical_sha256(result)
     validate_attempt2_result(result)
     write_canonical_json(ATTEMPT2_RESULT_PATH, result, exclusive=True)

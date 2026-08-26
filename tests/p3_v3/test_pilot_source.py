@@ -2543,18 +2543,25 @@ def test_attempt2_restore_preserves_preexisting_staging_when_cleanup_not_owned(t
 
 
 def _attempt2_source_entry_snapshot(paths):
-    """Small inode/content snapshot; deliberately does not inspect implementation text."""
+    """Recursive inode/content snapshot which never follows a symlink."""
     snapshot = {}
-    for path in paths:
-        if os.path.lexists(path):
-            stat = os.lstat(path)
-            snapshot[path] = (
-                stat.st_mode,
-                stat.st_ino,
-                path.read_bytes() if path.is_file() and not path.is_symlink() else None,
-            )
-        else:
+    def observe(path):
+        if not os.path.lexists(path):
             snapshot[path] = None
+            return
+        stat = os.lstat(path)
+        is_link = path.is_symlink()
+        snapshot[path] = (
+            stat.st_mode,
+            stat.st_ino,
+            os.readlink(path) if is_link else path.read_bytes() if path.is_file() else None,
+        )
+        if path.is_dir() and not is_link:
+            for child in sorted(path.iterdir(), key=lambda item: item.name):
+                observe(child)
+
+    for path in paths:
+        observe(path)
     return snapshot
 
 

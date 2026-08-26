@@ -3201,19 +3201,51 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
         hashlib.sha256(pilot_build.ATTEMPT2_AUTHORIZATION_BYTES).hexdigest(),
     )
     events = []
-    qualification = _attempt2_environment_fixture(pilot_build, None)
-    monkeypatch.setattr(pilot_build, "read_v5_qualification_evidence", lambda: qualification)
+    calls = []
+    qualification_root, _ = _write_attempt2_v5_fixture(tmp_path, monkeypatch)
+    qualification = pilot_build.read_v5_qualification_evidence(qualification_root)
+    monkeypatch.setattr(
+        pilot_build, "read_v5_qualification_evidence", lambda *_args: qualification
+    )
     monkeypatch.setattr(pilot_build, "resolve_cmake_executable_path", lambda: "/usr/bin/cmake")
     monkeypatch.setattr(pilot_build, "producer_identity", lambda: (17, "synthetic"))
-    monkeypatch.setattr(pilot_build, "validate_attempt2_intent", lambda value: events.append("validate-intent") or value)
-    monkeypatch.setattr(pilot_build, "validate_attempt2_result", lambda value: events.append("validate-result") or value)
-    monkeypatch.setattr(pilot_build, "validate_attempt2_phase_result", lambda value: value)
-    monkeypatch.setattr(pilot_build, "ensure_safe_log_root", lambda path: events.append("logs"))
-    monkeypatch.setattr(pilot_build.os, "mkdir", lambda path: events.append("build-root"))
+    real_validate_intent = pilot_build.validate_attempt2_intent
+    real_validate_result = pilot_build.validate_attempt2_result
+
+    def validate_intent(value):
+        validated = real_validate_intent(value)
+        events.append("validate-intent")
+        return validated
+
+    def validate_result(value):
+        validated = real_validate_result(value)
+        events.append("validate-result")
+        return validated
+
+    monkeypatch.setattr(pilot_build, "validate_attempt2_intent", validate_intent)
+    monkeypatch.setattr(pilot_build, "validate_attempt2_result", validate_result)
+    original_mkdir = pilot_build.os.mkdir
+
+    def mkdir(path, *args, **kwargs):
+        path = Path(path)
+        if path == paths["build"]:
+            events.append("build-root")
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(pilot_build.os, "mkdir", mkdir)
+
+    def safe_logs(path):
+        assert path == paths["build"] / "logs"
+        events.append("logs")
+        original_mkdir(path)
+        return path
+
+    monkeypatch.setattr(pilot_build, "ensure_safe_log_root", safe_logs)
 
     def writer(path, value, *, exclusive):
         assert exclusive is True
         events.append("intent" if path == paths["intent"] else "result")
+        path.write_bytes(pilot_build.canonical_json_bytes(value))
 
     monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
     monkeypatch.setattr(pilot_source, "inspect_attempt2_source_entry", lambda *_: events.append("source-entry") or "INVALID_PASS_NO_ROOT", raising=False)
@@ -3222,9 +3254,34 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
     )["source_restoration_evidence"]
     monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: events.append("source-restore") or restoration)
 
+    def harness(root, cmake_bytes, cxx_bytes):
+        assert root == paths["harness"]
+        assert (cmake_bytes, cxx_bytes) == (
+            pilot_build.HARNESS_CMAKE_BYTES, pilot_build.HARNESS_CXX_BYTES
+        )
+        events.append("harness")
+        original_mkdir(root)
+
+    monkeypatch.setattr(pilot_build, "write_harness", harness)
+
+    build_evidence = {
+        "cmake_cache_sha256": "8" * 64,
+        "compile_commands_sha256": "9" * 64,
+        "compiler_depfile_sha256": "a" * 64,
+        "dependency_list_sha256": "b" * 64,
+        "smoke_executable_sha256": "c" * 64,
+    }
+
+    def collect(*args, **kwargs):
+        events.append("build-evidence")
+        return dict(build_evidence)
+
+    monkeypatch.setattr(pilot_build, "collect_baseline_build_evidence", collect)
+
     def execute(spec, **kwargs):
         assert "cwd" not in kwargs
         events.append(spec["job_id"])
+        calls.append((spec, kwargs))
         descriptor = next(d for d in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake") if d["phase_id"] == spec["job_id"])
         phase = _attempt2_phase_fixture(pilot_build, descriptor)
         return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in phase.items() if k not in {"schema_version", "source_restoration_evidence"}}
@@ -3233,12 +3290,12 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
     for forbidden in ("run", "check_output"):
         monkeypatch.setattr(subprocess, forbidden, lambda *_a, **_k: pytest.fail("real subprocess used"))
     monkeypatch.setattr(pilot_build.os, "system", lambda *_a, **_k: pytest.fail("os.system used"))
-    return pilot_build, paths, events
+    return pilot_build, paths, events, calls
 
 
 @pytest.mark.parametrize("wrong", ["archive", "source", "build"])
 def test_attempt2_orchestration_wrong_cli_path_refuses_without_publication(tmp_path, monkeypatch, wrong):
-    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
     args = [paths["archive"], paths["source"], paths["build"]]
     args[["archive", "source", "build"].index(wrong)] = tmp_path / "wrong"
     with pytest.raises(EvidenceError, match="E_PILOT_ATTEMPT2_PATH"):
@@ -3248,7 +3305,7 @@ def test_attempt2_orchestration_wrong_cli_path_refuses_without_publication(tmp_p
 
 @pytest.mark.parametrize("durable", ["intent", "result"])
 def test_attempt2_publication_preexisting_is_refusal_not_resume(tmp_path, monkeypatch, durable):
-    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
     paths[durable].write_bytes(b"preexisting\n")
     with pytest.raises(EvidenceError, match="E_PILOT_ATTEMPT2_PREEXISTING"):
         pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
@@ -3256,7 +3313,7 @@ def test_attempt2_publication_preexisting_is_refusal_not_resume(tmp_path, monkey
 
 
 def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monkeypatch):
-    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
     original_environment = dict(pilot_build.os.environ)
     result = pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
     assert events == [
@@ -3267,6 +3324,27 @@ def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monke
     ]
     assert pilot_build.os.environ == original_environment
     assert [phase["phase_id"] for phase in result["phases"]] == list(pilot_build.ATTEMPT2_PHASE_ORDER)
+    process_descriptors = [
+        descriptor for descriptor in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+        if descriptor["phase_id"] != "SOURCE_RESTORE"
+    ]
+    assert [spec["job_id"] for spec, _ in calls] == [
+        descriptor["phase_id"] for descriptor in process_descriptors
+    ]
+    processed_environment = calls[0][1]["env"]
+    assert all(kwargs["env"] is processed_environment for _, kwargs in calls)
+    assert all(kwargs["log_root"] == paths["build"] / "logs" for _, kwargs in calls)
+    assert all("cwd" not in kwargs for _, kwargs in calls)
+    assert [spec for spec, _ in calls] == [
+        {
+            "job_id": descriptor["phase_id"],
+            "job_kind": descriptor["phase_kind"],
+            "dependency_job_ids": descriptor["dependency_phase_ids"],
+            "argv": descriptor["argv"],
+            "timeout_seconds": descriptor["timeout_seconds"],
+        }
+        for descriptor in process_descriptors
+    ]
 
 
 @pytest.mark.parametrize(
@@ -3275,14 +3353,13 @@ def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monke
      (1, "FAIL"), (2, "FAIL"), (3, "FAIL"), (4, "FAIL")],
 )
 def test_attempt2_not_started_after_first_terminal_failure(tmp_path, monkeypatch, phase, status):
-    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
     descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
-    calls = 0
+    executed = []
 
     def execute(spec, **_kwargs):
-        nonlocal calls
         index = next(i for i, d in enumerate(descriptors) if d["phase_id"] == spec["job_id"])
-        calls += 1
+        executed.append(spec["job_id"])
         chosen = status if index == phase else "PASS"
         value = _attempt2_phase_fixture(pilot_build, descriptors[index], chosen)
         return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in value.items() if k not in {"schema_version", "source_restoration_evidence"}}
@@ -3293,8 +3370,128 @@ def test_attempt2_not_started_after_first_terminal_failure(tmp_path, monkeypatch
         evidence = _attempt2_phase_fixture(pilot_build, descriptors[1], "FAIL")["source_restoration_evidence"]
         monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: evidence)
     result = pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
+    assert executed == [
+        descriptor["phase_id"] for descriptor in descriptors[:phase + 1]
+        if descriptor["phase_id"] != "SOURCE_RESTORE"
+    ]
     assert [p["terminal_status"] for p in result["phases"]][phase + 1:] == ["NOT_STARTED"] * (4 - phase)
+    for later in result["phases"][phase + 1:]:
+        assert pilot_build.validate_attempt2_phase_result(later) == later
+        assert later == pilot_build.make_attempt2_not_started(
+            next(d for d in descriptors if d["phase_id"] == later["phase_id"])
+        )
+    assert pilot_build.validate_attempt2_result(result) == result
     assert events[-1] == "result"
+
+
+def _assert_attempt2_terminal_infra(pilot_build, result, reached):
+    """Assert one reached infrastructure failure and pristine blocked successors."""
+    assert pilot_build.validate_attempt2_result(result) == result
+    assert result["phases"][reached]["terminal_status"] == "FAIL_INFRASTRUCTURE"
+    for phase in result["phases"][reached + 1:]:
+        descriptor = next(
+            item for item in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+            if item["phase_id"] == phase["phase_id"]
+        )
+        assert phase == pilot_build.make_attempt2_not_started(descriptor)
+
+
+@pytest.mark.parametrize(
+    ("failure", "reached", "forbidden"),
+    [
+        ("build-root", 0, {"METADATA_CMAKE_VERSION", "source-restore", "harness"}),
+        ("log-root", 0, {"METADATA_CMAKE_VERSION", "source-restore", "harness"}),
+        ("harness", 2, {"CMAKE_CONFIGURE", "BASELINE_BUILD", "build-evidence", "BASELINE_SMOKE"}),
+        ("build-evidence", 3, {"BASELINE_SMOKE"}),
+    ],
+)
+def test_attempt2_orchestration_publication_failure_is_terminal(
+    tmp_path, monkeypatch, failure, reached, forbidden
+):
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+
+    def fail(*_args, **_kwargs):
+        raise EvidenceError("E_SYNTHETIC", f"{failure} publication failure")
+
+    if failure == "build-root":
+        original = pilot_build.os.mkdir
+        monkeypatch.setattr(
+            pilot_build.os, "mkdir",
+            lambda path, *a, **k: fail() if Path(path) == paths["build"] else original(path, *a, **k),
+        )
+    elif failure == "log-root":
+        monkeypatch.setattr(pilot_build, "ensure_safe_log_root", fail)
+    elif failure == "harness":
+        monkeypatch.setattr(pilot_build, "write_harness", fail)
+    else:
+        monkeypatch.setattr(pilot_build, "collect_baseline_build_evidence", fail)
+
+    result = pilot_build.run_build_preflight_attempt_2(
+        paths["archive"], paths["source"], paths["build"]
+    )
+    assert paths["intent"].exists()
+    assert events.count("result") == 1
+    assert not (set(events) & forbidden)
+    _assert_attempt2_terminal_infra(pilot_build, result, reached)
+
+
+def test_attempt2_outer_deadline_prevents_next_process_phase(tmp_path, monkeypatch):
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+    ticks = iter([100.0, 100.0, 100.0 + pilot_build.OUTER_TIMEOUT_SECONDS + 1])
+    monkeypatch.setattr(pilot_build.time, "monotonic", lambda: next(ticks, 99999.0))
+    result = pilot_build.run_build_preflight_attempt_2(
+        paths["archive"], paths["source"], paths["build"]
+    )
+    assert paths["intent"].exists() and events.count("result") == 1
+    assert [spec["job_id"] for spec, _ in calls] == ["METADATA_CMAKE_VERSION"]
+    _assert_attempt2_terminal_infra(pilot_build, result, 2)
+
+
+def test_attempt2_writer_intent_exception_fabricates_nothing(tmp_path, monkeypatch):
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+    publications = []
+
+    def writer(path, _value, *, exclusive: bool):
+        publications.append((path, exclusive))
+        raise OSError("synthetic exclusive intent failure")
+
+    monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
+    with pytest.raises(OSError, match="exclusive intent"):
+        pilot_build.run_build_preflight_attempt_2(
+            paths["archive"], paths["source"], paths["build"]
+        )
+    assert publications == [(paths["intent"], True)]
+    assert not paths["intent"].exists() and not paths["result"].exists()
+    assert not paths["build"].exists() and not paths["harness"].exists()
+    assert calls == []
+
+
+def test_attempt2_writer_result_exception_does_not_retry_or_fabricate(tmp_path, monkeypatch):
+    pilot_build, paths, events, calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+    original = pilot_build.write_canonical_json
+    publications = []
+
+    def writer(path, value, *, exclusive):
+        publications.append((path, exclusive))
+        if path == paths["result"]:
+            raise OSError("synthetic exclusive result failure")
+        return original(path, value, exclusive=exclusive)
+
+    monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
+    with pytest.raises(OSError, match="exclusive result"):
+        pilot_build.run_build_preflight_attempt_2(
+            paths["archive"], paths["source"], paths["build"]
+        )
+    assert publications == [(paths["intent"], True), (paths["result"], True)]
+    assert paths["intent"].exists() and not paths["result"].exists()
 
 
 def test_attempt2_result_contract_rejects_not_started_as_first_failure():

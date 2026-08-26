@@ -1,0 +1,5 @@
+{
+  "name": "P2/P3 Semantic Mutation experiments",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh"
+}

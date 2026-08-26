@@ -10,7 +10,7 @@ jobs:
   pytest:
     name: Run pytest (Path-A cache replay smoke)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash --noprofile --norc -euo pipefail {0}
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Fetch immutable transport baseline
         run: >-

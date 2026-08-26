@@ -7141,3 +7141,83 @@ def test_pilot_cli_forbids_source_and_execution_verbs():
     for verb in ("validate-source", "extract", "freeze", "execute", "certify"):
         with pytest.raises(SystemExit):
             parser.parse_args([verb])
+
+
+def test_cxx_header_workload_cli_requires_command_and_paths():
+    import scripts.p3_v3.profile as profile_cli
+
+    parser = profile_cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args([])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["run-cxx-header-workload"])
+    required = {
+        "--workload": "w.json",
+        "--source-root": "src",
+        "--compiler": "/usr/bin/c++",
+        "--runtime-root": "rt",
+        "--output": "out.json",
+    }
+    for omitted in required:
+        argv = ["run-cxx-header-workload"]
+        for flag, value in required.items():
+            if flag != omitted:
+                argv.extend([flag, value])
+        with pytest.raises(SystemExit):
+            parser.parse_args(argv)
+    parsed = parser.parse_args(
+        [
+            "run-cxx-header-workload",
+            "--workload",
+            "w.json",
+            "--source-root",
+            "src",
+            "--compiler",
+            "/usr/bin/c++",
+            "--runtime-root",
+            "rt",
+            "--output",
+            "out.json",
+        ]
+    )
+    assert parsed.command == "run-cxx-header-workload"
+    assert parsed.workload == "w.json"
+    assert parsed.source_root == "src"
+    assert parsed.compiler == "/usr/bin/c++"
+    assert parsed.runtime_root == "rt"
+    assert parsed.output == "out.json"
+
+
+def test_cxx_header_workload_cli_delegates_to_runner(tmp_path, monkeypatch):
+    import scripts.p3_v3.profile as profile_cli
+
+    workload_path = tmp_path / "workload.json"
+    source_root = tmp_path / "source"
+    runtime_root = tmp_path / "runtime"
+    output = tmp_path / "receipt.json"
+    workload = {"marker": True}
+    write_canonical_json(workload_path, workload, exclusive=True)
+    called = []
+
+    def fake_run(loaded, *, source_root, compiler, runtime_root, receipt_path):
+        called.append((loaded, source_root, compiler, runtime_root, receipt_path))
+
+    monkeypatch.setattr(profile_cli, "run_cxx_header_workload", fake_run)
+    assert profile_cli.main(
+        [
+            "run-cxx-header-workload",
+            "--workload",
+            str(workload_path),
+            "--source-root",
+            str(source_root),
+            "--compiler",
+            "/usr/bin/c++",
+            "--runtime-root",
+            str(runtime_root),
+            "--output",
+            str(output),
+        ]
+    ) == 0
+    assert called == [
+        (workload, source_root, Path("/usr/bin/c++"), runtime_root, output)
+    ]

@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import tarfile
 import zipfile
@@ -2195,3 +2196,552 @@ def test_dangling_staging_symlink_is_rejected_before_archive_snapshot(
     assert not materialize.exists()
     assert not (tmp_path / "source-manifest.json").exists()
     assert not (tmp_path / "source-preparation-result.json").exists()
+def test_attempt2_source_entry_accepts_replacement_archive_identity(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_source
+
+    archive = tmp_path / "projected.tar"
+    source_root = tmp_path / "source"
+    staging = tmp_path / "source.staging"
+    replacement = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d",
+        size=99092480,
+        archive_format="TAR",
+    )
+    superseded = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392",
+        size=99676160,
+        archive_format="TAR",
+    )
+    observed = replacement
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_ROOT", source_root)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_STAGING_ROOT", staging)
+    monkeypatch.setattr(
+        pilot_source, "read_production_archive_bytes", lambda _path: observed
+    )
+    monkeypatch.setattr(pilot_source, "verify_production_gate_chain", object)
+    monkeypatch.setattr(
+        pilot_source,
+        "_inspect_state",
+        lambda _chain, _root: ("INVALID_PASS_NO_ROOT", None, None),
+    )
+
+    assert (
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
+        == "INVALID_PASS_NO_ROOT"
+    )
+
+    observed = superseded
+    with pytest.raises(EvidenceError, match="archive identity differs"):
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
+
+
+def test_source_gate_accepts_current_bytes_only_with_attempt2_review(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_source
+
+    source = tmp_path / "pilot_source.py"
+    cli = tmp_path / "pilot.py"
+    source.write_bytes(b"current source\n")
+    cli.write_bytes(b"current cli\n")
+    monkeypatch.setattr(pilot_source, "REVIEWED_PILOT_SOURCE_PATH", source)
+    monkeypatch.setattr(pilot_source, "REVIEWED_PILOT_CLI_PATH", cli)
+    historical = {
+        "reviewed_pilot_source_sha256": "1" * 64,
+        "reviewed_pilot_cli_sha256": "2" * 64,
+    }
+    current = {
+        "src/p3_v3/pilot_source.py": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "scripts/p3_v3/pilot.py": hashlib.sha256(cli.read_bytes()).hexdigest(),
+    }
+
+    with pytest.raises(EvidenceError, match="runtime pilot_source.py bytes differ"):
+        pilot_source.verify_reviewed_production_bytes(historical)
+
+    pilot_source.verify_reviewed_production_bytes(
+        historical, runtime_reviewed_blob_sha256=current
+    )
+
+    for key in current:
+        wrong = dict(current)
+        wrong[key] = "0" * 64
+        with pytest.raises(EvidenceError):
+            pilot_source.verify_reviewed_production_bytes(
+                historical, runtime_reviewed_blob_sha256=wrong
+            )
+
+
+def _attempt2_fixture(tmp_path, monkeypatch, members=None):
+    from p3_v3 import pilot_source
+
+    members = members or {"pkg/include/boost/math/a.hpp": b"math\n", "pkg/x.txt": b"x\n"}
+    archive = _write_tar(tmp_path / "source.tar", members)
+    snapshot = pilot_source.read_production_archive_bytes(archive)
+    extracted = tmp_path / "expected"
+    pilot_source.extract_archive_to_staging(snapshot, extracted)
+    tree = pilot_source.capture_materialized_tree(extracted)
+    tree_hash = pilot_source.canonical_source_tree_sha256(tree)
+    count, total = pilot_source._tree_metrics(tree)
+    root = tmp_path / "production"
+    staging = tmp_path / "production.staging"
+    manifest_path = tmp_path / "source-manifest.json"
+    result_path = tmp_path / "source-result.json"
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_ROOT", root)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_STAGING_ROOT", staging)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_SHA256", snapshot.sha256)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_BYTES", snapshot.size)
+    monkeypatch.setattr(pilot_source, "FROZEN_NORMALIZED_SOURCE_TREE_SHA256", tree_hash)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_FILE_COUNT", count)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_TOTAL_BYTES", total)
+    monkeypatch.setattr(pilot_source, "SOURCE_MANIFEST_PATH", manifest_path)
+    monkeypatch.setattr(pilot_source, "SOURCE_PREPARATION_RESULT_PATH", result_path)
+    chain = pilot_source._GateChain(*("1" * 64, "2" * 64, "3" * 64,
+                                      "4" * 64, "5" * 64, "6" * 64,
+                                      "7" * 64))
+    monkeypatch.setattr(pilot_source, "verify_production_gate_chain", lambda: chain)
+    manifest = _canonical_manifest(
+        predecessors=chain.predecessors(), archive_sha256=snapshot.sha256, archive_bytes=snapshot.size,
+        archive_format="TAR", file_count=count, total_bytes=total,
+    )
+    manifest["normalized_source_tree_sha256"] = tree_hash
+    manifest["artifact_sha256"] = canonical_sha256(
+        {k: v for k, v in manifest.items() if k != "artifact_sha256"}
+    )
+    manifest_digest = hashlib.sha256(canonical_json_bytes(manifest)).hexdigest()
+    result = _canonical_result(
+        predecessors=sorted([*chain.predecessors(), manifest_digest]), terminal_status="PASS", failure_reason=None,
+        source_manifest_sha256=manifest_digest, archive_sha256=snapshot.sha256,
+        archive_bytes=snapshot.size, materialized_tree_sha256=tree_hash,
+    )
+    write_canonical_json(manifest_path, manifest, exclusive=True)
+    write_canonical_json(result_path, result, exclusive=True)
+    shutil.rmtree(extracted)
+    return pilot_source, archive, root, staging, manifest_path, result_path
+
+
+def test_source_restoration_evidence_rejects_missing_extra_type_value_timestamp_and_hash(monkeypatch):
+    from p3_v3.artifacts import canonical_sha256
+    from p3_v3 import pilot_source
+
+    value = {
+        "schema_version": "p3-pilot-source-restoration-evidence-v1",
+        "execution_class": "PILOT_ONLY", "claims": "blocked",
+        "disposition": "REVALIDATED",
+        "archive_sha256": pilot_source.ATTEMPT2_ARCHIVE_SHA256,
+        "archive_bytes": pilot_source.ATTEMPT2_ARCHIVE_BYTES,
+        "normalized_tree_sha256": pilot_source.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "materialized_file_count": 4396, "materialized_total_bytes": 95635487,
+        "staging_published": False, "root_published": False,
+        "started_at": "2026-08-25T00:00:00Z", "ended_at": "2026-08-25T00:00:01Z",
+        "terminal_status": "PASS", "failure_reason": None,
+    }
+    value["artifact_sha256"] = canonical_sha256(value)
+    assert pilot_source.validate_source_restoration_evidence(value) == value
+    mutations = [
+        lambda x: x.pop("claims"), lambda x: x.update(extra=True),
+        lambda x: x.update(archive_bytes=True), lambda x: x.update(disposition="OTHER"),
+        lambda x: x.update(started_at="not-a-time"),
+        lambda x: x.update(started_at="2026-08-25T00:00:02Z"),
+        lambda x: x.update(artifact_sha256="0" * 64),
+    ]
+    for mutate in mutations:
+        bad = dict(value)
+        mutate(bad)
+        with pytest.raises(EvidenceError):
+            pilot_source.validate_source_restoration_evidence(bad)
+
+
+def test_attempt2_restore_wrong_archive_and_root_return_failure_evidence(tmp_path, monkeypatch):
+    from p3_v3 import pilot_source
+    archive = tmp_path / "frozen.tar"
+    root = tmp_path / "frozen-root"
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_ROOT", root)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_STAGING_ROOT", tmp_path / "stage")
+    for actual_archive, actual_root, reason in [
+        (tmp_path / "wrong", root, "WRONG_ARCHIVE_PATH"),
+        (archive, tmp_path / "wrong-root", "WRONG_SOURCE_ROOT"),
+    ]:
+        evidence = pilot_source.run_restore_production_source(actual_archive, actual_root)
+        assert (evidence["terminal_status"], evidence["disposition"], evidence["failure_reason"]) == ("FAIL", "NOT_APPLIED", reason)
+
+
+def test_attempt2_restore_invalid_pass_no_root_success(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    before = (manifest.read_bytes(), result.read_bytes())
+    evidence = ps.run_restore_production_source(archive, root)
+    assert (evidence["disposition"], evidence["terminal_status"]) == ("RESTORED", "PASS")
+    assert root.is_dir() and (root / "include/boost/math/a.hpp").is_file()
+    assert not os.path.lexists(staging)
+    assert before == (manifest.read_bytes(), result.read_bytes())
+
+
+def test_attempt2_restore_already_complete_revalidates_without_mutation(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    snap = ps.read_production_archive_bytes(archive)
+    ps.extract_archive_to_staging(snap, root)
+    before = (root.stat().st_ino, manifest.read_bytes(), result.read_bytes())
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["disposition"] == "REVALIDATED"
+    assert before == (root.stat().st_ino, manifest.read_bytes(), result.read_bytes())
+
+
+def test_attempt2_restore_rejects_archive_symlink_hash_size_and_format(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    link = tmp_path / "link.tar"; link.symlink_to(archive)
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_PATH", link)
+    assert ps.run_restore_production_source(link, root)["failure_reason"] == "ARCHIVE_UNSAFE"
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_SHA256", "0" * 64)
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "ARCHIVE_HASH_MISMATCH"
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_SHA256", _file_sha256(archive))
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_BYTES", archive.stat().st_size + 1)
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "ARCHIVE_SIZE_MISMATCH"
+    monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_BYTES", archive.stat().st_size)
+    monkeypatch.setattr(ps, "detect_archive_format", lambda raw: "ZIP")
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "ARCHIVE_FORMAT_MISMATCH"
+
+
+def test_attempt2_restore_rejects_unsafe_extraction(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(ps, "extract_archive_to_staging", lambda *_: (_ for _ in ()).throw(EvidenceError("E_PILOT_EXTRACT_UNSAFE", "bad")))
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "EXTRACTION_UNSAFE"
+    assert not os.path.lexists(root)
+
+
+def test_attempt2_restore_rejects_staging_collision_and_symlink(tmp_path, monkeypatch):
+    for symlink in (False, True):
+        case = tmp_path / str(symlink); case.mkdir()
+        ps, archive, root, staging, *_ = _attempt2_fixture(case, monkeypatch)
+        staging.symlink_to(case / "missing") if symlink else staging.mkdir()
+        expected = "STAGING_SYMLINK" if symlink else "STAGING_EXISTS"
+        assert ps.run_restore_production_source(archive, root)["failure_reason"] == expected
+
+
+def test_attempt2_restore_rejects_partial_orphan_and_root_symlink(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    result.unlink(); root.mkdir()
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "INVALID_RECONCILIATION_STATE"
+    root.rmdir(); root.symlink_to(tmp_path / "missing")
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "ROOT_SYMLINK"
+
+
+def test_attempt2_restore_distinguishes_tree_hash_count_and_byte_failures(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_hash = ps.canonical_source_tree_sha256
+    original_metrics = ps._tree_metrics
+    with monkeypatch.context() as patch:
+        patch.setattr(ps, "canonical_source_tree_sha256", lambda tree: "0" * 64)
+        assert ps.run_restore_production_source(archive, root)["failure_reason"] == "TREE_HASH_MISMATCH"
+    with monkeypatch.context() as patch:
+        patch.setattr(ps, "_tree_metrics", lambda tree: (99, original_metrics(tree)[1]))
+        assert ps.run_restore_production_source(archive, root)["failure_reason"] == "FILE_COUNT_MISMATCH"
+    with monkeypatch.context() as patch:
+        patch.setattr(ps, "_tree_metrics", lambda tree: (original_metrics(tree)[0], 99))
+        assert ps.run_restore_production_source(archive, root)["failure_reason"] == "BYTE_COUNT_MISMATCH"
+    assert ps.canonical_source_tree_sha256 is original_hash
+
+
+def test_attempt2_restore_rejects_invalid_or_crossed_pass_pair(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    raw = json.loads(result.read_text()); raw["source_manifest_sha256"] = "0" * 64
+    raw["artifact_sha256"] = canonical_sha256({k:v for k,v in raw.items() if k != "artifact_sha256"})
+    result.write_bytes(canonical_json_bytes(raw))
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "INVALID_PASS_PAIR"
+
+
+def test_attempt2_restore_never_starts_subprocess(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    def forbidden(*args, **kwargs): raise AssertionError("subprocess forbidden")
+    monkeypatch.setattr(subprocess, "run", forbidden); monkeypatch.setattr(subprocess, "Popen", forbidden)
+    assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+
+
+def test_attempt2_restore_reuses_verified_chain_for_state_inspection(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    calls = []
+    original_inspect = ps._inspect_state
+    monkeypatch.setattr(ps, "verify_production_gate_chain",
+                        lambda: calls.append(("verify", chain)) or chain)
+
+    def inspect(actual_chain, actual_root):
+        calls.append(("inspect", actual_chain, actual_root))
+        return original_inspect(actual_chain, actual_root)
+
+    monkeypatch.setattr(ps, "_inspect_state", inspect)
+    assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+    assert calls == [("verify", chain), ("inspect", chain, root)]
+    assert not hasattr(ps, "_read_restoration_pass_pair")
+
+
+def test_attempt2_restore_rejects_forged_predecessor_chain_before_mutation(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(tmp_path, monkeypatch)
+    before = (manifest.read_bytes(), result.read_bytes())
+    wrong_chain = ps._GateChain(*("a" * 64, "b" * 64, "c" * 64, "d" * 64,
+                                  "e" * 64, "f" * 64, "0" * 64))
+    monkeypatch.setattr(ps, "verify_production_gate_chain", lambda: wrong_chain)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_PASS_PAIR"
+    assert not os.path.lexists(staging) and not os.path.lexists(root)
+    assert before == (manifest.read_bytes(), result.read_bytes())
+
+
+def test_attempt2_restore_uses_inspected_state_not_hard_coded_flags(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    _, manifest, result = ps._inspect_state(chain, root)
+    monkeypatch.setattr(ps, "_inspect_state",
+                        lambda actual_chain, actual_root: ("CROSSED_PAIR", manifest, result))
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_RECONCILIATION_STATE"
+    assert not os.path.lexists(staging) and not os.path.lexists(root)
+
+
+def test_attempt2_restore_maps_error_code_without_message_token_search(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        ps, "_require_tree_matches_manifest",
+        lambda *_: (_ for _ in ()).throw(EvidenceError(
+            "E_PILOT_SOURCE_TREE_MISMATCH",
+            "ARCHIVE_UNSAFE FILE_COUNT_MISMATCH EXTRACTION_UNSAFE",
+        )),
+    )
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "TREE_HASH_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [("read_production_archive_bytes", "ARCHIVE_UNSAFE"),
+     ("capture_materialized_tree", "EXTRACTION_UNSAFE"),
+     ("replace", "EXTRACTION_UNSAFE")],
+)
+def test_attempt2_restore_maps_operation_local_oserror(tmp_path, monkeypatch, operation, expected):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    if operation == "replace":
+        monkeypatch.setattr(ps.os, operation, lambda *_: (_ for _ in ()).throw(OSError("boom")))
+    else:
+        monkeypatch.setattr(ps, operation, lambda *_: (_ for _ in ()).throw(OSError("boom")))
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == expected
+    assert not os.path.lexists(root)
+
+
+def test_attempt2_restore_owned_cleanup_failure_returns_failure_evidence(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        ps,
+        "capture_materialized_tree",
+        lambda *_: (_ for _ in ()).throw(EvidenceError("E_PILOT_EXTRACT_UNSAFE", "stop")),
+    )
+    monkeypatch.setattr(ps.shutil, "rmtree",
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup")))
+    evidence = ps.run_restore_production_source(archive, root)
+    assert ps.validate_source_restoration_evidence(evidence) == evidence
+    assert (
+        evidence["terminal_status"], evidence["disposition"], evidence["failure_reason"]
+    ) == ("FAIL", "NOT_APPLIED", "EXTRACTION_UNSAFE")
+    assert (evidence["staging_published"], evidence["root_published"]) == (False, False)
+    assert os.path.lexists(staging)
+
+
+def test_attempt2_restore_extractor_race_preserves_foreign_staging(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    foreign_inode = None
+
+    def collide(_snapshot, destination):
+        nonlocal foreign_inode
+        destination.mkdir()
+        (destination / "foreign").write_text("unchanged")
+        foreign_inode = destination.stat().st_ino
+        raise EvidenceError("E_PILOT_EXTRACT_UNSAFE", "exclusive mkdir collision")
+
+    monkeypatch.setattr(ps, "extract_archive_to_staging", collide)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "EXTRACTION_UNSAFE"
+    assert staging.stat().st_ino == foreign_inode
+    assert (staging / "foreign").read_text() == "unchanged"
+    assert not os.path.lexists(root)
+
+
+def test_attempt2_restore_authority_drift_precedes_publication(tmp_path, monkeypatch):
+    ps, archive, root, staging, manifest, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_read = ps.read_authority_snapshot
+    reads = 0
+
+    def drift_on_reread(path, label):
+        nonlocal reads
+        reads += 1
+        if reads == 1:
+            manifest.write_bytes(manifest.read_bytes() + b" ")
+        return original_read(path, label)
+
+    monkeypatch.setattr(ps, "read_authority_snapshot", drift_on_reread)
+    evidence = ps.run_restore_production_source(archive, root)
+    assert evidence["failure_reason"] == "INVALID_PASS_PAIR"
+    assert not os.path.lexists(root)
+    assert not os.path.lexists(staging)
+
+
+def test_attempt2_restore_rereads_authority_before_atomic_replace(tmp_path, monkeypatch):
+    ps, archive, root, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    original_read = ps.read_authority_snapshot
+    original_replace = ps.os.replace
+    calls = []
+
+    def ordered_read(path, label):
+        calls.append(("read", label))
+        return original_read(path, label)
+
+    def ordered_replace(source, destination):
+        calls.append(("replace", source, destination))
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(ps, "read_authority_snapshot", ordered_read)
+    monkeypatch.setattr(ps.os, "replace", ordered_replace)
+    assert ps.run_restore_production_source(archive, root)["terminal_status"] == "PASS"
+    boundary_calls = [
+        call for call in calls
+        if call[0] == "replace" or call[1].startswith("source-restoration-")
+    ]
+    assert boundary_calls == [
+        ("read", "source-restoration-manifest"),
+        ("read", "source-restoration-result"),
+        ("replace", ps.ATTEMPT2_SOURCE_STAGING_ROOT, ps.ATTEMPT2_SOURCE_ROOT),
+    ]
+
+
+def test_attempt2_restore_preserves_preexisting_staging_when_cleanup_not_owned(tmp_path, monkeypatch):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    staging.mkdir()
+    inode = staging.stat().st_ino
+    assert ps.run_restore_production_source(archive, root)["failure_reason"] == "STAGING_EXISTS"
+    assert staging.stat().st_ino == inode
+
+
+def _attempt2_source_entry_snapshot(paths):
+    """Recursive inode/content snapshot which never follows a symlink."""
+    snapshot = {}
+    def observe(path):
+        if not os.path.lexists(path):
+            snapshot[path] = None
+            return
+        stat = os.lstat(path)
+        is_link = path.is_symlink()
+        snapshot[path] = (
+            stat.st_mode,
+            stat.st_ino,
+            os.readlink(path) if is_link else path.read_bytes() if path.is_file() else None,
+        )
+        if path.is_dir() and not is_link:
+            for child in sorted(path.iterdir(), key=lambda item: item.name):
+                observe(child)
+
+    for path in paths:
+        observe(path)
+    return snapshot
+
+
+@pytest.mark.parametrize("state", ["INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"])
+def test_attempt2_source_entry_accepts_only_legal_read_only_states(
+    tmp_path, monkeypatch, state
+):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(
+        tmp_path, monkeypatch
+    )
+    if state == "ALREADY_COMPLETE":
+        snapshot = ps.read_production_archive_bytes(archive)
+        ps.extract_archive_to_staging(snapshot, root)
+    chain = ps.verify_production_gate_chain()
+    original_inspect = ps._inspect_state
+    monkeypatch.setattr(
+        ps, "_inspect_state", lambda actual_chain, actual_root: (
+            (state, *original_inspect(chain, root)[1:])
+        )
+    )
+    watched = [archive, root, staging, manifest, result]
+    before = _attempt2_source_entry_snapshot(watched)
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("read-only source entry attempted publication")
+
+    for owner, name in (
+        (ps.os, "mkdir"), (ps.os, "replace"), (ps.os, "rename"),
+        (ps, "write_canonical_json"), (ps, "extract_archive_to_staging"),
+    ):
+        monkeypatch.setattr(owner, name, forbidden)
+
+    assert ps._inspect_attempt2_source_entry(archive, root) == state
+    assert _attempt2_source_entry_snapshot(watched) == before
+
+
+def test_attempt2_source_entry_rejects_complete_but_drifted_tree_before_intent(
+    tmp_path, monkeypatch
+):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(
+        tmp_path, monkeypatch
+    )
+    snapshot = ps.read_production_archive_bytes(archive)
+    ps.extract_archive_to_staging(snapshot, root)
+    changed = root / "x.txt"
+    changed.write_bytes(b"drift\n")
+    watched = [archive, root, staging, manifest, result]
+    before = _attempt2_source_entry_snapshot(watched)
+    with pytest.raises(EvidenceError, match="source tree differs"):
+        ps._inspect_attempt2_source_entry(archive, root)
+    assert _attempt2_source_entry_snapshot(watched) == before
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        "ABSENT", "PASS_NO_ROOT", "PARTIAL_ROOT", "CROSSED_PAIR",
+        "ROOT_MISMATCH", "STAGING_PRESENT", "INVALID_PASS_WITH_ROOT",
+    ],
+)
+def test_attempt2_source_entry_rejects_every_other_reconciliation_state(
+    tmp_path, monkeypatch, state
+):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    _, manifest, result = ps._inspect_state(chain, root)
+    monkeypatch.setattr(ps, "_inspect_state", lambda *_: (state, manifest, result))
+    before = _attempt2_source_entry_snapshot([archive, root, staging])
+    with pytest.raises(EvidenceError):
+        ps._inspect_attempt2_source_entry(archive, root)
+    assert _attempt2_source_entry_snapshot([archive, root, staging]) == before
+
+
+@pytest.mark.parametrize("drift", ["archive-path", "root-path", "archive-symlink", "staging", "root-symlink", "authority"])
+def test_attempt2_source_entry_rejects_path_safety_and_authority_drift(
+    tmp_path, monkeypatch, drift
+):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    actual_archive, actual_root = archive, root
+    if drift == "archive-path":
+        actual_archive = tmp_path / "wrong.tar"
+    elif drift == "root-path":
+        actual_root = tmp_path / "wrong-root"
+    elif drift == "archive-symlink":
+        link = tmp_path / "archive-link.tar"
+        link.symlink_to(archive)
+        monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_PATH", link)
+        actual_archive = link
+    elif drift == "staging":
+        staging.mkdir()
+    elif drift == "root-symlink":
+        root.symlink_to(tmp_path / "missing", target_is_directory=True)
+    else:
+        monkeypatch.setattr(
+            ps, "verify_production_gate_chain",
+            lambda: (_ for _ in ()).throw(EvidenceError("E_SYNTHETIC", "bad chain")),
+        )
+    before = _attempt2_source_entry_snapshot([archive, root, staging])
+    with pytest.raises(EvidenceError):
+        ps._inspect_attempt2_source_entry(actual_archive, actual_root)
+    assert _attempt2_source_entry_snapshot([archive, root, staging]) == before

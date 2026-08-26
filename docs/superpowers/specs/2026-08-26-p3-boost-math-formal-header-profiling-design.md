@@ -102,7 +102,7 @@ serialized in ascending `behavior_id` order. Each behavior gets a distinct
 directory beneath the new runtime root and this translation unit:
 
 ```cpp
-#include "<frozen entrypoint>"
+#include <boost/math/.../<frozen entrypoint with the leading "include/" removed>>
 int main() { return 0; }
 ```
 
@@ -110,9 +110,12 @@ The compiler invocation uses the Attempt-2-proven C++ boundary:
 
 - the explicitly supplied `/usr/bin/c++` compiler;
 - `-std=c++14`;
-- the controlled source root as the include root;
+- `-DBOOST_MATH_STANDALONE=1`;
+- `<source root>/include` as the include root, matching the include prefix that
+  Attempt-2 proved; the frozen `include/...` entrypoint is mapped to the
+  corresponding angle-bracket include below that root;
 - compile-only output; and
-- a compiler depfile for diagnostic evidence.
+- a compiler depfile, which is both diagnostic evidence and a containment check.
 
 Each invocation uses `shell=False`, a new process session, a 120-second timeout,
 captured stdout/stderr, and process-group termination and reap on timeout. A
@@ -129,6 +132,13 @@ Every selected behavior produces exactly one existing-schema result row:
 | Compiler exits nonzero | `FAILURE` | `COMPILE_NONZERO_EXIT` | observed nonzero exit |
 | Compiler timeout | `TIMEOUT` | `COMPILE_TIMEOUT` | null exit, timed out |
 | Compiler cannot start | `FAILURE` | `COMPILER_START_ERROR` | null exit, not timed out |
+| Dependency outside the frozen include prefix | `FAILURE` | `SYSTEM_BOOST_FALLBACK` | observed depfile path escapes the controlled source |
+
+The depfile is parsed after every exit-0 compilation. If any resolved `boost`
+header lies outside `<source root>/include`, the row is not reported as
+`MISSING_TRACE`; it becomes `FAILURE` / `SYSTEM_BOOST_FALLBACK`. This reuses the
+containment rule that Attempt-2 already enforces and prevents a row from binding
+to a system Boost installation instead of the controlled source.
 
 For every row:
 
@@ -178,6 +188,27 @@ Focused tests cover only the new behavior:
 
 No full-suite run, qualification rerun, Attempt-2 rerun, or unrelated refactor
 is part of the implementation slice.
+
+## Prespecified expectation and freeze obligations
+
+Under the boundary above the prespecified expectation is 20 of 20 compilations
+exiting 0. A nonzero exit, timeout, or containment rejection is a real negative
+observation about the controlled source under the frozen workload and is
+reported as observed; it is not to be reattributed to the harness after the
+fact.
+
+The historical binding for `p3-phase1-unexecuted-v1` is the fixed value
+`978fa53c66ae15f9c51b5fa73dc03afdb2d23448f7714d752bccf92c09503ad0`, which is the
+`runner_implementation_source_sha256` recorded in all 35 existing profiling
+receipts. Once the formal receipt exists, `profiling_runner.py` is frozen: any
+later edit requires a new `runner_version` and a new receipt, not a rebinding of
+the published one.
+
+This slice does not change the derived technique profile. The placeholder
+receipt already yields `TECH_UNCERTAIN` with empty `confirmed_tags` and an upper
+score of 1 for all six techniques, and a 20-row `MISSING_TRACE` receipt yields
+the same classification. What changes is provenance: "not executed" becomes
+"executed, with no subject-level call trace available from the frozen workload".
 
 ## Completion criterion
 

@@ -3170,6 +3170,133 @@ def _attempt2_rebind_environment(pilot_build, value, environment):
     return _attempt2_rehash(pilot_build, value)
 
 
+def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
+    """Install only coordinator-bound synthetic seams; never run a host probe."""
+    from p3_v3 import pilot_build, pilot_source
+
+    paths = {
+        "archive": tmp_path / "source.tar",
+        "source": tmp_path / "source",
+        "build": tmp_path / "build",
+        "harness": tmp_path / "harness",
+        "intent": tmp_path / "intent.json",
+        "result": tmp_path / "result.json",
+        "auth": tmp_path / "auth.txt",
+    }
+    paths["archive"].write_bytes(b"synthetic frozen tar")
+    paths["auth"].write_bytes(pilot_build.ATTEMPT2_AUTHORIZATION_BYTES)
+    for name, value in (
+        ("ATTEMPT2_ARCHIVE_PATH", paths["archive"]),
+        ("ATTEMPT2_SOURCE_ROOT", paths["source"]),
+        ("ATTEMPT2_BUILD_ROOT", paths["build"]),
+        ("ATTEMPT2_HARNESS_ROOT", paths["harness"]),
+        ("ATTEMPT2_LOG_ROOT", paths["build"] / "logs"),
+        ("ATTEMPT2_INTENT_PATH", paths["intent"]),
+        ("ATTEMPT2_RESULT_PATH", paths["result"]),
+        ("ATTEMPT2_AUTHORIZATION_PATH", paths["auth"]),
+    ):
+        monkeypatch.setattr(pilot_build, name, value)
+    monkeypatch.setattr(
+        pilot_build, "ATTEMPT2_AUTHORIZATION_SHA256",
+        hashlib.sha256(pilot_build.ATTEMPT2_AUTHORIZATION_BYTES).hexdigest(),
+    )
+    events = []
+    qualification = _attempt2_environment_fixture(pilot_build, None)
+    monkeypatch.setattr(pilot_build, "read_v5_qualification_evidence", lambda: qualification)
+    monkeypatch.setattr(pilot_build, "resolve_cmake_executable_path", lambda: "/usr/bin/cmake")
+    monkeypatch.setattr(pilot_build, "producer_identity", lambda: (17, "synthetic"))
+    monkeypatch.setattr(pilot_build, "validate_attempt2_intent", lambda value: events.append("validate-intent") or value)
+    monkeypatch.setattr(pilot_build, "validate_attempt2_result", lambda value: events.append("validate-result") or value)
+    monkeypatch.setattr(pilot_build, "validate_attempt2_phase_result", lambda value: value)
+    monkeypatch.setattr(pilot_build, "ensure_safe_log_root", lambda path: events.append("logs"))
+    monkeypatch.setattr(pilot_build.os, "mkdir", lambda path: events.append("build-root"))
+
+    def writer(path, value, *, exclusive):
+        assert exclusive is True
+        events.append("intent" if path == paths["intent"] else "result")
+
+    monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
+    monkeypatch.setattr(pilot_source, "inspect_attempt2_source_entry", lambda *_: events.append("source-entry") or "INVALID_PASS_NO_ROOT", raising=False)
+    restoration = _attempt2_phase_fixture(
+        pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[1]
+    )["source_restoration_evidence"]
+    monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: events.append("source-restore") or restoration)
+
+    def execute(spec, **kwargs):
+        assert "cwd" not in kwargs
+        events.append(spec["job_id"])
+        descriptor = next(d for d in pilot_build.attempt2_phase_descriptors("/usr/bin/cmake") if d["phase_id"] == spec["job_id"])
+        phase = _attempt2_phase_fixture(pilot_build, descriptor)
+        return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in phase.items() if k not in {"schema_version", "source_restoration_evidence"}}
+
+    monkeypatch.setattr(pilot_build, "execute_job", execute)
+    for forbidden in ("run", "check_output"):
+        monkeypatch.setattr(subprocess, forbidden, lambda *_a, **_k: pytest.fail("real subprocess used"))
+    monkeypatch.setattr(pilot_build.os, "system", lambda *_a, **_k: pytest.fail("os.system used"))
+    return pilot_build, paths, events
+
+
+@pytest.mark.parametrize("wrong", ["archive", "source", "build"])
+def test_attempt2_orchestration_wrong_cli_path_refuses_without_publication(tmp_path, monkeypatch, wrong):
+    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    args = [paths["archive"], paths["source"], paths["build"]]
+    args[["archive", "source", "build"].index(wrong)] = tmp_path / "wrong"
+    with pytest.raises(EvidenceError, match="E_PILOT_ATTEMPT2_PATH"):
+        pilot_build.run_build_preflight_attempt_2(*args)
+    assert events == []
+
+
+@pytest.mark.parametrize("durable", ["intent", "result"])
+def test_attempt2_publication_preexisting_is_refusal_not_resume(tmp_path, monkeypatch, durable):
+    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    paths[durable].write_bytes(b"preexisting\n")
+    with pytest.raises(EvidenceError, match="E_PILOT_ATTEMPT2_PREEXISTING"):
+        pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
+    assert events == []
+
+
+def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monkeypatch):
+    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    original_environment = dict(pilot_build.os.environ)
+    result = pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
+    assert events == [
+        "source-entry", "validate-intent", "intent", "build-root", "logs",
+        "METADATA_CMAKE_VERSION", "source-restore", "harness",
+        "CMAKE_CONFIGURE", "BASELINE_BUILD", "build-evidence",
+        "BASELINE_SMOKE", "validate-result", "result",
+    ]
+    assert pilot_build.os.environ == original_environment
+    assert [phase["phase_id"] for phase in result["phases"]] == list(pilot_build.ATTEMPT2_PHASE_ORDER)
+
+
+@pytest.mark.parametrize(
+    ("phase", "status"),
+    [(0, "FAIL"), (0, "TIMEOUT"), (0, "FAIL_INFRASTRUCTURE"),
+     (1, "FAIL"), (2, "FAIL"), (3, "FAIL"), (4, "FAIL")],
+)
+def test_attempt2_not_started_after_first_terminal_failure(tmp_path, monkeypatch, phase, status):
+    pilot_build, paths, events = _install_attempt2_orchestration_fakes(tmp_path, monkeypatch)
+    descriptors = pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")
+    calls = 0
+
+    def execute(spec, **_kwargs):
+        nonlocal calls
+        index = next(i for i, d in enumerate(descriptors) if d["phase_id"] == spec["job_id"])
+        calls += 1
+        chosen = status if index == phase else "PASS"
+        value = _attempt2_phase_fixture(pilot_build, descriptors[index], chosen)
+        return {("job_id" if k == "phase_id" else "job_kind" if k == "phase_kind" else "dependency_job_ids" if k == "dependency_phase_ids" else k): v for k, v in value.items() if k not in {"schema_version", "source_restoration_evidence"}}
+
+    monkeypatch.setattr(pilot_build, "execute_job", execute)
+    if phase == 1:
+        from p3_v3 import pilot_source
+        evidence = _attempt2_phase_fixture(pilot_build, descriptors[1], "FAIL")["source_restoration_evidence"]
+        monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: evidence)
+    result = pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
+    assert [p["terminal_status"] for p in result["phases"]][phase + 1:] == ["NOT_STARTED"] * (4 - phase)
+    assert events[-1] == "result"
+
+
 def test_attempt2_result_contract_rejects_not_started_as_first_failure():
     from p3_v3 import pilot_build
     with pytest.raises(EvidenceError, match="real terminal failure"):

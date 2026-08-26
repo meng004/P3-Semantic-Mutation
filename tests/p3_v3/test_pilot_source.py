@@ -2540,3 +2540,102 @@ def test_attempt2_restore_preserves_preexisting_staging_when_cleanup_not_owned(t
     inode = staging.stat().st_ino
     assert ps.run_restore_production_source(archive, root)["failure_reason"] == "STAGING_EXISTS"
     assert staging.stat().st_ino == inode
+
+
+def _attempt2_source_entry_snapshot(paths):
+    """Small inode/content snapshot; deliberately does not inspect implementation text."""
+    snapshot = {}
+    for path in paths:
+        if os.path.lexists(path):
+            stat = os.lstat(path)
+            snapshot[path] = (
+                stat.st_mode,
+                stat.st_ino,
+                path.read_bytes() if path.is_file() and not path.is_symlink() else None,
+            )
+        else:
+            snapshot[path] = None
+    return snapshot
+
+
+@pytest.mark.parametrize("state", ["INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"])
+def test_attempt2_source_entry_accepts_only_legal_read_only_states(
+    tmp_path, monkeypatch, state
+):
+    ps, archive, root, staging, manifest, result = _attempt2_fixture(
+        tmp_path, monkeypatch
+    )
+    if state == "ALREADY_COMPLETE":
+        snapshot = ps.read_production_archive_bytes(archive)
+        ps.extract_archive_to_staging(snapshot, root)
+    chain = ps.verify_production_gate_chain()
+    original_inspect = ps._inspect_state
+    monkeypatch.setattr(
+        ps, "_inspect_state", lambda actual_chain, actual_root: (
+            (state, *original_inspect(chain, root)[1:])
+        )
+    )
+    watched = [archive, root, staging, manifest, result]
+    before = _attempt2_source_entry_snapshot(watched)
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("read-only source entry attempted publication")
+
+    for owner, name in (
+        (ps.os, "mkdir"), (ps.os, "replace"), (ps.os, "rename"),
+        (ps, "write_canonical_json"), (ps, "extract_archive_to_staging"),
+    ):
+        monkeypatch.setattr(owner, name, forbidden)
+
+    assert ps.inspect_attempt2_source_entry(archive, root) == state
+    assert _attempt2_source_entry_snapshot(watched) == before
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        "ABSENT", "PASS_NO_ROOT", "PARTIAL_ROOT", "CROSSED_PAIR",
+        "ROOT_MISMATCH", "STAGING_PRESENT", "INVALID_PASS_WITH_ROOT",
+    ],
+)
+def test_attempt2_source_entry_rejects_every_other_reconciliation_state(
+    tmp_path, monkeypatch, state
+):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    chain = ps.verify_production_gate_chain()
+    _, manifest, result = ps._inspect_state(chain, root)
+    monkeypatch.setattr(ps, "_inspect_state", lambda *_: (state, manifest, result))
+    before = _attempt2_source_entry_snapshot([archive, root, staging])
+    with pytest.raises(EvidenceError):
+        ps.inspect_attempt2_source_entry(archive, root)
+    assert _attempt2_source_entry_snapshot([archive, root, staging]) == before
+
+
+@pytest.mark.parametrize("drift", ["archive-path", "root-path", "archive-symlink", "staging", "root-symlink", "authority"])
+def test_attempt2_source_entry_rejects_path_safety_and_authority_drift(
+    tmp_path, monkeypatch, drift
+):
+    ps, archive, root, staging, *_ = _attempt2_fixture(tmp_path, monkeypatch)
+    actual_archive, actual_root = archive, root
+    if drift == "archive-path":
+        actual_archive = tmp_path / "wrong.tar"
+    elif drift == "root-path":
+        actual_root = tmp_path / "wrong-root"
+    elif drift == "archive-symlink":
+        link = tmp_path / "archive-link.tar"
+        link.symlink_to(archive)
+        monkeypatch.setattr(ps, "ATTEMPT2_ARCHIVE_PATH", link)
+        actual_archive = link
+    elif drift == "staging":
+        staging.mkdir()
+    elif drift == "root-symlink":
+        root.symlink_to(tmp_path / "missing", target_is_directory=True)
+    else:
+        monkeypatch.setattr(
+            ps, "verify_production_gate_chain",
+            lambda: (_ for _ in ()).throw(EvidenceError("E_SYNTHETIC", "bad chain")),
+        )
+    before = _attempt2_source_entry_snapshot([archive, root, staging])
+    with pytest.raises(EvidenceError):
+        ps.inspect_attempt2_source_entry(actual_archive, actual_root)
+    assert _attempt2_source_entry_snapshot([archive, root, staging]) == before

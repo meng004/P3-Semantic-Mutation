@@ -444,3 +444,20 @@ IMPLEMENTATION_NOT_AUTHORIZED
 COMMIT_NOT_AUTHORIZED
 ATTEMPT_2_NOT_AUTHORIZED
 ```
+
+## 2026-08-26 Archive Serialization Supersession
+
+For missing-source restoration only, the active archive serialization identity
+is superseded by the deterministic output of:
+
+`git archive --format=tar --output=boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar 04c2c248dfc5e35eeb7638152d5bd7c2985feef2 -- . ':(exclude)build/Jamfile.v2'`
+
+The replacement archive SHA-256 is
+`e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d`;
+its size is `99092480` bytes and its format is `TAR`. The upstream repository,
+witness commits, common Git root tree, excluded path, frozen archive path,
+production source root, normalized tree SHA-256, file count, retained byte
+count, claim ceiling, and no-retry state do not change. The 2026-08-17 launch
+packet and durable source-preparation evidence remain historical records and
+must not be rewritten. This supersession does not authorize or start another
+Attempt-2 invocation or profiling run.

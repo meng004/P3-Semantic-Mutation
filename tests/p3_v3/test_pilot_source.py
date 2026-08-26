@@ -2196,6 +2196,50 @@ def test_dangling_staging_symlink_is_rejected_before_archive_snapshot(
     assert not materialize.exists()
     assert not (tmp_path / "source-manifest.json").exists()
     assert not (tmp_path / "source-preparation-result.json").exists()
+def test_attempt2_source_entry_accepts_replacement_archive_identity(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_source
+
+    archive = tmp_path / "projected.tar"
+    source_root = tmp_path / "source"
+    staging = tmp_path / "source.staging"
+    replacement = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d",
+        size=99092480,
+        archive_format="TAR",
+    )
+    superseded = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392",
+        size=99676160,
+        archive_format="TAR",
+    )
+    observed = replacement
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_ROOT", source_root)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_STAGING_ROOT", staging)
+    monkeypatch.setattr(
+        pilot_source, "read_production_archive_bytes", lambda _path: observed
+    )
+    monkeypatch.setattr(pilot_source, "verify_production_gate_chain", object)
+    monkeypatch.setattr(
+        pilot_source,
+        "_inspect_state",
+        lambda _chain, _root: ("INVALID_PASS_NO_ROOT", None, None),
+    )
+
+    assert (
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
+        == "INVALID_PASS_NO_ROOT"
+    )
+
+    observed = superseded
+    with pytest.raises(EvidenceError, match="archive identity differs"):
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
+
+
 def _attempt2_fixture(tmp_path, monkeypatch, members=None):
     from p3_v3 import pilot_source
 
@@ -2252,8 +2296,10 @@ def test_source_restoration_evidence_rejects_missing_extra_type_value_timestamp_
     value = {
         "schema_version": "p3-pilot-source-restoration-evidence-v1",
         "execution_class": "PILOT_ONLY", "claims": "blocked",
-        "disposition": "REVALIDATED", "archive_sha256": "6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392",
-        "archive_bytes": 99676160, "normalized_tree_sha256": pilot_source.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+        "disposition": "REVALIDATED",
+        "archive_sha256": pilot_source.ATTEMPT2_ARCHIVE_SHA256,
+        "archive_bytes": pilot_source.ATTEMPT2_ARCHIVE_BYTES,
+        "normalized_tree_sha256": pilot_source.FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
         "materialized_file_count": 4396, "materialized_total_bytes": 95635487,
         "staging_published": False, "root_published": False,
         "started_at": "2026-08-25T00:00:00Z", "ended_at": "2026-08-25T00:00:01Z",

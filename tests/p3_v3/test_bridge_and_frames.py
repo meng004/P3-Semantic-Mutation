@@ -4583,3 +4583,186 @@ def test_cxx_profile_depfile_requires_requested_controlled_header(tmp_path):
         profiling_runner.validate_depfile_containment(
             depfile, include, "boost/math/statistics/runs_test.hpp"
         )
+
+
+CXX_PROFILE_WORKLOAD_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "data/p3_v3/phase1_frames/out"
+    / "profiling-workload-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+)
+
+
+def _cxx_profile_workload():
+    return json.loads(CXX_PROFILE_WORKLOAD_PATH.read_text(encoding="utf-8"))
+
+
+def _write_fake_compile_artifacts(argv, *, escaped_boost=False):
+    obj = Path(argv[argv.index("-o") + 1])
+    dep = Path(argv[argv.index("-MF") + 1])
+    src = Path(argv[argv.index("-c") + 1])
+    include = Path(argv[argv.index("-I") + 1])
+    header = src.read_text(encoding="utf-8").split("<", 1)[1].split(">", 1)[0]
+    obj.write_bytes(b"obj")
+    boost_dep = (
+        "/usr/include/boost/math/tools/config.hpp"
+        if escaped_boost
+        else (include / header).as_posix()
+    )
+    dep.write_text(f"{obj.name}: {src.as_posix()} {boost_dep}\n", encoding="utf-8")
+
+
+class _QueuedCompilePopen:
+    def __init__(self, outcomes, *, escaped_boost=False):
+        self.outcomes = list(outcomes)
+        self.escaped_boost = escaped_boost
+        self.calls = []
+
+    def __call__(self, argv, **kwargs):
+        assert kwargs.get("shell") is False
+        assert kwargs.get("start_new_session") is True
+        outcome = self.outcomes.pop(0)
+        self.calls.append((list(argv), dict(kwargs)))
+        if outcome == "start_error":
+            raise OSError("compiler cannot start")
+        return _QueuedCompileProcess(argv, outcome, escaped_boost=self.escaped_boost)
+
+
+class _QueuedCompileProcess:
+    def __init__(self, argv, outcome, *, escaped_boost=False):
+        self.argv = argv
+        self.outcome = outcome
+        self.escaped_boost = escaped_boost
+        self.pid = 4242
+        self.returncode = None
+        self._timed_out = False
+
+    def communicate(self, timeout=None):
+        if self.outcome == "timeout" and not self._timed_out:
+            self._timed_out = True
+            raise subprocess.TimeoutExpired(self.argv, timeout)
+        if self.outcome == "timeout":
+            self.returncode = None
+            return b"", b""
+        if self.outcome == 0:
+            _write_fake_compile_artifacts(self.argv, escaped_boost=self.escaped_boost)
+            self.returncode = 0
+            return b"", b""
+        self.returncode = int(self.outcome)
+        return b"", b"compile failed\n"
+
+
+def _cxx_profile_paths(tmp_path):
+    source_root = tmp_path / "source"
+    include = source_root / "include"
+    include.mkdir(parents=True)
+    compiler = tmp_path / "compiler"
+    compiler.write_bytes(b"#!/bin/true\n")
+    compiler.chmod(0o755)
+    runtime_root = tmp_path / "runtime"
+    receipt_path = tmp_path / "receipt.json"
+    return source_root, compiler, runtime_root, receipt_path
+
+
+def test_cxx_profile_receipt_rows_are_sorted_and_trace_free(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0, 1] + [0] * 18)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert [row["behavior_id"] for row in receipt["results"]] == sorted(
+        workload["selected_behavior_ids"]
+    )
+    assert receipt["results"][0]["status"] == "MISSING_TRACE"
+    assert receipt["results"][0]["failure_code"] == "NO_SUBJECT_CALL_TRACE"
+    assert receipt["results"][0]["exit_code"] == 0
+    assert receipt["results"][0]["call_trace"] == []
+    assert receipt["results"][0]["observed_site_ids"] == []
+    assert receipt["results"][1]["status"] == "FAILURE"
+    assert receipt["results"][1]["failure_code"] == "COMPILE_NONZERO_EXIT"
+
+
+def test_cxx_profile_timeout_row_is_terminal(tmp_path, monkeypatch):
+    from p3_v3 import profiling_runner
+
+    monkeypatch.setattr(profiling_runner.os, "killpg", lambda *a, **k: None)
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen(["timeout"] + [0] * 19)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    timeout_row = receipt["results"][0]
+    assert timeout_row["status"] == "TIMEOUT"
+    assert timeout_row["failure_code"] == "COMPILE_TIMEOUT"
+    assert timeout_row["timed_out"] is True
+    assert timeout_row["exit_code"] is None
+
+
+def test_cxx_profile_failed_row_does_not_stop_workload(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([1] + [0] * 19)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert len(receipt["results"]) == len(workload["selected_rows"])
+
+
+def test_cxx_profile_system_boost_depfile_is_failure_not_missing_trace(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0] * 20, escaped_boost=True)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    escaped_row = receipt["results"][0]
+    assert escaped_row["status"] == "FAILURE"
+    assert escaped_row["failure_code"] == "SYSTEM_BOOST_FALLBACK"
+    assert escaped_row["status"] != "MISSING_TRACE"
+
+
+def test_cxx_profile_refuses_preexisting_receipt(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    preexisting = receipt_path
+    preexisting.write_bytes(b"do-not-overwrite\n")
+    popen = _QueuedCompilePopen([0] * 20)
+    with pytest.raises(EvidenceError, match="E_PROFILE_OUTPUT"):
+        profiling_runner.run_cxx_header_workload(
+            workload,
+            source_root=source_root,
+            compiler=compiler,
+            runtime_root=runtime_root,
+            receipt_path=preexisting,
+            popen=popen,
+        )
+    assert preexisting.read_bytes() == b"do-not-overwrite\n"

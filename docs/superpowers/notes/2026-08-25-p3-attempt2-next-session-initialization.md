@@ -101,11 +101,15 @@ no_retry=true
 
 ## 5. 当前未完成状态
 
-交接时分支 `codex/p3-attempt2-orchestration` 的 HEAD 仍为：
+交接时分支 `codex/p3-attempt2-orchestration` 的远端 WIP HEAD 为：
+
+`9b01ceccff85cd69a28accaa76a90b995b85590d`
+
+其父提交（已接受的 contract-layer 基线）为：
 
 `870c4d4901b6cdb34a92c713a6ab782afbaa4613`
 
-工作树暂存了尚未接受、尚未 commit/push 的 Cloud 测试差异：
+WIP 提交原样保存了尚未接受的 Cloud 测试差异：
 
 - `tests/p3_v3/test_pilot_build.py`：+127
 - `tests/p3_v3/test_pilot_source.py`：+99
@@ -136,7 +140,7 @@ no_retry=true
 7. fake 使用 environment-schema 对象替代 V5 qualification，并 mock 掉 intent/result validators，可能掩盖 coordinator assembly 错误。
 8. source read-only snapshot 没有递归检查已存在 root 内容，最终版本需要最小补强。
 
-不得把这批暂存差异直接作为完成态提交。也不得围绕它编写新设计文档。
+该 WIP 提交只用于同步和恢复，不代表测试被接受。不得把它作为完成态、Green 合同或 production 授权；也不得围绕它编写新设计文档。
 
 ## 6. 当前生产实现的直接缺口
 
@@ -159,8 +163,8 @@ no_retry=true
 
 1. 读取本指令以及仓库 `AGENTS.md`、`~/.codex/RTK.md`。
 2. 只读核验主工作区与隔离工作树；主工作区有用户既存未跟踪文件，不得清理或覆盖。
-3. 在隔离工作树核验 HEAD、branch、staged diff 和上述测试结果。
-4. 直接审查当前 staged diff；不要新建设计或计划。
+3. 在隔离工作树核验 HEAD、branch、clean status，以及 WIP commit 相对父提交的两文件 diff。
+4. 直接审查当前 WIP diff；不要新建设计或计划。
 5. 编写一个封闭的 Cloud correction task，只允许修改上述两个测试文件，修复无效夹具并补齐已经列出的强制 cases。
 6. 要求测试保持 synthetic-only，不启动 compiler、CMake、linker 或真实 subprocess。
 7. 评审修正后的 RED 合同；只有测试本身可由预期正确实现转绿、覆盖完整且既有回归不退化时，才接受并提交测试阶段。

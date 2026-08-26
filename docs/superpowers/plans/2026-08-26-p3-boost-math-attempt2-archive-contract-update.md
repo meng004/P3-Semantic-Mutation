@@ -255,6 +255,54 @@ Expected: the new HEAD is the recovery implementation commit reviewed by the rep
 
 ---
 
+### Task 2.5: Bridge historical source review to the current Attempt-2 review
+
+**Files:**
+- Modify: `tests/p3_v3/test_pilot_source.py`
+- Modify: `tests/p3_v3/test_pilot_build.py`
+- Modify: `src/p3_v3/pilot_source.py`
+- Modify: `src/p3_v3/pilot_build.py`
+
+**Interfaces:**
+- Consumes: the already validated Attempt-2 implementation verdict and its `reviewed_blob_sha256` mapping.
+- Produces: optional `runtime_reviewed_blob_sha256` parameters on `verify_reviewed_production_bytes()`, `verify_production_gate_chain()`, `_inspect_attempt2_source_entry()`, and `run_restore_production_source()`.
+
+- [ ] **Step 1: Add a source-gate behavior test**
+
+Create a focused test proving that current source/CLI bytes differing from the historical capability verdict remain rejected without an explicit runtime review mapping, are accepted when both current hashes exactly match the mapping, and are rejected when either mapped hash differs.
+
+- [ ] **Step 2: Add an orchestration propagation test**
+
+Extend the Attempt-2 orchestration fakes so the implementation verdict contains literal reviewed hashes for `src/p3_v3/pilot_source.py` and `scripts/p3_v3/pilot.py`. Assert both `_inspect_attempt2_source_entry()` and `run_restore_production_source()` receive that exact mapping.
+
+- [ ] **Step 3: Run both focused tests and verify RED**
+
+Run:
+
+```bash
+rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py::test_source_gate_accepts_current_bytes_only_with_attempt2_review tests/p3_v3/test_pilot_build.py::test_attempt2_orchestration_passes_runtime_review_to_source_gates -q
+```
+
+Expected: FAIL because the source functions do not accept `runtime_reviewed_blob_sha256` and orchestration reads the verdict after source entry.
+
+- [ ] **Step 4: Implement the minimal seam**
+
+Keep historical exact-byte behavior as the default. When `runtime_reviewed_blob_sha256` is supplied, require both current source and CLI digests to equal their corresponding reviewed values; validate both values as SHA-256. In Attempt-2 orchestration, validate the implementation verdict before source entry, pass its reviewed mapping to source entry and restoration, and remove the later duplicate verdict read.
+
+- [ ] **Step 5: Run focused and complete source/build/CLI suites**
+
+Run the two focused tests, then:
+
+```bash
+rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py tests/p3_v3/test_pilot_build.py tests/p3_v3/test_pilot.py -q
+```
+
+- [ ] **Step 6: Recompute the approved-plan hash, update its binding, and commit**
+
+Because this task amends the approved plan, recompute this file's SHA-256, update only `ATTEMPT2_AUTHORITY_HASHES["approved_implementation_plan_sha256"]`, rerun its authority-binding test, and commit all four code/test files plus this plan amendment as `fix: bridge attempt2 runtime review authority`.
+
+---
+
 ### Task 3: Regenerate and independently validate the public-source projection
 
 **Files:**

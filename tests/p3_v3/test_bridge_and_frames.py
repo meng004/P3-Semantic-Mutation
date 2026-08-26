@@ -2744,7 +2744,7 @@ def _success(behavior_id: str, *tags: str) -> dict:
         "argv": ["fixture-runner", behavior_id],
         "input_sha256": ["51" * 32],
         "environment_sha256": "52" * 32,
-        "runner_version": "fixture-runner-v1",
+        "runner_version": "p3-phase1-unexecuted-v1",
         "exit_code": 0,
         "stdout_sha256": "53" * 32,
         "stderr_sha256": "54" * 32,
@@ -2763,7 +2763,7 @@ def _unresolved(behavior_id: str, status: str) -> dict:
         "argv": ["fixture-runner", behavior_id],
         "input_sha256": ["51" * 32],
         "environment_sha256": "52" * 32,
-        "runner_version": "fixture-runner-v1",
+        "runner_version": "p3-phase1-unexecuted-v1",
         "exit_code": None,
         "stdout_sha256": "53" * 32,
         "stderr_sha256": "54" * 32,
@@ -2784,9 +2784,7 @@ def _profiling_receipt(workload: dict, rows: list[dict], **overrides) -> dict:
         "build_descriptor_sha256": "42" * 32,
         "profiling_workload_sha256": workload["artifact_sha256"],
         "adapter_implementation_source_sha256": "31" * 32,
-        "runner_implementation_source_sha256": file_sha256(
-            Path(frames_module.__file__)
-        ),
+        "runner_implementation_source_sha256": frames_module.PHASE1_UNEXECUTED_RUNNER_SHA256,
         "results": sorted(rows, key=lambda row: row["behavior_id"]),
     }
     body.update(overrides)
@@ -4766,3 +4764,82 @@ def test_cxx_profile_refuses_preexisting_receipt(tmp_path):
             popen=popen,
         )
     assert preexisting.read_bytes() == b"do-not-overwrite\n"
+
+
+PHASE1_UNEXECUTED_RUNNER_SHA256 = (
+    "978fa53c66ae15f9c51b5fa73dc03afdb2d23448f7714d752bccf92c09503ad0"
+)
+
+
+def test_profiling_runner_binding_accepts_historical_phase1_receipt():
+    root = Path(__file__).resolve().parents[2] / "data/p3_v3/phase1_frames/out"
+    receipt_path = root / (
+        "profiling-results-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+    )
+    workload_path = root / (
+        "profiling-workload-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    workload = json.loads(workload_path.read_text(encoding="utf-8"))
+    assert receipt["runner_implementation_source_sha256"] == PHASE1_UNEXECUTED_RUNNER_SHA256
+    classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_accepts_formal_cxx_receipt(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0] * 20)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert receipt["runner_implementation_source_sha256"] == file_sha256(
+        Path(profiling_runner.__file__)
+    )
+    classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_rejects_mixed_versions():
+    behavior_a = _behavior_id("mixed-a")
+    behavior_b = _behavior_id("mixed-b")
+    workload = _synthetic_workload([(behavior_a, "PUBLIC_API"), (behavior_b, "PUBLIC_API")])
+    row_a = _unresolved(behavior_a, "MISSING_TRACE")
+    row_b = _unresolved(behavior_b, "MISSING_TRACE")
+    row_a["runner_version"] = "p3-phase1-unexecuted-v1"
+    row_b["runner_version"] = "p3-cxx-header-compile-profiler-v1"
+    receipt = _profiling_receipt(workload, [row_a, row_b])
+    with pytest.raises(EvidenceError, match="E_PROFILE_RUNNER_BINDING"):
+        classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_rejects_unknown_version_after_rehash():
+    behavior_id = _behavior_id("unknown-runner")
+    workload = _synthetic_workload([(behavior_id, "PUBLIC_API")])
+    row = _unresolved(behavior_id, "MISSING_TRACE")
+    row["runner_version"] = "p3-unknown-runner-v1"
+    receipt = _profiling_receipt(workload, [row])
+    body = {key: value for key, value in receipt.items() if key != "artifact_sha256"}
+    rehashed = {**body, "artifact_sha256": canonical_sha256(body)}
+    with pytest.raises(EvidenceError, match="E_PROFILE_RUNNER_BINDING"):
+        classify_technique(workload, rehashed)
+
+
+def test_all_35_phase1_profiling_receipts_keep_historical_runner_binding():
+    root = Path(__file__).resolve().parents[2] / "data/p3_v3/phase1_frames/out"
+    receipts = sorted(root.glob("profiling-results-*.json"))
+    assert len(receipts) == 35
+    for receipt_path in receipts:
+        neutral = receipt_path.stem.removeprefix("profiling-results-")
+        workload_path = root / f"profiling-workload-{neutral}.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        workload = json.loads(workload_path.read_text(encoding="utf-8"))
+        assert receipt["runner_implementation_source_sha256"] == (
+            frames_module.PHASE1_UNEXECUTED_RUNNER_SHA256
+        )
+        classify_technique(workload, receipt)

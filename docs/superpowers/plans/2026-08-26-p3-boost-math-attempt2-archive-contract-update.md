@@ -39,22 +39,51 @@
 
 - [ ] **Step 1: Add the focused identity test before changing production constants**
 
-Add this test immediately before `_attempt2_fixture` in `tests/p3_v3/test_pilot_source.py`:
+Add this test immediately before `_attempt2_fixture` in `tests/p3_v3/test_pilot_source.py`. It exercises the real source-entry consumer: the approved replacement identity must pass the archive gate, while the superseded identity must be rejected.
 
 ```python
-def test_attempt2_archive_identity_is_reproducible_git_projection():
+def test_attempt2_source_entry_accepts_replacement_archive_identity(
+    tmp_path, monkeypatch
+):
     from p3_v3 import pilot_source
 
-    assert pilot_source.ATTEMPT2_ARCHIVE_PATH == Path(
-        "/tmp/p3-boost-math-public-source-discovery/content-equivalence-r1/"
-        "boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar"
+    archive = tmp_path / "projected.tar"
+    source_root = tmp_path / "source"
+    staging = tmp_path / "source.staging"
+    replacement = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d",
+        size=99092480,
+        archive_format="TAR",
     )
-    assert pilot_source.ATTEMPT2_ARCHIVE_SHA256 == (
-        "e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d"
+    superseded = pilot_source.ArchiveSnapshot(
+        raw=b"",
+        sha256="6cad33704c8341995f271d93811dd3cf9751ed5edf8b9a73882662acd3db0392",
+        size=99676160,
+        archive_format="TAR",
     )
-    assert pilot_source.ATTEMPT2_ARCHIVE_BYTES == 99092480
-    assert pilot_source.ATTEMPT2_FILE_COUNT == 4396
-    assert pilot_source.ATTEMPT2_TOTAL_BYTES == 95635487
+    observed = replacement
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_ARCHIVE_PATH", archive)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_ROOT", source_root)
+    monkeypatch.setattr(pilot_source, "ATTEMPT2_SOURCE_STAGING_ROOT", staging)
+    monkeypatch.setattr(
+        pilot_source, "read_production_archive_bytes", lambda _path: observed
+    )
+    monkeypatch.setattr(pilot_source, "verify_production_gate_chain", object)
+    monkeypatch.setattr(
+        pilot_source,
+        "_inspect_state",
+        lambda _chain, _root: ("INVALID_PASS_NO_ROOT", None, None),
+    )
+
+    assert (
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
+        == "INVALID_PASS_NO_ROOT"
+    )
+
+    observed = superseded
+    with pytest.raises(EvidenceError, match="archive identity differs"):
+        pilot_source._inspect_attempt2_source_entry(archive, source_root)
 ```
 
 - [ ] **Step 2: Run the focused test and verify the expected red state**
@@ -62,7 +91,7 @@ def test_attempt2_archive_identity_is_reproducible_git_projection():
 Run:
 
 ```bash
-rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py::test_attempt2_archive_identity_is_reproducible_git_projection -q
+rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py::test_attempt2_source_entry_accepts_replacement_archive_identity -q
 ```
 
 Expected: FAIL because `ATTEMPT2_ARCHIVE_SHA256` is still `6cad3370...0392` and `ATTEMPT2_ARCHIVE_BYTES` is still `99676160`.
@@ -112,7 +141,7 @@ Attempt-2 invocation or profiling run.
 Run:
 
 ```bash
-rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py::test_attempt2_archive_identity_is_reproducible_git_projection tests/p3_v3/test_pilot_source.py::test_source_restoration_evidence_rejects_missing_extra_type_value_timestamp_and_hash -q
+rtk env PYTHONPATH=src /Users/limeng/Papers/P3-SemanticMutation/.venv/bin/python -m pytest tests/p3_v3/test_pilot_source.py::test_attempt2_source_entry_accepts_replacement_archive_identity tests/p3_v3/test_pilot_source.py::test_source_restoration_evidence_rejects_missing_extra_type_value_timestamp_and_hash -q
 ```
 
 Expected: `2 passed`.

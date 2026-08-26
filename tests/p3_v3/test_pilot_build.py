@@ -2492,6 +2492,28 @@ def test_attempt2_exact_schema_and_canonical_lf():
     assert pilot_build.canonical_json_bytes({"a": 1}).endswith(b"\n")
 
 
+def test_attempt2_v5_qualification_fixed_hashes_are_rebound_to_cursor_pass():
+    from p3_v3 import pilot_build
+
+    assert pilot_build.QUALIFICATION_FIXED_HASHES == {
+        "qualification-intent.json": (
+            "ca4bc69036d58348d1358034ee09cec76e16965cfaef6bd28436b4ad4b10428f"
+        ),
+        "qualification-result.json": (
+            "3b3e7468c13814fbb14e386fb42b4b8a86b816dbc0c0d38f539be0e4f623d70d"
+        ),
+        "qualification-manifest.json": (
+            "bfb45e5c19fe8ee545f517bcb80c64b3d325b9b68a4d8640caa8a6f6808c3e6d"
+        ),
+        "qualify.cpp": (
+            "91193433e324b0a1e525cfecac51f43ca0f6bd882e1c34292510c9740115bf5c"
+        ),
+        "qualify": (
+            "9d24d5298272942e95333acf18b05052b4c9d701aeaf92f7252a4d9666228b3b"
+        ),
+    }
+
+
 def _write_attempt2_v5_fixture(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
     q = pilot_build.qualification_contract

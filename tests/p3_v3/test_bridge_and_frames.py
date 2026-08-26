@@ -4490,3 +4490,96 @@ def test_real_pipeline_end_to_end_produces_executable_common_inputs():
     assert [row["ordinal"] for row in inventory["rows"]] == list(range(30))
     statuses = {row["status"] for row in inventory["rows"]}
     assert statuses == {"COMMON_INPUT_EXECUTABLE"}
+
+
+def test_cxx_profile_maps_frozen_entrypoint_to_attempt2_include_boundary(tmp_path):
+    from p3_v3 import profiling_runner
+
+    source = tmp_path / "source"
+    include = source / "include"
+    cpp = tmp_path / "probe.cpp"
+    obj = tmp_path / "probe.o"
+    dep = tmp_path / "probe.d"
+    entrypoint = "include/boost/math/statistics/runs_test.hpp"
+
+    assert profiling_runner.header_include(entrypoint) == (
+        "boost/math/statistics/runs_test.hpp"
+    )
+    assert profiling_runner.translation_unit_bytes(entrypoint) == (
+        b"#include <boost/math/statistics/runs_test.hpp>\n"
+        b"int main() { return 0; }\n"
+    )
+    assert profiling_runner.compile_argv(
+        Path("/usr/bin/c++"), include, cpp, obj, dep
+    ) == [
+        "/usr/bin/c++",
+        "-std=c++14",
+        "-DBOOST_MATH_STANDALONE=1",
+        "-I",
+        include.as_posix(),
+        "-MD",
+        "-MF",
+        dep.as_posix(),
+        "-MT",
+        obj.as_posix(),
+        "-c",
+        cpp.as_posix(),
+        "-o",
+        obj.as_posix(),
+    ]
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    [
+        "boost/math/statistics/runs_test.hpp",
+        "include/not-boost/header.hpp",
+        "include/boost/../escape.hpp",
+        "/include/boost/math/header.hpp",
+    ],
+)
+def test_cxx_profile_rejects_noncanonical_header_entrypoint(entrypoint):
+    from p3_v3 import profiling_runner
+
+    with pytest.raises(EvidenceError, match="E_PROFILE_HEADER_ENTRYPOINT"):
+        profiling_runner.header_include(entrypoint)
+
+
+def test_cxx_profile_depfile_accepts_only_controlled_boost_headers(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    requested = "boost/math/statistics/runs_test.hpp"
+    depfile = (
+        f"probe.o: probe.cpp {include / requested} \\\n"
+        f" {include / 'boost/math/tools/config.hpp'} /usr/include/c++/v1/vector\n"
+    ).encode("utf-8")
+
+    profiling_runner.validate_depfile_containment(depfile, include, requested)
+
+
+def test_cxx_profile_depfile_rejects_system_boost_fallback(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    depfile = (
+        f"probe.o: probe.cpp {include / 'boost/math/statistics/runs_test.hpp'} "
+        "/usr/include/boost/math/tools/config.hpp\n"
+    ).encode("utf-8")
+
+    with pytest.raises(EvidenceError, match="SYSTEM_BOOST_FALLBACK"):
+        profiling_runner.validate_depfile_containment(
+            depfile, include, "boost/math/statistics/runs_test.hpp"
+        )
+
+
+def test_cxx_profile_depfile_requires_requested_controlled_header(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    depfile = b"probe.o: probe.cpp /usr/include/c++/v1/vector\n"
+
+    with pytest.raises(EvidenceError, match="E_PROFILE_DEPFILE"):
+        profiling_runner.validate_depfile_containment(
+            depfile, include, "boost/math/statistics/runs_test.hpp"
+        )

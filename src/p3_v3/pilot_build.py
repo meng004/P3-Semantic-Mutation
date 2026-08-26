@@ -175,13 +175,16 @@ ATTEMPT2_IMPLEMENTATION_VERDICT_REVIEWED_BLOB_EXACT = {
 ATTEMPT2_V1_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design.md")
 ATTEMPT2_V2_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design-amendment-v2.md")
 ATTEMPT2_V3_DESIGN_PATH = Path("docs/superpowers/specs/2026-08-24-p3-boost-math-build-preflight-attempt-2-recovery-design-amendment-v3.md")
-ATTEMPT2_APPROVED_PLAN_PATH = Path("docs/superpowers/plans/2026-08-24-p3-boost-math-attempt-2-recovery-implementation-v2.md")
+ATTEMPT2_APPROVED_PLAN_PATH = Path(
+    "docs/superpowers/plans/"
+    "2026-08-26-p3-boost-math-attempt2-archive-contract-update.md"
+)
 ATTEMPT2_REJECTED_PLAN_V1_PATH = Path("docs/superpowers/plans/2026-08-24-p3-boost-math-attempt-2-recovery-implementation.md")
 ATTEMPT2_AUTHORITY_HASHES = {
     "v1_design_sha256": (ATTEMPT2_V1_DESIGN_PATH, "a441fd68321e28f769447f19315c4b3bd82943888600126fe91bc66f3aec923b"),
     "v2_design_sha256": (ATTEMPT2_V2_DESIGN_PATH, "a75cc3a3fecaafc26b59d32bb79fceac93f1a511f65a206b47ab497eacc2912f"),
-    "v3_design_sha256": (ATTEMPT2_V3_DESIGN_PATH, "b99c72f89704f582692dffdad8478efca56b4f75d17b0b7541b84cb0f311f3e3"),
-    "approved_implementation_plan_sha256": (ATTEMPT2_APPROVED_PLAN_PATH, "c004284bc7c5c101a6af999481af79ae34aa7fa1d9e61386326248b2b13bb98e"),
+    "v3_design_sha256": (ATTEMPT2_V3_DESIGN_PATH, "9c61af5d46a78ad2c2ed54aa086faa760becf095856db9c839bc1a3fcf8c49d0"),
+    "approved_implementation_plan_sha256": (ATTEMPT2_APPROVED_PLAN_PATH, "85da438bd257a57e88ae82b4af340fcd021291a63a929a7f12114c593ca04d12"),
 }
 ATTEMPT2_REJECTED_PLAN_V1_SHA256 = "9d5192b78b103fb0213ed2947c15b3e207aec022241b6cac9520e07da73c3e8c"
 ATTEMPT2_REVIEWED_FILES = {

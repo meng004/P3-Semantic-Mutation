@@ -2825,6 +2825,18 @@ def test_implementation_verdict_exact_has_seven_reviewed_blobs():
     }
 
 
+def test_attempt2_archive_update_binds_current_design_and_plan():
+    from p3_v3 import pilot_build
+
+    expected_plan = Path(
+        "docs/superpowers/plans/"
+        "2026-08-26-p3-boost-math-attempt2-archive-contract-update.md"
+    )
+    assert pilot_build.ATTEMPT2_APPROVED_PLAN_PATH == expected_plan
+    for field, (path, expected_sha256) in pilot_build.ATTEMPT2_AUTHORITY_HASHES.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected_sha256, field
+
+
 def _write_attempt2_verdict_fixture(tmp_path, monkeypatch):
     from p3_v3 import pilot_build
     authority_hashes = {}

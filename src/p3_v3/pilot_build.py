@@ -184,7 +184,7 @@ ATTEMPT2_AUTHORITY_HASHES = {
     "v1_design_sha256": (ATTEMPT2_V1_DESIGN_PATH, "a441fd68321e28f769447f19315c4b3bd82943888600126fe91bc66f3aec923b"),
     "v2_design_sha256": (ATTEMPT2_V2_DESIGN_PATH, "a75cc3a3fecaafc26b59d32bb79fceac93f1a511f65a206b47ab497eacc2912f"),
     "v3_design_sha256": (ATTEMPT2_V3_DESIGN_PATH, "9c61af5d46a78ad2c2ed54aa086faa760becf095856db9c839bc1a3fcf8c49d0"),
-    "approved_implementation_plan_sha256": (ATTEMPT2_APPROVED_PLAN_PATH, "85da438bd257a57e88ae82b4af340fcd021291a63a929a7f12114c593ca04d12"),
+    "approved_implementation_plan_sha256": (ATTEMPT2_APPROVED_PLAN_PATH, "f620def559f135273f37e58a165e6258f24b367c9c76332929c4c3f9b6e2ec48"),
 }
 ATTEMPT2_REJECTED_PLAN_V1_SHA256 = "9d5192b78b103fb0213ed2947c15b3e207aec022241b6cac9520e07da73c3e8c"
 ATTEMPT2_REVIEWED_FILES = {
@@ -3079,9 +3079,14 @@ def run_build_preflight_attempt_2(
     from p3_v3 import pilot_source
 
     _require_source_preparation_identities()
-    pilot_source._inspect_attempt2_source_entry(archive, source_root)
+    attempt2_verdict, attempt2_verdict_digest = read_attempt2_implementation_verdict()
+    runtime_reviewed_blob_sha256 = attempt2_verdict["reviewed_blob_sha256"]
+    pilot_source._inspect_attempt2_source_entry(
+        archive,
+        source_root,
+        runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256,
+    )
     qualification = read_v5_qualification_evidence()
-    _attempt2_verdict, attempt2_verdict_digest = read_attempt2_implementation_verdict()
     _plan_raw, plan_digest = read_authority_snapshot(PLAN_PATH, "attempt1-plan")
     plan_verdict_raw, plan_verdict_digest = read_authority_snapshot(
         PLAN_VERDICT_PATH, "attempt1-plan-verdict"
@@ -3283,7 +3288,11 @@ def run_build_preflight_attempt_2(
             environment.pop("artifact_sha256", None)
             environment["artifact_sha256"] = canonical_sha256(environment)
             environment = validate_attempt2_environment(environment)
-            restoration = pilot_source.run_restore_production_source(archive, source_root)
+            restoration = pilot_source.run_restore_production_source(
+                archive,
+                source_root,
+                runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256,
+            )
             phases.append(source_phase(restoration))
         if len(phases) == 2 and phases[-1]["terminal_status"] == "PASS":
             try:

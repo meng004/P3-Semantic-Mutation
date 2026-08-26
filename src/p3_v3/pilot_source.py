@@ -463,7 +463,11 @@ def validate_source_preparation_capability_verdict(
     return validated
 
 
-def verify_reviewed_production_bytes(capability_verdict: dict) -> None:
+def verify_reviewed_production_bytes(
+    capability_verdict: dict,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> None:
     observed_source, source_digest = read_authority_snapshot(
         REVIEWED_PILOT_SOURCE_PATH, "reviewed-pilot-source"
     )
@@ -471,12 +475,27 @@ def verify_reviewed_production_bytes(capability_verdict: dict) -> None:
         REVIEWED_PILOT_CLI_PATH, "reviewed-pilot-cli"
     )
     del observed_source, observed_cli
-    if source_digest != capability_verdict["reviewed_pilot_source_sha256"]:
+    expected_source = capability_verdict["reviewed_pilot_source_sha256"]
+    expected_cli = capability_verdict["reviewed_pilot_cli_sha256"]
+    if runtime_reviewed_blob_sha256 is not None:
+        try:
+            expected_source = runtime_reviewed_blob_sha256[
+                "src/p3_v3/pilot_source.py"
+            ]
+            expected_cli = runtime_reviewed_blob_sha256["scripts/p3_v3/pilot.py"]
+            validate_sha256(expected_source, "runtime-reviewed-pilot-source")
+            validate_sha256(expected_cli, "runtime-reviewed-pilot-cli")
+        except (KeyError, EvidenceError) as exc:
+            raise EvidenceError(
+                "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
+                "runtime reviewed source bindings are invalid",
+            ) from exc
+    if source_digest != expected_source:
         raise EvidenceError(
             "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
             "runtime pilot_source.py bytes differ from the reviewed snapshot",
         )
-    if cli_digest != capability_verdict["reviewed_pilot_cli_sha256"]:
+    if cli_digest != expected_cli:
         raise EvidenceError(
             "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
             "runtime pilot CLI bytes differ from the reviewed snapshot",
@@ -1403,7 +1422,9 @@ def _snapshot_or_absent(path: Path, context: str, absent_code: str) -> tuple[byt
         raise
 
 
-def verify_production_gate_chain() -> _GateChain:
+def verify_production_gate_chain(
+    *, runtime_reviewed_blob_sha256: dict[str, str] | None = None
+) -> _GateChain:
     require_unique_topological_authority_order(AUTHORITY_DEPENDENCY_EDGES)
     _plan_raw, plan_sha256 = read_authority_snapshot(
         SOURCE_PREPARATION_PLAN_PATH, "source-preparation-plan"
@@ -1432,7 +1453,10 @@ def verify_production_gate_chain() -> _GateChain:
             plan_sha256,
             plan_verdict_sha256,
         )
-        verify_reviewed_production_bytes(capability)
+        verify_reviewed_production_bytes(
+            capability,
+            runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256,
+        )
     except EvidenceError as exc:
         if exc.code == "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT_ABSENT":
             raise
@@ -1999,7 +2023,12 @@ def validate_source_restoration_evidence(value: object) -> dict[str, Any]:
     return validated
 
 
-def _inspect_attempt2_source_entry(archive: Path, materialize_root: Path) -> str:
+def _inspect_attempt2_source_entry(
+    archive: Path,
+    materialize_root: Path,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> str:
     """Validate the frozen archive and one legal source state without mutation."""
     if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
         raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive path differs")
@@ -2017,7 +2046,12 @@ def _inspect_attempt2_source_entry(archive: Path, materialize_root: Path) -> str
         or snapshot.archive_format != "TAR"
     ):
         raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive identity differs")
-    chain = verify_production_gate_chain()
+    if runtime_reviewed_blob_sha256 is None:
+        chain = verify_production_gate_chain()
+    else:
+        chain = verify_production_gate_chain(
+            runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256
+        )
     state, manifest, _result = _inspect_state(chain, ATTEMPT2_SOURCE_ROOT)
     if state not in {"INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"}:
         raise EvidenceError(
@@ -2043,7 +2077,12 @@ def _inspect_attempt2_source_entry(archive: Path, materialize_root: Path) -> str
     return state
 
 
-def run_restore_production_source(archive: Path, materialize_root: Path) -> dict[str, Any]:
+def run_restore_production_source(
+    archive: Path,
+    materialize_root: Path,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Restore only the frozen missing production root, or fully revalidate it."""
     started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     last_evidence: dict[str, Any] | None = None
@@ -2098,7 +2137,12 @@ def run_restore_production_source(archive: Path, materialize_root: Path) -> dict
         if snapshot.archive_format != "TAR":
             return evidence("FAIL", "ARCHIVE_FORMAT_MISMATCH", snapshot=snapshot)
         try:
-            chain = verify_production_gate_chain()
+            if runtime_reviewed_blob_sha256 is None:
+                chain = verify_production_gate_chain()
+            else:
+                chain = verify_production_gate_chain(
+                    runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256
+                )
             state, manifest_snapshot, result_snapshot = _inspect_state(
                 chain, ATTEMPT2_SOURCE_ROOT
             )

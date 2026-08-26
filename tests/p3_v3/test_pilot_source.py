@@ -2240,6 +2240,42 @@ def test_attempt2_source_entry_accepts_replacement_archive_identity(
         pilot_source._inspect_attempt2_source_entry(archive, source_root)
 
 
+def test_source_gate_accepts_current_bytes_only_with_attempt2_review(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_source
+
+    source = tmp_path / "pilot_source.py"
+    cli = tmp_path / "pilot.py"
+    source.write_bytes(b"current source\n")
+    cli.write_bytes(b"current cli\n")
+    monkeypatch.setattr(pilot_source, "REVIEWED_PILOT_SOURCE_PATH", source)
+    monkeypatch.setattr(pilot_source, "REVIEWED_PILOT_CLI_PATH", cli)
+    historical = {
+        "reviewed_pilot_source_sha256": "1" * 64,
+        "reviewed_pilot_cli_sha256": "2" * 64,
+    }
+    current = {
+        "src/p3_v3/pilot_source.py": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "scripts/p3_v3/pilot.py": hashlib.sha256(cli.read_bytes()).hexdigest(),
+    }
+
+    with pytest.raises(EvidenceError, match="runtime pilot_source.py bytes differ"):
+        pilot_source.verify_reviewed_production_bytes(historical)
+
+    pilot_source.verify_reviewed_production_bytes(
+        historical, runtime_reviewed_blob_sha256=current
+    )
+
+    for key in current:
+        wrong = dict(current)
+        wrong[key] = "0" * 64
+        with pytest.raises(EvidenceError):
+            pilot_source.verify_reviewed_production_bytes(
+                historical, runtime_reviewed_blob_sha256=wrong
+            )
+
+
 def _attempt2_fixture(tmp_path, monkeypatch, members=None):
     from p3_v3 import pilot_source
 

@@ -3249,7 +3249,16 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
     monkeypatch.setattr(
         pilot_build,
         "read_attempt2_implementation_verdict",
-        lambda: ({"reviewed_commit": "a" * 40}, "5" * 64),
+        lambda: (
+            {
+                "reviewed_commit": "a" * 40,
+                "reviewed_blob_sha256": {
+                    "src/p3_v3/pilot_source.py": "3" * 64,
+                    "scripts/p3_v3/pilot.py": "4" * 64,
+                },
+            },
+            "5" * 64,
+        ),
     )
     monkeypatch.setattr(pilot_build, "resolve_cmake_executable_path", lambda: "/usr/bin/cmake")
     monkeypatch.setattr(pilot_build, "producer_identity", lambda: (17, "synthetic"))
@@ -3293,11 +3302,19 @@ def _install_attempt2_orchestration_fakes(tmp_path, monkeypatch):
         path.write_bytes(pilot_build.canonical_json_bytes(value))
 
     monkeypatch.setattr(pilot_build, "write_canonical_json", writer)
-    monkeypatch.setattr(pilot_source, "_inspect_attempt2_source_entry", lambda *_: events.append("source-entry") or "INVALID_PASS_NO_ROOT")
+    monkeypatch.setattr(
+        pilot_source,
+        "_inspect_attempt2_source_entry",
+        lambda *_, **__: events.append("source-entry") or "INVALID_PASS_NO_ROOT",
+    )
     restoration = _attempt2_phase_fixture(
         pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[1]
     )["source_restoration_evidence"]
-    monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: events.append("source-restore") or restoration)
+    monkeypatch.setattr(
+        pilot_source,
+        "run_restore_production_source",
+        lambda *_, **__: events.append("source-restore") or restoration,
+    )
 
     def harness(root, cmake_bytes, cxx_bytes):
         assert root == paths["harness"]
@@ -3424,6 +3441,50 @@ def test_attempt2_orchestration_exact_one_shot_publication_order(tmp_path, monke
     ]
 
 
+def test_attempt2_orchestration_passes_runtime_review_to_source_gates(
+    tmp_path, monkeypatch
+):
+    from p3_v3 import pilot_source
+
+    pilot_build, paths, _events, _calls = _install_attempt2_orchestration_fakes(
+        tmp_path, monkeypatch
+    )
+    reviewed = {
+        "src/p3_v3/pilot_source.py": "3" * 64,
+        "scripts/p3_v3/pilot.py": "4" * 64,
+    }
+    monkeypatch.setattr(
+        pilot_build,
+        "read_attempt2_implementation_verdict",
+        lambda: (
+            {"reviewed_commit": "a" * 40, "reviewed_blob_sha256": reviewed},
+            "5" * 64,
+        ),
+    )
+    observed = []
+
+    def inspect(_archive, _source, *, runtime_reviewed_blob_sha256=None):
+        observed.append(("entry", runtime_reviewed_blob_sha256))
+        return "INVALID_PASS_NO_ROOT"
+
+    restoration = _attempt2_phase_fixture(
+        pilot_build, pilot_build.attempt2_phase_descriptors("/usr/bin/cmake")[1]
+    )["source_restoration_evidence"]
+
+    def restore(_archive, _source, *, runtime_reviewed_blob_sha256=None):
+        observed.append(("restore", runtime_reviewed_blob_sha256))
+        return restoration
+
+    monkeypatch.setattr(pilot_source, "_inspect_attempt2_source_entry", inspect)
+    monkeypatch.setattr(pilot_source, "run_restore_production_source", restore)
+
+    pilot_build.run_build_preflight_attempt_2(
+        paths["archive"], paths["source"], paths["build"]
+    )
+
+    assert observed == [("entry", reviewed), ("restore", reviewed)]
+
+
 @pytest.mark.parametrize(
     ("phase", "status"),
     [(0, "FAIL"), (0, "TIMEOUT"), (0, "FAIL_INFRASTRUCTURE"),
@@ -3454,7 +3515,11 @@ def test_attempt2_not_started_after_first_terminal_failure(tmp_path, monkeypatch
     if phase == 1:
         from p3_v3 import pilot_source
         evidence = _attempt2_phase_fixture(pilot_build, descriptors[1], "FAIL")["source_restoration_evidence"]
-        monkeypatch.setattr(pilot_source, "run_restore_production_source", lambda *_: evidence)
+        monkeypatch.setattr(
+            pilot_source,
+            "run_restore_production_source",
+            lambda *_, **__: evidence,
+        )
     result = pilot_build.run_build_preflight_attempt_2(paths["archive"], paths["source"], paths["build"])
     assert executed == [
         descriptor["phase_id"] for descriptor in descriptors[:phase + 1]

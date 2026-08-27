@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,6 +36,35 @@ class SubjectInputs:
     adapter_discovery: Mapping[str, Any]
     public_behavior_frame: Mapping[str, Any]
     profiling_workload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class RowDecision:
+    invocation_kind: str | None
+    unique: bool
+    failure_code: str | None
+
+
+@dataclass(frozen=True)
+class SubjectAudit:
+    neutral_snapshot_id: str
+    language_family: str
+    ecosystem: str
+    row_count: int
+    row_decisions: tuple[tuple[str, RowDecision], ...]
+    terminal: str
+    trace_strategy: str | None
+    dependency_count: int | None
+    source_status: str | None
+
+
+_UNDERSPECIFIED = RowDecision(None, False, "NO_UNIQUE_EXECUTION_ACTION")
+_JOIN_FIELDS = (
+    "category",
+    "entrypoint",
+    "declared_input_schema_sha256",
+    "diversity_signature_sha256",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,3 +160,172 @@ def load_population(
             "workload filenames do not match the bridge ID set",
         )
     return tuple(subjects)
+
+
+def classify_row_invocation(
+    *,
+    language_family: str,
+    entrypoint: str,
+    declared_inputs: Mapping[str, Any] | None,
+    exact_boost_header_runner: bool,
+) -> RowDecision:
+    if not isinstance(declared_inputs, Mapping):
+        return _UNDERSPECIFIED
+    keys = set(declared_inputs)
+    if keys == {"argv_tokens"}:
+        tokens = declared_inputs["argv_tokens"]
+        if (
+            isinstance(tokens, list)
+            and tokens
+            and all(isinstance(token, str) for token in tokens)
+        ):
+            return RowDecision("ARGV", True, None)
+        return _UNDERSPECIFIED
+    if keys == {"parameters"}:
+        if language_family == "python" and _python_callable_entrypoint(entrypoint):
+            return RowDecision("PYTHON_CALLABLE", True, None)
+        return _UNDERSPECIFIED
+    if keys == {"header"} and exact_boost_header_runner:
+        return RowDecision("CXX_HEADER_COMPILE", True, None)
+    return _UNDERSPECIFIED
+
+
+def _python_callable_entrypoint(entrypoint: object) -> bool:
+    if not isinstance(entrypoint, str) or ":" not in entrypoint:
+        return False
+    module, symbol = entrypoint.rsplit(":", 1)
+    return bool(module) and bool(symbol)
+
+
+def _selected_rows(workload: Mapping[str, Any], snapshot_id: str) -> list[dict[str, Any]]:
+    rows = workload.get("selected_rows")
+    if rows is None:
+        return []
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise EvidenceError("E_AUDIT_WORKLOAD", f"{snapshot_id} selected_rows must be objects")
+    return rows
+
+
+def _behavior_frame_index(
+    frame: Mapping[str, Any],
+    snapshot_id: str,
+) -> dict[str, dict[str, Any]]:
+    rows = frame.get("rows")
+    if not isinstance(rows, list):
+        raise EvidenceError(
+            "E_AUDIT_JOIN",
+            f"{snapshot_id} public behavior frame rows must be a list",
+        )
+    index: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise EvidenceError("E_AUDIT_JOIN", f"{snapshot_id} behavior row must be an object")
+        behavior_id = row.get("behavior_id")
+        if not isinstance(behavior_id, str) or not behavior_id:
+            raise EvidenceError("E_AUDIT_JOIN", f"{snapshot_id} behavior_id is missing")
+        if behavior_id in index:
+            raise EvidenceError(
+                "E_AUDIT_JOIN",
+                f"{snapshot_id} duplicate public behavior {behavior_id}",
+            )
+        index[behavior_id] = row
+    return index
+
+
+def _join_selected_row(
+    selected: Mapping[str, Any],
+    frame_row: Mapping[str, Any],
+    snapshot_id: str,
+    behavior_id: str,
+) -> None:
+    for field in _JOIN_FIELDS:
+        if selected.get(field) != frame_row.get(field):
+            raise EvidenceError(
+                "E_AUDIT_JOIN",
+                f"{snapshot_id} {behavior_id} {field} differs from the public behavior frame",
+            )
+
+
+def audit_invocations(subject: SubjectInputs) -> SubjectAudit:
+    language_family = str(subject.descriptor.get("language_family") or "")
+    ecosystem = str(subject.descriptor.get("ecosystem") or "")
+    selected_rows = _selected_rows(subject.profiling_workload, subject.neutral_snapshot_id)
+    row_count = len(selected_rows)
+    if row_count not in {0, 20}:
+        raise EvidenceError(
+            "E_AUDIT_ROW_COUNT",
+            f"{subject.neutral_snapshot_id} selected_rows must be 0 or 20",
+        )
+    if row_count == 0:
+        return SubjectAudit(
+            neutral_snapshot_id=subject.neutral_snapshot_id,
+            language_family=language_family,
+            ecosystem=ecosystem,
+            row_count=0,
+            row_decisions=(),
+            terminal="NO_FROZEN_WORKLOAD",
+            trace_strategy=None,
+            dependency_count=None,
+            source_status=None,
+        )
+    behavior_ids = [row.get("behavior_id") for row in selected_rows]
+    if any(not isinstance(item, str) or not item for item in behavior_ids):
+        raise EvidenceError(
+            "E_AUDIT_WORKLOAD",
+            f"{subject.neutral_snapshot_id} selected rows require behavior_id",
+        )
+    if len(set(behavior_ids)) != 20:
+        raise EvidenceError(
+            "E_AUDIT_WORKLOAD",
+            f"{subject.neutral_snapshot_id} must have exactly 20 distinct behavior IDs",
+        )
+    frame_index = _behavior_frame_index(
+        subject.public_behavior_frame,
+        subject.neutral_snapshot_id,
+    )
+    exact_boost = subject.neutral_snapshot_id == BOOST_MATH_ID
+    decisions: list[tuple[str, RowDecision]] = []
+    for selected in selected_rows:
+        behavior_id = str(selected["behavior_id"])
+        frame_row = frame_index.get(behavior_id)
+        if frame_row is None:
+            raise EvidenceError(
+                "E_AUDIT_JOIN",
+                f"{subject.neutral_snapshot_id} missing public behavior {behavior_id}",
+            )
+        _join_selected_row(selected, frame_row, subject.neutral_snapshot_id, behavior_id)
+        decisions.append(
+            (
+                behavior_id,
+                classify_row_invocation(
+                    language_family=language_family,
+                    entrypoint=str(selected.get("entrypoint") or ""),
+                    declared_inputs=frame_row.get("declared_inputs"),
+                    exact_boost_header_runner=exact_boost,
+                ),
+            )
+        )
+    decisions.sort(key=lambda item: item[0])
+    if exact_boost:
+        terminal = "TERMINAL_RETRY_FORBIDDEN"
+    elif any(not decision.unique for _, decision in decisions):
+        terminal = "WORKLOAD_EXECUTION_UNDERSPECIFIED"
+    else:
+        terminal = "INVOCATION_COMPLETE"
+    return SubjectAudit(
+        neutral_snapshot_id=subject.neutral_snapshot_id,
+        language_family=language_family,
+        ecosystem=ecosystem,
+        row_count=20,
+        row_decisions=tuple(decisions),
+        terminal=terminal,
+        trace_strategy=None,
+        dependency_count=None,
+        source_status=None,
+    )
+
+
+def audit_invocations_for_population(
+    subjects: Sequence[SubjectInputs],
+) -> tuple[SubjectAudit, ...]:
+    return tuple(audit_invocations(subject) for subject in subjects)

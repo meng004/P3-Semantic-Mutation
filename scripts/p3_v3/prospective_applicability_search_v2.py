@@ -716,10 +716,11 @@ def validate_v2_preflight(
     controller_path: Path,
 ) -> dict[str, object]:
     root = Path(repo_root)
-    expected_controller = (root / CONTROLLER_RELPATH).resolve()
-    observed_controller = Path(controller_path).resolve()
+    expected_controller = root / CONTROLLER_RELPATH
+    observed_controller = Path(controller_path)
     require_regular_file(observed_controller, "controller")
-    if observed_controller != expected_controller:
+    require_regular_file(expected_controller, "controller")
+    if observed_controller.resolve() != expected_controller.resolve():
         _preflight_fail("controller path is not the unique v2 controller")
     controller_source_sha256 = file_sha256(observed_controller)
 
@@ -896,12 +897,29 @@ def read_successor_pbf(
     path = pbf_path(repo_root, str(successor["neutral_snapshot_id"]))
     try:
         require_regular_file(path, "successor pbf")
-        payload = read_canonical_regular_json(path, "successor pbf")
-        identity = pbf_identity(path)
+        raw, mode = read_regular_file_snapshot(path, "successor pbf")
     except EvidenceError as exc:
         if exc.code == "V2_PREFLIGHT_FAIL":
             _execution_fail(str(exc))
         raise
+    if not stat.S_ISREG(mode):
+        _execution_fail("successor pbf is not a regular file")
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        _execution_fail("successor pbf is not JSON")
+        raise exc
+    if not isinstance(payload, Mapping) or canonical_json_bytes(payload) != raw:
+        _execution_fail("successor pbf is not canonical JSON")
+    sites = payload.get("sites")
+    if not isinstance(sites, list):
+        _execution_fail("successor pbf sites must be a list")
+    identity = {
+        "file_sha256": hashlib.sha256(raw).hexdigest(),
+        "artifact_sha256": payload.get("artifact_sha256"),
+        "controlled_subject_source_id": payload.get("controlled_subject_source_id"),
+        "pbf_site_count": len(sites),
+    }
     if (
         identity["file_sha256"] != successor["pbf_file_sha256"]
         or identity["artifact_sha256"] != successor["pbf_artifact_sha256"]

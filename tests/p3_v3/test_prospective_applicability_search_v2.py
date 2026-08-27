@@ -15,7 +15,13 @@ from p3_v3.applicability_predicates import (
     build_predicate_registry,
     load_applicability_authority,
 )
-from p3_v3.artifacts import EvidenceError, canonical_sha256, file_sha256
+from p3_v3 import artifacts as artifacts_mod
+from p3_v3.artifacts import (
+    EvidenceError,
+    canonical_sha256,
+    file_sha256,
+    write_canonical_json,
+)
 from p3_v3.slot_inventory import (
     freeze_slot_inventory,
     project_controlled_subject_ids,
@@ -180,6 +186,49 @@ def test_validate_v2_preflight_passes_current_frozen_identities():
     assert payload["controller_source_sha256"] == file_sha256(CONTROLLER_PATH)
     assert not v2.official_root(REPO_ROOT).exists()
     assert not v2.staging_root(REPO_ROOT).exists()
+
+
+def test_validate_v2_preflight_rejects_controller_symlink(tmp_path):
+    linked = tmp_path / v2.CONTROLLER_RELPATH
+    linked.parent.mkdir(parents=True)
+    linked.symlink_to(CONTROLLER_PATH)
+    with pytest.raises(EvidenceError, match="not a regular file"):
+        v2.validate_v2_preflight(repo_root=tmp_path, controller_path=linked)
+
+
+def test_read_successor_pbf_uses_one_snapshot(tmp_path, monkeypatch):
+    payload = {
+        "artifact_sha256": "a" * 64,
+        "controlled_subject_source_id": "b" * 64,
+        "sites": [],
+    }
+    path = tmp_path / "public-behavior-frame.json"
+    write_canonical_json(path, payload, exclusive=True)
+    original = path.read_bytes()
+    successor = {
+        "neutral_snapshot_id": "c" * 64,
+        "controlled_subject_source_id": "b" * 64,
+        "pbf_file_sha256": hashlib.sha256(original).hexdigest(),
+        "pbf_artifact_sha256": "a" * 64,
+        "pbf_site_count": 0,
+    }
+    reads = {"n": 0}
+    real = artifacts_mod.read_regular_file_snapshot
+
+    def once(observed, context):
+        reads["n"] += 1
+        raw, mode = real(observed, context)
+        path.write_bytes(raw + b" ")
+        return raw, mode
+
+    monkeypatch.setattr(v2, "read_regular_file_snapshot", once)
+    monkeypatch.setattr(artifacts_mod, "read_regular_file_snapshot", once)
+    monkeypatch.setattr(v2, "pbf_path", lambda *_args, **_kwargs: path)
+    loaded = v2.read_successor_pbf(tmp_path, successor)
+    assert reads["n"] == 1
+    assert loaded["artifact_sha256"] == "a" * 64
+    assert loaded["controlled_subject_source_id"] == "b" * 64
+    assert len(loaded["sites"]) == 0
 
 
 def test_preflight_does_not_call_closer(monkeypatch):

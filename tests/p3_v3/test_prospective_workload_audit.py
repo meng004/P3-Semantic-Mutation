@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import io
+import tarfile
 from collections import Counter
 from pathlib import Path
 
 import pytest
+
+from p3_v3.artifacts import EvidenceError
+from p3_v3.bridge_and_frames import canonical_source_tree_sha256
+import scripts.p3_v3.build_phase1_frames as driver_module
+import scripts.p3_v3.evidence as evidence_cli
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -143,3 +151,169 @@ def test_real_invocation_audit_matches_preregistered_terminals():
     assert counts["WORKLOAD_EXECUTION_UNDERSPECIFIED"] == 22
     assert counts.get("INVOCATION_COMPLETE", 0) == 0
     assert sum(counts.values()) == 35
+
+
+def _eligible_subject(neutral_snapshot_id, trace, dependency_count):
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    decisions = tuple(
+        (f"{index:064x}", audit.RowDecision("ARGV", True, None))
+        for index in range(20)
+    )
+    return audit.SubjectAudit(
+        neutral_snapshot_id=neutral_snapshot_id,
+        language_family="c",
+        ecosystem="cmake",
+        row_count=20,
+        row_decisions=decisions,
+        terminal="PROSPECTIVE_EXECUTABLE",
+        trace_strategy=trace,
+        dependency_count=dependency_count,
+        source_status="SOURCE_IDENTITY_PASS",
+    )
+
+
+def test_trace_strategy_is_language_and_build_specific():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    assert audit.trace_strategy("python", "meson", {"ARGV", "PYTHON_CALLABLE"}) == (
+        "PYTHON_CALL_TRACE_V1", 1
+    )
+    assert audit.trace_strategy("c", "cmake", {"ARGV"}) == (
+        "CMAKE_NATIVE_CALL_TRACE_V1", 2
+    )
+    assert audit.trace_strategy("fortran", "autotools", {"ARGV"}) == (
+        "AUTOTOOLS_NATIVE_CALL_TRACE_V1", 3
+    )
+    assert audit.trace_strategy("c", "cmake", {"ARGV", "CXX_HEADER_COMPILE"}) is None
+
+
+def test_selection_is_order_independent_and_freezes_one_candidate():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    python = _eligible_subject("b" * 64, "PYTHON_CALL_TRACE_V1", 1)
+    cmake = _eligible_subject("a" * 64, "CMAKE_NATIVE_CALL_TRACE_V1", 2)
+    assert audit.select_candidate([cmake, python]) == python
+    assert audit.select_candidate([python, cmake]) == python
+
+
+def test_same_runner_and_dependency_prefers_lexicographically_smaller_id():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    later = _eligible_subject("b" * 64, "CMAKE_NATIVE_CALL_TRACE_V1", 2)
+    earlier = _eligible_subject("a" * 64, "CMAKE_NATIVE_CALL_TRACE_V1", 2)
+    assert audit.select_candidate([later, earlier]) == earlier
+    assert audit.select_candidate([earlier, later]) == earlier
+
+
+def test_select_candidate_returns_none_when_no_subject_is_eligible():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    blocked = _eligible_subject("a" * 64, "CMAKE_NATIVE_CALL_TRACE_V1", 2)
+    blocked = audit.SubjectAudit(
+        **{
+            **blocked.__dict__,
+            "terminal": "WORKLOAD_EXECUTION_UNDERSPECIFIED",
+            "source_status": None,
+            "trace_strategy": None,
+        }
+    )
+    assert audit.select_candidate([blocked]) is None
+    assert audit.select_candidate([]) is None
+
+
+def _write_tar(path, member: tarfile.TarInfo, payload: bytes = b"") -> str:
+    with tarfile.open(path, "w") as archive:
+        archive.addfile(member, io.BytesIO(payload) if payload else None)
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _tiny_archive(tmp_path, payload: bytes = b"int main(void) { return 0; }\n"):
+    archive_path = tmp_path / "subject.tar"
+    member = tarfile.TarInfo("main.c")
+    member.size = len(payload)
+    member.mode = 0o644
+    archive_sha256 = _write_tar(archive_path, member, payload)
+    return archive_path, archive_sha256, payload
+
+
+def _captured_tree_sha256(destination: Path) -> str:
+    _manifest, snapshot = evidence_cli._capture_tracked_source_manifest(
+        destination, ["."], "subject-source"
+    )
+    return canonical_source_tree_sha256(snapshot)
+
+
+def _source_subject(audit, snapshot_id: str, archive_sha256: str, tree_sha256: str):
+    return audit.SubjectInputs(
+        neutral_snapshot_id=snapshot_id,
+        bridge_record={
+            "source_archive_sha256": archive_sha256,
+            "normalized_source_tree_sha256": tree_sha256,
+        },
+        descriptor={"language_family": "c", "ecosystem": "cmake"},
+        adapter_discovery={},
+        public_behavior_frame={},
+        profiling_workload={"selected_rows": []},
+    )
+
+
+def test_verify_candidate_source_accepts_tiny_normalized_tree(tmp_path):
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    archive_path, archive_sha256, _payload = _tiny_archive(tmp_path)
+    extracted = tmp_path / "pre"
+    driver_module.extract_archive(archive_path, extracted, archive_sha256)
+    tree_sha256 = _captured_tree_sha256(extracted)
+    snapshot_id = "ab" * 32
+    archive_root = tmp_path / "archives"
+    archive_root.mkdir()
+    (archive_root / f"{snapshot_id}.tar").write_bytes(archive_path.read_bytes())
+    subject = _source_subject(audit, snapshot_id, archive_sha256, tree_sha256)
+    runtime_root = tmp_path / "runtime"
+    assert (
+        audit.verify_candidate_source(
+            subject,
+            archive_root=archive_root,
+            runtime_root=runtime_root,
+        )
+        == "SOURCE_IDENTITY_PASS"
+    )
+    assert (runtime_root / snapshot_id / "main.c").is_file()
+
+
+def test_verify_candidate_source_maps_archive_failures(tmp_path):
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    archive_path, archive_sha256, _payload = _tiny_archive(tmp_path)
+    extracted = tmp_path / "pre"
+    driver_module.extract_archive(archive_path, extracted, archive_sha256)
+    tree_sha256 = _captured_tree_sha256(extracted)
+    snapshot_id = "cd" * 32
+    archive_root = tmp_path / "archives"
+    archive_root.mkdir()
+    runtime_root = tmp_path / "runtime"
+    missing = _source_subject(audit, snapshot_id, archive_sha256, tree_sha256)
+    assert (
+        audit.verify_candidate_source(
+            missing,
+            archive_root=archive_root,
+            runtime_root=runtime_root,
+        )
+        == "SOURCE_UNAVAILABLE"
+    )
+    (archive_root / f"{snapshot_id}.tar").write_bytes(b"not-the-archive\n")
+    assert (
+        audit.verify_candidate_source(
+            missing,
+            archive_root=archive_root,
+            runtime_root=runtime_root,
+        )
+        == "SOURCE_IDENTITY_FAIL"
+    )
+    with pytest.raises(EvidenceError, match="EVIDENCE_CONFLICT"):
+        audit.verify_candidate_source(
+            _source_subject(audit, snapshot_id, "0" * 16, tree_sha256),
+            archive_root=archive_root,
+            runtime_root=runtime_root,
+        )

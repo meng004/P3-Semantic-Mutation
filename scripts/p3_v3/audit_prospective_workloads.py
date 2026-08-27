@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +22,7 @@ from p3_v3.artifacts import (  # noqa: E402
     validate_sha256,
 )
 from p3_v3.bridge_and_frames import validate_bridge_document  # noqa: E402
+from scripts.p3_v3.build_phase1_frames import ensure_extracted_source  # noqa: E402
 
 EXPECTED_SUBJECT_COUNT = 35
 BOOST_MATH_ID = "74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886"
@@ -329,3 +330,146 @@ def audit_invocations_for_population(
     subjects: Sequence[SubjectInputs],
 ) -> tuple[SubjectAudit, ...]:
     return tuple(audit_invocations(subject) for subject in subjects)
+
+
+TRACE_STRATEGIES = {
+    ("python", "meson", frozenset({"ARGV", "PYTHON_CALLABLE"})):
+        ("PYTHON_CALL_TRACE_V1", 1),
+    ("c", "cmake", frozenset({"ARGV"})):
+        ("CMAKE_NATIVE_CALL_TRACE_V1", 2),
+    ("cpp", "cmake", frozenset({"ARGV"})):
+        ("CMAKE_NATIVE_CALL_TRACE_V1", 2),
+    ("fortran", "cmake", frozenset({"ARGV"})):
+        ("CMAKE_NATIVE_CALL_TRACE_V1", 2),
+    ("c", "autotools", frozenset({"ARGV"})):
+        ("AUTOTOOLS_NATIVE_CALL_TRACE_V1", 3),
+    ("cpp", "autotools", frozenset({"ARGV"})):
+        ("AUTOTOOLS_NATIVE_CALL_TRACE_V1", 3),
+    ("fortran", "autotools", frozenset({"ARGV"})):
+        ("AUTOTOOLS_NATIVE_CALL_TRACE_V1", 3),
+}
+
+
+def trace_strategy(
+    language_family: str,
+    ecosystem: str,
+    invocation_kinds: set[str] | frozenset[str],
+) -> tuple[str, int] | None:
+    return TRACE_STRATEGIES.get(
+        (language_family, ecosystem, frozenset(invocation_kinds))
+    )
+
+
+def verify_candidate_source(
+    subject: SubjectInputs,
+    *,
+    archive_root: Path,
+    runtime_root: Path,
+) -> str:
+    archive = Path(archive_root) / f"{subject.neutral_snapshot_id}.tar"
+    destination = Path(runtime_root) / subject.neutral_snapshot_id
+    try:
+        ensure_extracted_source(
+            archive,
+            destination,
+            subject.bridge_record["source_archive_sha256"],
+            subject.bridge_record["normalized_source_tree_sha256"],
+        )
+    except EvidenceError as exc:
+        if exc.code == "E_ARCHIVE":
+            return "SOURCE_UNAVAILABLE"
+        if exc.code in {"E_ARCHIVE_HASH", "E_SOURCE_TREE_COMMITMENT"}:
+            return "SOURCE_IDENTITY_FAIL"
+        raise EvidenceError("EVIDENCE_CONFLICT", str(exc)) from exc
+    return "SOURCE_IDENTITY_PASS"
+
+
+def _runner_class_rank(trace: str | None) -> int:
+    del trace
+    return 1
+
+
+def select_candidate(subjects: Sequence[SubjectAudit]) -> SubjectAudit | None:
+    eligible = [
+        row
+        for row in subjects
+        if row.terminal == "PROSPECTIVE_EXECUTABLE"
+        and row.trace_strategy is not None
+        and row.source_status == "SOURCE_IDENTITY_PASS"
+        and row.neutral_snapshot_id != BOOST_MATH_ID
+    ]
+    if not eligible:
+        return None
+    ranked = sorted(
+        eligible,
+        key=lambda row: (
+            _runner_class_rank(row.trace_strategy),
+            row.dependency_count,
+            row.neutral_snapshot_id,
+        ),
+    )
+    return ranked[0]
+
+
+def invocation_kinds(audit: SubjectAudit) -> frozenset[str]:
+    return frozenset(
+        decision.invocation_kind
+        for _, decision in audit.row_decisions
+        if decision.invocation_kind
+    )
+
+
+def apply_trace_and_source(
+    subject: SubjectInputs,
+    audit: SubjectAudit,
+    *,
+    archive_root: Path,
+    runtime_root: Path,
+) -> SubjectAudit:
+    if audit.terminal != "INVOCATION_COMPLETE":
+        return audit
+    strategy = trace_strategy(
+        audit.language_family,
+        audit.ecosystem,
+        invocation_kinds(audit),
+    )
+    if strategy is None:
+        return replace(audit, terminal="TRACE_BOUNDARY_UNAVAILABLE")
+    name, dependency_count = strategy
+    source_status = verify_candidate_source(
+        subject,
+        archive_root=archive_root,
+        runtime_root=runtime_root,
+    )
+    terminal = (
+        "PROSPECTIVE_EXECUTABLE"
+        if source_status == "SOURCE_IDENTITY_PASS"
+        else source_status
+    )
+    return replace(
+        audit,
+        trace_strategy=name,
+        dependency_count=dependency_count,
+        source_status=source_status,
+        terminal=terminal,
+    )
+
+
+def finalize_population(
+    subjects: Sequence[SubjectInputs],
+    audits: Sequence[SubjectAudit],
+    *,
+    archive_root: Path,
+    runtime_root: Path,
+) -> tuple[SubjectAudit, ...]:
+    finalized: list[SubjectAudit] = []
+    for subject, audit in zip(subjects, audits, strict=True):
+        finalized.append(
+            apply_trace_and_source(
+                subject,
+                audit,
+                archive_root=archive_root,
+                runtime_root=runtime_root,
+            )
+        )
+    return tuple(finalized)

@@ -7,6 +7,8 @@ Model / reasoning: `gpt-5.6-sol` / high
 Mode: freeze already-approved eligibility-search rules as the unique v2 design specification
 Verification status: `ANALYZED`
 Reproducibility: `NOT_APPLICABLE` (this task produces a design, not an observation)
+Correction: `P3_C3_PROSPECTIVE_V2_DESIGN_TERMINAL_BINDING_CORRECTION`
+Correction mode: bind the unique `cohort-terminal.json` exact object and the unique future controller identity; do not change successor universe, order, eligibility, stopping, failure semantics, or evidence ceiling
 
 This document is the only prospective v2 successor/stopping authority. It is
 not a second applicability-authority manifest, not a second claim ledger, and
@@ -119,12 +121,18 @@ them before any successor PBF site is opened.
 | Frozen authority ID | `p3-v3-phase2-applicability-authority-v1` |
 | Authority manifest artifact SHA-256 | `30b08271eafdead14a06707b461f108c1ec5a53eb5d2859a37b2cd6238e20214` |
 | Authority schema | `p3-applicability-authority-v1` |
+| Unique future controller path | `scripts/p3_v3/prospective_applicability_search_v2.py` |
+| Official cohort terminal path | `data/p3_v3/phase2/prospective-applicability-search-v2/cohort-terminal.json` |
 
 This design does not create a second applicability authority. Future v2
-execution must load the existing authority through the existing
+execution must use exactly one small production controller at
+`scripts/p3_v3/prospective_applicability_search_v2.py`. That controller
+must load the existing authority through the existing
 `load_applicability_authority(...)` / `close_slot_with_authority(...)`
-seam. Successor order and stopping are authorized only by this document
-and by the Git commit / SHA-256 of this file.
+seam and the existing canonical JSON/hash helpers. Successor order and
+stopping are authorized only by this document and by the Git commit /
+SHA-256 of this file. This correction names the controller path. It does
+not create the controller file.
 
 Document path:
 
@@ -360,6 +368,44 @@ Transition rules:
 7. No transition skips a failed subject, enlarges the universe, or
    restarts from rank 1.
 
+### 7.1 Unique controller source file
+
+The future controlled run uses one independent small production
+controller and no other runner:
+
+`scripts/p3_v3/prospective_applicability_search_v2.py`
+
+That file's duties are only:
+
+- read and verify this v2 design identity;
+- load the existing applicability authority;
+- run the 22-row order written in §3;
+- complete 10 closures per opened subject;
+- execute `ORDERED_STOP_ON_FIRST_ELIGIBLE`;
+- atomically write each official subject-closure directory;
+- write the unique cohort terminal last.
+
+The controller must reuse:
+
+- `load_applicability_authority(...)`;
+- `close_slot_with_authority(...)`;
+- the existing canonical JSON and hash helpers.
+
+The controller must not:
+
+- implement a second predicate set;
+- implement a second closer;
+- rewrite the inventory;
+- read source, profiling, technique, or mutation outcome;
+- create a second manifest, ledger, or schema file;
+- accept a user-supplied successor order;
+- accept a user-supplied maximum attempt count;
+- accept a user-supplied applicability map;
+- accept skip, retry, or resume parameters.
+
+This correction only freezes that path. It does not create the
+controller file.
+
 ## 8. Stop-on-first-eligible rule
 
 Selection mode is `ORDERED_STOP_ON_FIRST_ELIGIBLE`.
@@ -470,14 +516,24 @@ the old confirmatory closure directory or any other existing path.
 Preflight requires that both the official cohort root and the temporary
 sibling root are absent.
 
-Write process for each opened successor:
+Write chronology, in this exact order:
 
-1. Complete all 10 closures in memory first.
-2. Write the 10 verified closure files into the temporary sibling
-   directory for that subject.
-3. Recheck identity, count, self-hashes, and eligibility label.
-4. Place the subject directory atomically into the official subject path.
-5. Do not overwrite an existing official path.
+1. The controller source-file SHA-256 is already fixed by the later
+   authorization.
+2. Preflight in §10 all passes.
+3. Subjects execute in successor ordinal order.
+4. Each opened subject's 10 closures complete in memory first.
+5. That subject's directory is verified in the temporary sibling path,
+   then placed atomically into the official subject path. Do not
+   overwrite an existing official path.
+6. After `V2_ELIGIBLE_SUBJECT_FOUND` or `V2_COHORT_EXHAUSTED` is reached,
+   construct the cohort terminal in staging.
+7. Rebuild and verify every consistency rule in §11.5.
+8. Place the terminal atomically as official
+   `data/p3_v3/phase2/prospective-applicability-search-v2/cohort-terminal.json`.
+9. The official cohort terminal is the last official artifact.
+10. After that terminal is written, do not open another PBF and do not
+    write another closure.
 
 ### 11.2 Execution failure
 
@@ -492,18 +548,192 @@ Any of the following during a subject or during atomic placement is:
 - atomic placement failure;
 - official path already present.
 
-Rules after `V2_EXECUTION_FAIL`:
+Rules after `V2_PREFLIGHT_FAIL` or `V2_EXECUTION_FAIL`:
 
+- do not write an official `cohort-terminal.json`;
+- do not write any object that masquerades as a scientific cohort
+  terminal;
 - do not label the abnormal subject `V2_APPLICABILITY_INELIGIBLE`;
 - do not advance to the next ordinal;
 - do not retry;
 - keep already officially placed prior ineligible subjects;
 - keep the temporary or partial path for audit;
+- record the failure in the task log and the final return;
 - stop for a separate infrastructure and evidence review;
 - do not auto-resume.
 
+Infrastructure failure must not enter eligibility evidence.
+
 This design does not create a retry-authorization format. Retry remains
 undefined. `NO_SCIENTIFIC_RETRY` is the only retry policy.
+
+### 11.3 Unique cohort-terminal exact object
+
+The unique future official terminal is:
+
+`data/p3_v3/phase2/prospective-applicability-search-v2/cohort-terminal.json`
+
+It must be a canonical JSON exact object. Its keys are exactly the
+following, in this meaning, with no extra field:
+
+```json
+{
+  "schema_version": "p3-c3-prospective-applicability-search-v2-terminal-v1",
+  "slice_id": "p3-c3-prospective-applicability-search-v2",
+  "design_commit": "<authorized design commit SHA>",
+  "design_file_sha256": "<authorized design file SHA-256>",
+  "authority_artifact_sha256": "30b08271eafdead14a06707b461f108c1ec5a53eb5d2859a37b2cd6238e20214",
+  "controller_source_sha256": "<SHA-256 of scripts/p3_v3/prospective_applicability_search_v2.py>",
+  "prior_closure_commit": "e6f9e84a5a71900e0fb6f0655393c5e1b613b6a5",
+  "terminal_status": "<V2_ELIGIBLE_SUBJECT_FOUND or V2_COHORT_EXHAUSTED>",
+  "attempted_subjects": [],
+  "first_eligible_successor_ordinal": null,
+  "first_eligible_neutral_snapshot_id": null,
+  "artifact_sha256": "<canonical self-hash>"
+}
+```
+
+`schema_version`, `slice_id`, `authority_artifact_sha256`, and
+`prior_closure_commit` are the literal values above.
+`design_commit`, `design_file_sha256`, and `controller_source_sha256`
+are filled only by the later authorized run. `terminal_status` is
+exactly one of the two scientific strings named above. Any other
+terminal string fails closed.
+
+Do not add a timestamp, hostname, nonce, path snapshot, or any other
+non-deterministic field.
+
+Self-hash:
+
+```text
+artifact_sha256 = canonical_sha256(body without artifact_sha256)
+```
+
+The existing `canonical_sha256` helper is the only allowed hash.
+
+### 11.4 Attempted-subject and closure exact objects
+
+`attempted_subjects` is a JSON array ordered by `successor_ordinal`
+ascending.
+
+Each attempted-subject row is a canonical exact object with exactly
+these fields:
+
+```json
+{
+  "successor_ordinal": 1,
+  "neutral_snapshot_id": "<64-char SHA-256>",
+  "controlled_subject_source_id": "<64-char SHA-256>",
+  "controlled_subject_id": "<64-char SHA-256>",
+  "eligibility": "<V2_APPLICABILITY_ELIGIBLE or V2_APPLICABILITY_INELIGIBLE>",
+  "closures": []
+}
+```
+
+`successor_ordinal` is an integer. The three identity fields are
+lowercase 64-character SHA-256 strings. `eligibility` is exactly one of
+the two labels in §6.
+
+`closures` is a JSON array ordered by the frozen inventory's canonical
+slot order for that `controlled_subject_id`.
+
+Each closure row is a canonical exact object with exactly these fields:
+
+```json
+{
+  "slot_id": "<64-char SHA-256>",
+  "state": "<SITE_FROZEN or APPLICABILITY_CLOSED_NOT_APPLICABLE>",
+  "site_id": "<64-char SHA-256 or null>",
+  "closure_artifact_sha256": "<64-char SHA-256>"
+}
+```
+
+Each attempted subject must contain exactly 10 closure rows.
+`closure_artifact_sha256` is the existing closure object's self-hash.
+`site_id` is `null` when `state` is
+`APPLICABILITY_CLOSED_NOT_APPLICABLE`. When `state` is `SITE_FROZEN`,
+`site_id` is the existing closer's site identity hash.
+
+The terminal must not contain:
+
+- site path;
+- symbol;
+- source span;
+- contract;
+- patch;
+- profiling result;
+- technique;
+- mutation or MR outcome;
+- runtime timing;
+- project-quality judgment.
+
+### 11.5 Terminal consistency rules
+
+A later validator must fail closed unless every rule below holds.
+
+General rules:
+
+- `attempted_subjects` is nonempty.
+- ordinals start at 1, increase by 1, have no gap, and have no
+  duplicate.
+- each attempted row's `successor_ordinal`,
+  `neutral_snapshot_id`, `controlled_subject_source_id`, and
+  `controlled_subject_id` equal the matching §3 successor exactly.
+- attempted count is at most 22.
+- each attempted subject has exactly the 10 frozen slot IDs already
+  bound to that `controlled_subject_id`.
+- each referenced closure artifact passes its existing self-hash.
+- each closure `state` is only `SITE_FROZEN` or
+  `APPLICABILITY_CLOSED_NOT_APPLICABLE`.
+- each row's `eligibility` is derived mechanically from that subject's
+  10 closure states using §6: at least one `SITE_FROZEN` yields
+  `V2_APPLICABILITY_ELIGIBLE`; 10/10
+  `APPLICABILITY_CLOSED_NOT_APPLICABLE` yields
+  `V2_APPLICABILITY_INELIGIBLE`.
+
+If `terminal_status = V2_ELIGIBLE_SUBJECT_FOUND`:
+
+- the last attempted subject is the unique first eligible subject;
+- that last subject has at least one `SITE_FROZEN`;
+- every earlier attempted subject is 10/10
+  `APPLICABILITY_CLOSED_NOT_APPLICABLE` and
+  `V2_APPLICABILITY_INELIGIBLE`;
+- `first_eligible_successor_ordinal` equals the last attempted
+  ordinal;
+- `first_eligible_neutral_snapshot_id` equals that last subject's
+  `neutral_snapshot_id`;
+- no later successor appears.
+
+If `terminal_status = V2_COHORT_EXHAUSTED`:
+
+- `attempted_subjects` contains exactly 22 rows;
+- ordinals are exactly 1 through 22;
+- every `eligibility` is `V2_APPLICABILITY_INELIGIBLE`;
+- all 220 closures are `APPLICABILITY_CLOSED_NOT_APPLICABLE`;
+- `first_eligible_successor_ordinal` is `null`;
+- `first_eligible_neutral_snapshot_id` is `null`.
+
+Any other `terminal_status` string fails closed.
+
+`V2_PREFLIGHT_FAIL` and `V2_EXECUTION_FAIL` are not values of
+`terminal_status` and must not appear in
+`cohort-terminal.json`.
+
+### 11.6 No independent schema, manifest, ledger, or subject terminal
+
+The exact-object structures in §11.3 and §11.4 belong to this v2
+design. They are not a second authority.
+
+Do not create:
+
+- a JSON Schema file;
+- a subject-terminal file;
+- a run manifest;
+- a second applicability authority;
+- a second claim ledger.
+
+The machine-readable official output is exactly the already-defined
+per-subject official closures plus this one cohort terminal.
 
 ## 12. Information isolation
 
@@ -600,6 +830,44 @@ If a later main protocol natively contains prospective successor and
 stopping rules, absorb these rules and delete this independent v2
 authority. Two effective successor/stopping authorities must not coexist.
 
+### 14.1 Controller identity binding
+
+Concrete failure scenario:
+The same design and authority are reused, but a different
+stop/skip/controller implementation produces a different attempted
+sequence and is still labeled the same v2 run.
+
+Harmed asset:
+Successor chronology, stop-on-first-eligible, and reconstructability of
+the official terminal.
+
+Why Git, the design SHA, and the authority SHA are not enough:
+They bind rule text and predicate/slot bytes. They do not bind the
+actual execution loop or the write logic.
+
+Minimal added control:
+The terminal uniquely adds `controller_source_sha256` and requires one
+independent small controller file. Do not create a second manifest or
+ledger.
+
+Why the whole `evidence.py` file is not bound:
+That file contains many unrelated commands. Later unrelated edits would
+force a needless rebind. The independent controller is a deeper and
+narrower common seam.
+
+Proof tests that the later run plan must include:
+
+- the authorized original controller SHA passes;
+- changing any controller byte makes terminal validation fail;
+- changing the design SHA makes terminal validation fail;
+- changing attempted order, a closure hash, or `terminal_status` makes
+  terminal validation fail.
+
+Maintenance cost and deletion condition:
+One small controller SHA field. When a later main protocol absorbs the
+v2 runner identity, delete this independent binding. Do not keep two
+effective controller authorities.
+
 ## 15. C3 and claim-ledger interpretation
 
 Ledger file: `research/evidence/p3_claim_ledger_v1.3.0.yml`
@@ -625,19 +893,21 @@ This task does not:
 - run applicability search;
 - open any successor site, source, or archive;
 - implement a controller, closer, schema, manifest, or ledger;
+- create `scripts/p3_v3/prospective_applicability_search_v2.py`;
 - modify existing authority, predicates, inventory, ranking, or closures;
 - create a retry-authorization format;
 - create a second applicability authority;
+- create a JSON Schema file, subject-terminal file, or run manifest;
 - write official or staging v2 output directories;
 - recover a source archive;
 - start Package A, contract, `E_CONTRACT`, mutant, baseline, or C3
   upgrade work;
 - treat this document as a scientific observation.
 
-The later controlled-run plan may specify how one controller binds this
-design. It may not change the successor set, order, maximum attempts,
-within-subject completion rule, eligibility definition, stopping rule,
-failure semantics, or evidence ceiling.
+The later controlled-run plan may specify how the unique controller binds
+this design. It may not change the successor set, order, maximum
+attempts, within-subject completion rule, eligibility definition,
+stopping rule, failure semantics, or evidence ceiling.
 
 ## 17. Review checklist
 
@@ -667,14 +937,30 @@ failure semantics, or evidence ceiling.
 - Evidence ceiling is eligibility only.
 - C3 remains `blocked`; claim ledger is not modified.
 - No second authority manifest, ledger, or schema is created.
+- The unique controller path is
+  `scripts/p3_v3/prospective_applicability_search_v2.py`.
+- The unique official terminal is `cohort-terminal.json` with the
+  exact fields in §11.3 through §11.5.
+- Failure does not write a scientific cohort terminal.
 - Unique next task is `P3_C3_PROSPECTIVE_V2_CONTROLLED_RUN_PLAN`.
 
 ## 18. Unique next task
 
 `P3_C3_PROSPECTIVE_V2_CONTROLLED_RUN_PLAN`
 
-That later task may plan one pre-authorized controller that binds this
-design and the existing authority. It may not execute v2, open a
-successor site, change these rules, or treat the plan as a C3 result.
+That later plan may contain only two consecutive but separately
+authorized slices:
 
-This design waits for human review. It does not authorize execution.
+1. Minimal controller implementation and focused validation.
+2. After the controller commit, this design commit, this design-file
+   SHA-256, and the authority identity are fixed, one official
+   controlled run.
+
+Completing the implementation must not automatically start the official
+run. The official run still requires a separate explicit authorization.
+The run plan must not change these v2 scientific rules. It may not open
+a successor site in the planning slice, and it may not treat the plan as
+a C3 result.
+
+This design waits for human review. It does not authorize controller
+implementation or v2 execution.

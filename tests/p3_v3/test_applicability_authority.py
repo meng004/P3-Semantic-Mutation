@@ -517,3 +517,54 @@ def test_load_applicability_authority_accepts_tmp_bindings_and_rejects_byte_drif
             slot_implementation_path=slot_impl,
             predicate_implementation_path=pred_impl,
         )
+
+
+ROOT = Path(__file__).resolve().parents[2]
+MANIFEST = ROOT / "data/p3_v3/phase2/applicability-authority.json"
+REGISTRY = ROOT / "data/p3_v3/protocol/applicability-predicate-registry.json"
+INVENTORY = ROOT / "data/p3_v3/phase2/slot-inventory.json"
+
+
+def test_official_authority_artifacts_bind_and_count():
+    loaded = load_applicability_authority(
+        manifest_path=MANIFEST,
+        registry_path=REGISTRY,
+        inventory_path=INVENTORY,
+        slot_implementation_path=ROOT / "src/p3_v3/slot_inventory.py",
+        predicate_implementation_path=ROOT / "src/p3_v3/applicability_predicates.py",
+    )
+    slots = loaded["inventory"]["slots"]
+    assert len(loaded["controlled_subject_ids"]) == 35
+    assert len(slots) == 350
+    assert set(Counter(row["controlled_subject_id"] for row in slots).values()) == {10}
+    assert Counter(row["semantic_contract_family"] for row in slots) == {
+        family: 70 for family in SEMANTIC_CONTRACT_FAMILIES
+    }
+    assert set(
+        Counter(
+            (row["semantic_contract_family"], row["permitted_construction_mechanism"])
+            for row in slots
+        ).values()
+    ) == {14}
+    assert loaded["manifest"]["site_policy_sha256"] == (
+        "9772430e0a2539667a9aaa776b47ecae92a7830e19ec0a6e75a5dda9cfdfdcf7"
+    )
+    assert loaded["manifest"]["operator_catalogue_sha256"] == (
+        "060671a031c36699fe63c7376afbb4714c84b25eab28f06445804ee8d232a635"
+    )
+    projection = loaded["manifest"]["subject_identity_projection"]
+    assert all(len(item) == 64 and item == item.lower() for item in projection)
+    assert set(loaded["manifest"]).isdisjoint({"site_id", "contract", "patch", "outcome"})
+
+
+def test_official_authority_rejects_implementation_or_inventory_byte_change(tmp_path):
+    drifted = tmp_path / "slot_inventory.py"
+    drifted.write_bytes((ROOT / "src/p3_v3/slot_inventory.py").read_bytes() + b"\n")
+    with pytest.raises(EvidenceError, match="E_APPLICABILITY_AUTHORITY"):
+        load_applicability_authority(
+            manifest_path=MANIFEST,
+            registry_path=REGISTRY,
+            inventory_path=INVENTORY,
+            slot_implementation_path=drifted,
+            predicate_implementation_path=ROOT / "src/p3_v3/applicability_predicates.py",
+        )

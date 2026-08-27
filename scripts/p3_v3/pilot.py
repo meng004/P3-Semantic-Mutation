@@ -28,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     preflight = sub.add_parser("build-preflight")
     preflight.add_argument("--source-root", required=True)
     preflight.add_argument("--build-root", required=True)
+    attempt2 = sub.add_parser("build-preflight-attempt-2")
+    attempt2.add_argument("--archive", required=True)
+    attempt2.add_argument("--source-root", required=True)
+    attempt2.add_argument("--build-root", required=True)
     return parser
 
 
@@ -47,6 +51,12 @@ def main(argv: list[str] | None = None) -> int:
             from p3_v3.pilot_build import run_build_preflight
 
             run_build_preflight(Path(args.source_root), Path(args.build_root))
+        elif args.command == "build-preflight-attempt-2":
+            from p3_v3.pilot_build import run_build_preflight_attempt_2
+
+            run_build_preflight_attempt_2(
+                Path(args.archive), Path(args.source_root), Path(args.build_root)
+            )
         else:
             raise EvidenceError("E_CLI_COMMAND", f"unsupported command: {args.command}")
     except EvidenceError as exc:

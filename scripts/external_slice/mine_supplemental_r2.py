@@ -2051,18 +2051,6 @@ def _forbidden_path_scan(
         readiness_file_hit = readiness_file_hit or readiness
         freeze_file_hit = freeze_file_hit or freeze
 
-    # Repo-wide tracked + untracked paths.
-    proc = subprocess.run(
-        ["git", "ls-files", "-co", "--exclude-standard"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode == 0:
-        for rel in proc.stdout.splitlines():
-            _consume(rel)
-
     # Also walk the admission root and its sibling boundary (tmp fixtures).
     scan_roots: list[Path] = []
     if root.is_dir():

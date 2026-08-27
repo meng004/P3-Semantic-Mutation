@@ -11,8 +11,10 @@ import shutil
 import stat
 import tarfile
 import zipfile
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from p3_v3.artifacts import (
     EvidenceError,
@@ -71,6 +73,30 @@ NEUTRAL_SNAPSHOT_ID = (
 FROZEN_NORMALIZED_SOURCE_TREE_SHA256 = (
     "93a62859d7fdd6b2068e494bbe6e3e27180b874cbd27055ac27f941e507a90d8"
 )
+ATTEMPT2_ARCHIVE_PATH = Path("/tmp/p3-boost-math-public-source-discovery/content-equivalence-r1/boost-math-dc86f3259c84f68ac7c4e2be11a1ed8567011240-projected.tar")
+ATTEMPT2_SOURCE_ROOT = Path("/tmp/p3-boost-math-pilot-production-source")
+ATTEMPT2_SOURCE_STAGING_ROOT = Path("/tmp/p3-boost-math-pilot-production-source.staging")
+ATTEMPT2_ARCHIVE_SHA256 = "e97524b457326fdb4d0ccd8f6d83cb33cdad920a76dffc4b508f628a0a70393d"
+ATTEMPT2_ARCHIVE_BYTES = 99092480
+ATTEMPT2_FILE_COUNT = 4396
+ATTEMPT2_TOTAL_BYTES = 95635487
+SOURCE_RESTORATION_SCHEMA = "p3-pilot-source-restoration-evidence-v1"
+SOURCE_RESTORATION_FAILURE_REASONS = frozenset({
+    "WRONG_ARCHIVE_PATH", "WRONG_SOURCE_ROOT", "ARCHIVE_UNSAFE",
+    "ARCHIVE_HASH_MISMATCH", "ARCHIVE_SIZE_MISMATCH", "ARCHIVE_FORMAT_MISMATCH",
+    "EXTRACTION_UNSAFE", "STAGING_EXISTS", "STAGING_SYMLINK", "ROOT_SYMLINK",
+    "INVALID_RECONCILIATION_STATE", "TREE_HASH_MISMATCH", "FILE_COUNT_MISMATCH",
+    "BYTE_COUNT_MISMATCH", "INVALID_PASS_PAIR",
+})
+SOURCE_RESTORATION_EVIDENCE_EXACT = {
+    "schema_version": str, "execution_class": str, "claims": str,
+    "disposition": str, "archive_sha256": str, "archive_bytes": int,
+    "normalized_tree_sha256": str, "materialized_file_count": int,
+    "materialized_total_bytes": int, "staging_published": bool,
+    "root_published": bool, "started_at": str, "ended_at": str,
+    "terminal_status": str, "failure_reason": (str, type(None)),
+    "artifact_sha256": str,
+}
 CONTROLLED_SUBJECT_SOURCE_ID = (
     "e5f21a7d067d641d0a20bfc57c61e630d6f7588ef30235cea49c9a9cf950c7a7"
 )
@@ -437,7 +463,11 @@ def validate_source_preparation_capability_verdict(
     return validated
 
 
-def verify_reviewed_production_bytes(capability_verdict: dict) -> None:
+def verify_reviewed_production_bytes(
+    capability_verdict: dict,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> None:
     observed_source, source_digest = read_authority_snapshot(
         REVIEWED_PILOT_SOURCE_PATH, "reviewed-pilot-source"
     )
@@ -445,12 +475,27 @@ def verify_reviewed_production_bytes(capability_verdict: dict) -> None:
         REVIEWED_PILOT_CLI_PATH, "reviewed-pilot-cli"
     )
     del observed_source, observed_cli
-    if source_digest != capability_verdict["reviewed_pilot_source_sha256"]:
+    expected_source = capability_verdict["reviewed_pilot_source_sha256"]
+    expected_cli = capability_verdict["reviewed_pilot_cli_sha256"]
+    if runtime_reviewed_blob_sha256 is not None:
+        try:
+            expected_source = runtime_reviewed_blob_sha256[
+                "src/p3_v3/pilot_source.py"
+            ]
+            expected_cli = runtime_reviewed_blob_sha256["scripts/p3_v3/pilot.py"]
+            validate_sha256(expected_source, "runtime-reviewed-pilot-source")
+            validate_sha256(expected_cli, "runtime-reviewed-pilot-cli")
+        except (KeyError, EvidenceError) as exc:
+            raise EvidenceError(
+                "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
+                "runtime reviewed source bindings are invalid",
+            ) from exc
+    if source_digest != expected_source:
         raise EvidenceError(
             "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
             "runtime pilot_source.py bytes differ from the reviewed snapshot",
         )
-    if cli_digest != capability_verdict["reviewed_pilot_cli_sha256"]:
+    if cli_digest != expected_cli:
         raise EvidenceError(
             "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT",
             "runtime pilot CLI bytes differ from the reviewed snapshot",
@@ -1377,7 +1422,9 @@ def _snapshot_or_absent(path: Path, context: str, absent_code: str) -> tuple[byt
         raise
 
 
-def verify_production_gate_chain() -> _GateChain:
+def verify_production_gate_chain(
+    *, runtime_reviewed_blob_sha256: dict[str, str] | None = None
+) -> _GateChain:
     require_unique_topological_authority_order(AUTHORITY_DEPENDENCY_EDGES)
     _plan_raw, plan_sha256 = read_authority_snapshot(
         SOURCE_PREPARATION_PLAN_PATH, "source-preparation-plan"
@@ -1406,7 +1453,10 @@ def verify_production_gate_chain() -> _GateChain:
             plan_sha256,
             plan_verdict_sha256,
         )
-        verify_reviewed_production_bytes(capability)
+        verify_reviewed_production_bytes(
+            capability,
+            runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256,
+        )
     except EvidenceError as exc:
         if exc.code == "E_PILOT_SOURCE_PREPARATION_CAPABILITY_VERDICT_ABSENT":
             raise
@@ -1922,6 +1972,287 @@ def run_validate_source(archive: Path, materialize_root: Path) -> None:
     if state == "ORPHAN_ROOT":
         raise EvidenceError("E_PILOT_SOURCE_ORPHAN_ROOT", "materialize root is orphaned")
     raise EvidenceError("E_PILOT_SOURCE_OUTPUT_EXISTS", f"reconciliation state {state}")
+
+
+def validate_source_restoration_evidence(value: object) -> dict[str, Any]:
+    validated = validate_exact_object(
+        value, SOURCE_RESTORATION_EVIDENCE_EXACT, "source-restoration-evidence"
+    )
+    if validated["schema_version"] != SOURCE_RESTORATION_SCHEMA:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "schema differs")
+    if validated["execution_class"] != "PILOT_ONLY" or validated["claims"] != "blocked":
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "claim ceiling differs")
+    if validated["disposition"] not in {"RESTORED", "REVALIDATED", "NOT_APPLIED"}:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "disposition differs")
+    try:
+        start = datetime.fromisoformat(validated["started_at"].replace("Z", "+00:00"))
+        end = datetime.fromisoformat(validated["ended_at"].replace("Z", "+00:00"))
+    except (ValueError, AttributeError) as exc:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid") from exc
+    if (
+        not validated["started_at"]
+        or not validated["ended_at"]
+        or not validated["started_at"].endswith("Z")
+        or not validated["ended_at"].endswith("Z")
+        or start.utcoffset() != timezone.utc.utcoffset(start)
+        or end.utcoffset() != timezone.utc.utcoffset(end)
+        or start > end
+    ):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "timestamps invalid")
+    passed = validated["terminal_status"] == "PASS"
+    if validated["terminal_status"] not in {"PASS", "FAIL"}:
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "terminal status differs")
+    if passed:
+        expected = (ATTEMPT2_ARCHIVE_SHA256, ATTEMPT2_ARCHIVE_BYTES,
+                    FROZEN_NORMALIZED_SOURCE_TREE_SHA256, ATTEMPT2_FILE_COUNT,
+                    ATTEMPT2_TOTAL_BYTES)
+        actual = tuple(validated[k] for k in ("archive_sha256", "archive_bytes",
+            "normalized_tree_sha256", "materialized_file_count", "materialized_total_bytes"))
+        flags = (validated["staging_published"], validated["root_published"])
+        legal = ((validated["disposition"], flags) in {
+            ("RESTORED", (True, True)), ("REVALIDATED", (False, False))})
+        if actual != expected or validated["failure_reason"] is not None or not legal:
+            raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "invalid PASS evidence")
+    elif (validated["disposition"] != "NOT_APPLIED"
+          or validated["failure_reason"] not in SOURCE_RESTORATION_FAILURE_REASONS
+          or validated["staging_published"] or validated["root_published"]):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "invalid FAIL evidence")
+    body = {key: validated[key] for key in validated if key != "artifact_sha256"}
+    if validated["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("E_PILOT_SOURCE_RESTORATION", "self-hash differs")
+    return validated
+
+
+def _inspect_attempt2_source_entry(
+    archive: Path,
+    materialize_root: Path,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> str:
+    """Validate the frozen archive and one legal source state without mutation."""
+    if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive path differs")
+    if Path(materialize_root) != ATTEMPT2_SOURCE_ROOT:
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source root differs")
+    if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "staging exists")
+    if os.path.islink(ATTEMPT2_SOURCE_ROOT):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source root is a symlink")
+
+    snapshot = read_production_archive_bytes(archive)
+    if (
+        snapshot.sha256 != ATTEMPT2_ARCHIVE_SHA256
+        or snapshot.size != ATTEMPT2_ARCHIVE_BYTES
+        or snapshot.archive_format != "TAR"
+    ):
+        raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "archive identity differs")
+    if runtime_reviewed_blob_sha256 is None:
+        chain = verify_production_gate_chain()
+    else:
+        chain = verify_production_gate_chain(
+            runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256
+        )
+    state, manifest, _result = _inspect_state(chain, ATTEMPT2_SOURCE_ROOT)
+    if state not in {"INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"}:
+        raise EvidenceError(
+            "E_PILOT_ATTEMPT2_SOURCE_ENTRY", f"illegal reconciliation state {state}"
+        )
+    if state == "ALREADY_COMPLETE":
+        if not manifest.valid or manifest.value is None:
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "manifest is invalid")
+        tree = capture_materialized_tree(ATTEMPT2_SOURCE_ROOT)
+        tree_hash = canonical_source_tree_sha256(tree)
+        count, total = _tree_metrics(tree)
+        if (
+            tree_hash != FROZEN_NORMALIZED_SOURCE_TREE_SHA256
+            or count != ATTEMPT2_FILE_COUNT
+            or total != ATTEMPT2_TOTAL_BYTES
+        ):
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "source tree differs")
+        validate_materialized_tree_with_phase1(tree)
+        _require_tree_matches_manifest(tree, tree_hash, manifest.value)
+        boost_math = ATTEMPT2_SOURCE_ROOT / "include" / "boost" / "math"
+        if not boost_math.is_dir() or boost_math.is_symlink():
+            raise EvidenceError("E_PILOT_ATTEMPT2_SOURCE_ENTRY", "Boost.Math root differs")
+    return state
+
+
+def run_restore_production_source(
+    archive: Path,
+    materialize_root: Path,
+    *,
+    runtime_reviewed_blob_sha256: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Restore only the frozen missing production root, or fully revalidate it."""
+    started = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    last_evidence: dict[str, Any] | None = None
+
+    def evidence(status: str, reason: str | None = None, *, restored: bool = False,
+                 snapshot: ArchiveSnapshot | None = None, tree_hash: str | None = None,
+                 count: int = 0, total: int = 0) -> dict[str, Any]:
+        nonlocal last_evidence
+        payload = {"schema_version": SOURCE_RESTORATION_SCHEMA, "execution_class": "PILOT_ONLY",
+            "claims": "blocked", "disposition": ("RESTORED" if restored else "REVALIDATED")
+            if status == "PASS" else "NOT_APPLIED",
+            "archive_sha256": snapshot.sha256 if snapshot else ATTEMPT2_ARCHIVE_SHA256,
+            "archive_bytes": snapshot.size if snapshot else ATTEMPT2_ARCHIVE_BYTES,
+            "normalized_tree_sha256": tree_hash or FROZEN_NORMALIZED_SOURCE_TREE_SHA256,
+            "materialized_file_count": count if status == "PASS" else 0,
+            "materialized_total_bytes": total if status == "PASS" else 0,
+            "staging_published": restored and status == "PASS",
+            "root_published": restored and status == "PASS", "started_at": started,
+            "ended_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "terminal_status": status, "failure_reason": reason}
+        payload["artifact_sha256"] = canonical_sha256(payload)
+        validated = validate_source_restoration_evidence(payload)
+        last_evidence = validated
+        return validated
+
+    snapshot = None
+    created_staging = False
+    if Path(archive) != ATTEMPT2_ARCHIVE_PATH:
+        return evidence("FAIL", "WRONG_ARCHIVE_PATH")
+    if Path(materialize_root) != ATTEMPT2_SOURCE_ROOT:
+        return evidence("FAIL", "WRONG_SOURCE_ROOT")
+    if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+        return evidence("FAIL", "STAGING_SYMLINK" if os.path.islink(ATTEMPT2_SOURCE_STAGING_ROOT)
+                        else "STAGING_EXISTS")
+    if os.path.islink(ATTEMPT2_SOURCE_ROOT):
+        return evidence("FAIL", "ROOT_SYMLINK")
+
+    try:
+        try:
+            snapshot = read_production_archive_bytes(archive)
+        except (EvidenceError, OSError) as exc:
+            reason = (
+                "ARCHIVE_FORMAT_MISMATCH"
+                if isinstance(exc, EvidenceError) and exc.code == "E_PILOT_ARCHIVE_FORMAT"
+                else "ARCHIVE_UNSAFE"
+            )
+            return evidence("FAIL", reason)
+        if snapshot.sha256 != ATTEMPT2_ARCHIVE_SHA256:
+            return evidence("FAIL", "ARCHIVE_HASH_MISMATCH", snapshot=snapshot)
+        if snapshot.size != ATTEMPT2_ARCHIVE_BYTES:
+            return evidence("FAIL", "ARCHIVE_SIZE_MISMATCH", snapshot=snapshot)
+        if snapshot.archive_format != "TAR":
+            return evidence("FAIL", "ARCHIVE_FORMAT_MISMATCH", snapshot=snapshot)
+        try:
+            if runtime_reviewed_blob_sha256 is None:
+                chain = verify_production_gate_chain()
+            else:
+                chain = verify_production_gate_chain(
+                    runtime_reviewed_blob_sha256=runtime_reviewed_blob_sha256
+                )
+            state, manifest_snapshot, result_snapshot = _inspect_state(
+                chain, ATTEMPT2_SOURCE_ROOT
+            )
+        except (EvidenceError, OSError):
+            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        if state not in {"INVALID_PASS_NO_ROOT", "ALREADY_COMPLETE"}:
+            return evidence("FAIL", "INVALID_RECONCILIATION_STATE", snapshot=snapshot)
+        if (
+            not manifest_snapshot.present
+            or not manifest_snapshot.valid
+            or manifest_snapshot.value is None
+            or manifest_snapshot.raw is None
+            or manifest_snapshot.digest is None
+            or not result_snapshot.present
+            or not result_snapshot.valid
+            or result_snapshot.value is None
+            or result_snapshot.raw is None
+            or result_snapshot.digest is None
+            or result_snapshot.status != "PASS"
+            or result_snapshot.value["source_manifest_sha256"]
+            != manifest_snapshot.digest
+        ):
+            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+
+        authority_bytes = (manifest_snapshot.raw, result_snapshot.raw)
+        restored = state == "INVALID_PASS_NO_ROOT"
+        if restored:
+            try:
+                root = extract_archive_to_staging(snapshot, ATTEMPT2_SOURCE_STAGING_ROOT)
+                if root != ATTEMPT2_SOURCE_STAGING_ROOT:
+                    return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+                created_staging = True
+            except EvidenceError as exc:
+                reason = (
+                    "ARCHIVE_FORMAT_MISMATCH"
+                    if exc.code == "E_PILOT_ARCHIVE_FORMAT"
+                    else "EXTRACTION_UNSAFE"
+                )
+                return evidence("FAIL", reason, snapshot=snapshot)
+            except OSError:
+                return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+        else:
+            root = ATTEMPT2_SOURCE_ROOT
+        try:
+            tree = capture_materialized_tree(root)
+            tree_hash = canonical_source_tree_sha256(tree)
+            count, total = _tree_metrics(tree)
+        except EvidenceError as exc:
+            reason = (
+                "TREE_HASH_MISMATCH"
+                if exc.code == "E_PILOT_SOURCE_TREE_MISMATCH"
+                else "EXTRACTION_UNSAFE"
+            )
+            return evidence("FAIL", reason, snapshot=snapshot)
+        except OSError:
+            return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+        if tree_hash != FROZEN_NORMALIZED_SOURCE_TREE_SHA256:
+            return evidence("FAIL", "TREE_HASH_MISMATCH", snapshot=snapshot)
+        if count != ATTEMPT2_FILE_COUNT:
+            return evidence("FAIL", "FILE_COUNT_MISMATCH", snapshot=snapshot)
+        if total != ATTEMPT2_TOTAL_BYTES:
+            return evidence("FAIL", "BYTE_COUNT_MISMATCH", snapshot=snapshot)
+        try:
+            validate_materialized_tree_with_phase1(tree)
+            _require_tree_matches_manifest(tree, tree_hash, manifest_snapshot.value)
+        except EvidenceError as exc:
+            reason = (
+                "EXTRACTION_UNSAFE"
+                if exc.code == "E_PILOT_EXTRACT_UNSAFE"
+                else "TREE_HASH_MISMATCH"
+            )
+            return evidence("FAIL", reason, snapshot=snapshot)
+        except OSError:
+            return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+        boost_math = root / "include" / "boost" / "math"
+        if not boost_math.is_dir() or boost_math.is_symlink():
+            return evidence("FAIL", "TREE_HASH_MISMATCH", snapshot=snapshot)
+        try:
+            current_manifest, _ = read_authority_snapshot(
+                SOURCE_MANIFEST_PATH, "source-restoration-manifest"
+            )
+            current_result, _ = read_authority_snapshot(
+                SOURCE_PREPARATION_RESULT_PATH, "source-restoration-result"
+            )
+        except (EvidenceError, OSError):
+            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        if (current_manifest, current_result) != authority_bytes:
+            return evidence("FAIL", "INVALID_PASS_PAIR", snapshot=snapshot)
+        if restored:
+            try:
+                os.replace(ATTEMPT2_SOURCE_STAGING_ROOT, ATTEMPT2_SOURCE_ROOT)
+            except OSError:
+                return evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+            created_staging = False
+        return evidence("PASS", restored=restored, snapshot=snapshot,
+                        tree_hash=tree_hash, count=count, total=total)
+    finally:
+        if created_staging and os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+            cleanup_failed = False
+            try:
+                shutil.rmtree(ATTEMPT2_SOURCE_STAGING_ROOT)
+            except OSError:
+                cleanup_failed = True
+            if os.path.lexists(ATTEMPT2_SOURCE_STAGING_ROOT):
+                cleanup_failed = True
+            if cleanup_failed and last_evidence is not None:
+                pending_evidence = last_evidence
+                replacement = evidence("FAIL", "EXTRACTION_UNSAFE", snapshot=snapshot)
+                pending_evidence.clear()
+                pending_evidence.update(replacement)
 
 
 if canonical_sha256(EXTRACTOR_POLICY_V1) != EXTRACTOR_POLICY_SHA256:

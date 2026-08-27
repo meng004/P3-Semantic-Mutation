@@ -2744,7 +2744,7 @@ def _success(behavior_id: str, *tags: str) -> dict:
         "argv": ["fixture-runner", behavior_id],
         "input_sha256": ["51" * 32],
         "environment_sha256": "52" * 32,
-        "runner_version": "fixture-runner-v1",
+        "runner_version": "p3-phase1-unexecuted-v1",
         "exit_code": 0,
         "stdout_sha256": "53" * 32,
         "stderr_sha256": "54" * 32,
@@ -2763,7 +2763,7 @@ def _unresolved(behavior_id: str, status: str) -> dict:
         "argv": ["fixture-runner", behavior_id],
         "input_sha256": ["51" * 32],
         "environment_sha256": "52" * 32,
-        "runner_version": "fixture-runner-v1",
+        "runner_version": "p3-phase1-unexecuted-v1",
         "exit_code": None,
         "stdout_sha256": "53" * 32,
         "stderr_sha256": "54" * 32,
@@ -2784,9 +2784,7 @@ def _profiling_receipt(workload: dict, rows: list[dict], **overrides) -> dict:
         "build_descriptor_sha256": "42" * 32,
         "profiling_workload_sha256": workload["artifact_sha256"],
         "adapter_implementation_source_sha256": "31" * 32,
-        "runner_implementation_source_sha256": file_sha256(
-            Path(frames_module.__file__)
-        ),
+        "runner_implementation_source_sha256": frames_module.PHASE1_UNEXECUTED_RUNNER_SHA256,
         "results": sorted(rows, key=lambda row: row["behavior_id"]),
     }
     body.update(overrides)
@@ -4490,3 +4488,358 @@ def test_real_pipeline_end_to_end_produces_executable_common_inputs():
     assert [row["ordinal"] for row in inventory["rows"]] == list(range(30))
     statuses = {row["status"] for row in inventory["rows"]}
     assert statuses == {"COMMON_INPUT_EXECUTABLE"}
+
+
+def test_cxx_profile_maps_frozen_entrypoint_to_attempt2_include_boundary(tmp_path):
+    from p3_v3 import profiling_runner
+
+    source = tmp_path / "source"
+    include = source / "include"
+    cpp = tmp_path / "probe.cpp"
+    obj = tmp_path / "probe.o"
+    dep = tmp_path / "probe.d"
+    entrypoint = "include/boost/math/statistics/runs_test.hpp"
+
+    assert profiling_runner.header_include(entrypoint) == (
+        "boost/math/statistics/runs_test.hpp"
+    )
+    assert profiling_runner.translation_unit_bytes(entrypoint) == (
+        b"#include <boost/math/statistics/runs_test.hpp>\n"
+        b"int main() { return 0; }\n"
+    )
+    assert profiling_runner.compile_argv(
+        Path("/usr/bin/c++"), include, cpp, obj, dep
+    ) == [
+        "/usr/bin/c++",
+        "-std=c++14",
+        "-DBOOST_MATH_STANDALONE=1",
+        "-I",
+        include.as_posix(),
+        "-MD",
+        "-MF",
+        dep.as_posix(),
+        "-MT",
+        obj.as_posix(),
+        "-c",
+        cpp.as_posix(),
+        "-o",
+        obj.as_posix(),
+    ]
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    [
+        "boost/math/statistics/runs_test.hpp",
+        "include/not-boost/header.hpp",
+        "include/boost/../escape.hpp",
+        "/include/boost/math/header.hpp",
+    ],
+)
+def test_cxx_profile_rejects_noncanonical_header_entrypoint(entrypoint):
+    from p3_v3 import profiling_runner
+
+    with pytest.raises(EvidenceError, match="E_PROFILE_HEADER_ENTRYPOINT"):
+        profiling_runner.header_include(entrypoint)
+
+
+def test_cxx_profile_depfile_accepts_only_controlled_boost_headers(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    requested = "boost/math/statistics/runs_test.hpp"
+    depfile = (
+        f"probe.o: probe.cpp {include / requested} \\\n"
+        f" {include / 'boost/math/tools/config.hpp'} /usr/include/c++/v1/vector\n"
+    ).encode("utf-8")
+
+    profiling_runner.validate_depfile_containment(depfile, include, requested)
+
+
+def test_cxx_profile_depfile_rejects_system_boost_fallback(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    depfile = (
+        f"probe.o: probe.cpp {include / 'boost/math/statistics/runs_test.hpp'} "
+        "/usr/include/boost/math/tools/config.hpp\n"
+    ).encode("utf-8")
+
+    with pytest.raises(EvidenceError, match="SYSTEM_BOOST_FALLBACK"):
+        profiling_runner.validate_depfile_containment(
+            depfile, include, "boost/math/statistics/runs_test.hpp"
+        )
+
+
+def test_cxx_profile_depfile_requires_requested_controlled_header(tmp_path):
+    from p3_v3 import profiling_runner
+
+    include = tmp_path / "source" / "include"
+    depfile = b"probe.o: probe.cpp /usr/include/c++/v1/vector\n"
+
+    with pytest.raises(EvidenceError, match="E_PROFILE_DEPFILE"):
+        profiling_runner.validate_depfile_containment(
+            depfile, include, "boost/math/statistics/runs_test.hpp"
+        )
+
+
+CXX_PROFILE_WORKLOAD_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "data/p3_v3/phase1_frames/out"
+    / "profiling-workload-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+)
+
+
+def _cxx_profile_workload():
+    return json.loads(CXX_PROFILE_WORKLOAD_PATH.read_text(encoding="utf-8"))
+
+
+def _write_fake_compile_artifacts(argv, *, escaped_boost=False):
+    obj = Path(argv[argv.index("-o") + 1])
+    dep = Path(argv[argv.index("-MF") + 1])
+    src = Path(argv[argv.index("-c") + 1])
+    include = Path(argv[argv.index("-I") + 1])
+    header = src.read_text(encoding="utf-8").split("<", 1)[1].split(">", 1)[0]
+    obj.write_bytes(b"obj")
+    boost_dep = (
+        "/usr/include/boost/math/tools/config.hpp"
+        if escaped_boost
+        else (include / header).as_posix()
+    )
+    dep.write_text(f"{obj.name}: {src.as_posix()} {boost_dep}\n", encoding="utf-8")
+
+
+class _QueuedCompilePopen:
+    def __init__(self, outcomes, *, escaped_boost=False):
+        self.outcomes = list(outcomes)
+        self.escaped_boost = escaped_boost
+        self.calls = []
+
+    def __call__(self, argv, **kwargs):
+        assert kwargs.get("shell") is False
+        assert kwargs.get("start_new_session") is True
+        outcome = self.outcomes.pop(0)
+        self.calls.append((list(argv), dict(kwargs)))
+        if outcome == "start_error":
+            raise OSError("compiler cannot start")
+        return _QueuedCompileProcess(argv, outcome, escaped_boost=self.escaped_boost)
+
+
+class _QueuedCompileProcess:
+    def __init__(self, argv, outcome, *, escaped_boost=False):
+        self.argv = argv
+        self.outcome = outcome
+        self.escaped_boost = escaped_boost
+        self.pid = 4242
+        self.returncode = None
+        self._timed_out = False
+
+    def communicate(self, timeout=None):
+        if self.outcome == "timeout" and not self._timed_out:
+            self._timed_out = True
+            raise subprocess.TimeoutExpired(self.argv, timeout)
+        if self.outcome == "timeout":
+            self.returncode = None
+            return b"", b""
+        if self.outcome == 0:
+            _write_fake_compile_artifacts(self.argv, escaped_boost=self.escaped_boost)
+            self.returncode = 0
+            return b"", b""
+        self.returncode = int(self.outcome)
+        return b"", b"compile failed\n"
+
+
+def _cxx_profile_paths(tmp_path):
+    source_root = tmp_path / "source"
+    include = source_root / "include"
+    include.mkdir(parents=True)
+    compiler = tmp_path / "compiler"
+    compiler.write_bytes(b"#!/bin/true\n")
+    compiler.chmod(0o755)
+    runtime_root = tmp_path / "runtime"
+    receipt_path = tmp_path / "receipt.json"
+    return source_root, compiler, runtime_root, receipt_path
+
+
+def test_cxx_profile_receipt_rows_are_sorted_and_trace_free(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0, 1] + [0] * 18)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert [row["behavior_id"] for row in receipt["results"]] == sorted(
+        workload["selected_behavior_ids"]
+    )
+    assert receipt["results"][0]["status"] == "MISSING_TRACE"
+    assert receipt["results"][0]["failure_code"] == "NO_SUBJECT_CALL_TRACE"
+    assert receipt["results"][0]["exit_code"] == 0
+    assert receipt["results"][0]["call_trace"] == []
+    assert receipt["results"][0]["observed_site_ids"] == []
+    assert receipt["results"][1]["status"] == "FAILURE"
+    assert receipt["results"][1]["failure_code"] == "COMPILE_NONZERO_EXIT"
+
+
+def test_cxx_profile_timeout_row_is_terminal(tmp_path, monkeypatch):
+    from p3_v3 import profiling_runner
+
+    monkeypatch.setattr(profiling_runner.os, "killpg", lambda *a, **k: None)
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen(["timeout"] + [0] * 19)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    timeout_row = receipt["results"][0]
+    assert timeout_row["status"] == "TIMEOUT"
+    assert timeout_row["failure_code"] == "COMPILE_TIMEOUT"
+    assert timeout_row["timed_out"] is True
+    assert timeout_row["exit_code"] is None
+
+
+def test_cxx_profile_failed_row_does_not_stop_workload(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([1] + [0] * 19)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert len(receipt["results"]) == len(workload["selected_rows"])
+
+
+def test_cxx_profile_system_boost_depfile_is_failure_not_missing_trace(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0] * 20, escaped_boost=True)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    escaped_row = receipt["results"][0]
+    assert escaped_row["status"] == "FAILURE"
+    assert escaped_row["failure_code"] == "SYSTEM_BOOST_FALLBACK"
+    assert escaped_row["status"] != "MISSING_TRACE"
+
+
+def test_cxx_profile_refuses_preexisting_receipt(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    preexisting = receipt_path
+    preexisting.write_bytes(b"do-not-overwrite\n")
+    popen = _QueuedCompilePopen([0] * 20)
+    with pytest.raises(EvidenceError, match="E_PROFILE_OUTPUT"):
+        profiling_runner.run_cxx_header_workload(
+            workload,
+            source_root=source_root,
+            compiler=compiler,
+            runtime_root=runtime_root,
+            receipt_path=preexisting,
+            popen=popen,
+        )
+    assert preexisting.read_bytes() == b"do-not-overwrite\n"
+
+
+PHASE1_UNEXECUTED_RUNNER_SHA256 = (
+    "978fa53c66ae15f9c51b5fa73dc03afdb2d23448f7714d752bccf92c09503ad0"
+)
+
+
+def test_profiling_runner_binding_accepts_historical_phase1_receipt():
+    root = Path(__file__).resolve().parents[2] / "data/p3_v3/phase1_frames/out"
+    receipt_path = root / (
+        "profiling-results-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+    )
+    workload_path = root / (
+        "profiling-workload-74cdc825c3c728c25f5ea857af1565350515a4e631fb0a874c26e810ec437886.json"
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    workload = json.loads(workload_path.read_text(encoding="utf-8"))
+    assert receipt["runner_implementation_source_sha256"] == PHASE1_UNEXECUTED_RUNNER_SHA256
+    classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_accepts_formal_cxx_receipt(tmp_path):
+    from p3_v3 import profiling_runner
+
+    workload = _cxx_profile_workload()
+    source_root, compiler, runtime_root, receipt_path = _cxx_profile_paths(tmp_path)
+    popen = _QueuedCompilePopen([0] * 20)
+    receipt = profiling_runner.run_cxx_header_workload(
+        workload,
+        source_root=source_root,
+        compiler=compiler,
+        runtime_root=runtime_root,
+        receipt_path=receipt_path,
+        popen=popen,
+    )
+    assert receipt["runner_implementation_source_sha256"] == file_sha256(
+        Path(profiling_runner.__file__)
+    )
+    classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_rejects_mixed_versions():
+    behavior_a = _behavior_id("mixed-a")
+    behavior_b = _behavior_id("mixed-b")
+    workload = _synthetic_workload([(behavior_a, "PUBLIC_API"), (behavior_b, "PUBLIC_API")])
+    row_a = _unresolved(behavior_a, "MISSING_TRACE")
+    row_b = _unresolved(behavior_b, "MISSING_TRACE")
+    row_a["runner_version"] = "p3-phase1-unexecuted-v1"
+    row_b["runner_version"] = "p3-cxx-header-compile-profiler-v1"
+    receipt = _profiling_receipt(workload, [row_a, row_b])
+    with pytest.raises(EvidenceError, match="E_PROFILE_RUNNER_BINDING"):
+        classify_technique(workload, receipt)
+
+
+def test_profiling_runner_binding_rejects_unknown_version_after_rehash():
+    behavior_id = _behavior_id("unknown-runner")
+    workload = _synthetic_workload([(behavior_id, "PUBLIC_API")])
+    row = _unresolved(behavior_id, "MISSING_TRACE")
+    row["runner_version"] = "p3-unknown-runner-v1"
+    receipt = _profiling_receipt(workload, [row])
+    body = {key: value for key, value in receipt.items() if key != "artifact_sha256"}
+    rehashed = {**body, "artifact_sha256": canonical_sha256(body)}
+    with pytest.raises(EvidenceError, match="E_PROFILE_RUNNER_BINDING"):
+        classify_technique(workload, rehashed)
+
+
+def test_all_35_phase1_profiling_receipts_keep_historical_runner_binding():
+    root = Path(__file__).resolve().parents[2] / "data/p3_v3/phase1_frames/out"
+    receipts = sorted(root.glob("profiling-results-*.json"))
+    assert len(receipts) == 35
+    for receipt_path in receipts:
+        neutral = receipt_path.stem.removeprefix("profiling-results-")
+        workload_path = root / f"profiling-workload-{neutral}.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        workload = json.loads(workload_path.read_text(encoding="utf-8"))
+        assert receipt["runner_implementation_source_sha256"] == (
+            frames_module.PHASE1_UNEXECUTED_RUNNER_SHA256
+        )
+        classify_technique(workload, receipt)

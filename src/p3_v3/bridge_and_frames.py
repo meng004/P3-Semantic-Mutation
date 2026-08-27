@@ -180,6 +180,9 @@ _PROFILE_TECHNIQUES = tuple(
 _UNRESOLVED_STATUSES = frozenset(
     {"FAILURE", "TIMEOUT", "MISSING_TRACE", "ADAPTER_UNCERTAIN"}
 )
+PHASE1_UNEXECUTED_RUNNER_SHA256 = (
+    "978fa53c66ae15f9c51b5fa73dc03afdb2d23448f7714d752bccf92c09503ad0"
+)
 _TRACE_CALL_KINDS = frozenset(
     {
         "PYTHON_CALL",
@@ -2973,7 +2976,7 @@ def build_phase1_unresolved_profiling_receipt(
         "adapter_implementation_source_sha256": (
             adapter_implementation_source_sha256
         ),
-        "runner_implementation_source_sha256": file_sha256(Path(__file__)),
+        "runner_implementation_source_sha256": PHASE1_UNEXECUTED_RUNNER_SHA256,
         "results": results,
     }
     return {**body, "artifact_sha256": canonical_sha256(body)}
@@ -3051,6 +3054,19 @@ def _techniques_from_call_trace(call_trace: list[Any]) -> list[str]:
     return sorted(techniques)
 
 
+def _expected_profiling_runner_sha256(results: list[Mapping[str, Any]]) -> str:
+    versions = {row.get("runner_version") for row in results}
+    if not results:
+        return PHASE1_UNEXECUTED_RUNNER_SHA256
+    if versions == {"p3-phase1-unexecuted-v1"}:
+        return PHASE1_UNEXECUTED_RUNNER_SHA256
+    if versions == {"p3-cxx-header-compile-profiler-v1"}:
+        from p3_v3 import profiling_runner
+
+        return file_sha256(Path(profiling_runner.__file__))
+    raise EvidenceError("E_PROFILE_RUNNER_BINDING", "runner version is unknown or mixed")
+
+
 def _validated_profiling_rows(
     workload: Mapping[str, Any], profiling_receipt: Mapping[str, Any]
 ) -> list[dict[str, Any]]:
@@ -3106,7 +3122,9 @@ def _validated_profiling_rows(
         raise EvidenceError(
             "E_PROFILE_WORKLOAD_BINDING", "profiling receipt workload binding differs"
         )
-    if receipt["runner_implementation_source_sha256"] != file_sha256(Path(__file__)):
+    if receipt["runner_implementation_source_sha256"] != _expected_profiling_runner_sha256(
+        receipt["results"]
+    ):
         raise EvidenceError(
             "E_PROFILE_RUNNER_BINDING", "profiling runner source binding differs"
         )

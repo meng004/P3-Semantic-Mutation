@@ -1213,7 +1213,23 @@ def write_subject_closures(
     directory: Path,
     official_closures: Sequence[Mapping[str, object]],
 ) -> None:
-    return None
+    if not isinstance(official_closures, Sequence) or isinstance(
+        official_closures, (str, bytes)
+    ):
+        _execution_fail("official closures must be a sequence")
+    if len(official_closures) != SLOTS_PER_SUBJECT:
+        _execution_fail("subject directory requires 10 closures")
+    target = Path(directory)
+    target.mkdir(parents=True, exist_ok=True)
+    for closure in official_closures:
+        if not isinstance(closure, Mapping):
+            _execution_fail("official closure must be an object")
+        slot_id = validate_sha256(closure["slot_id"], "slot_id")
+        write_canonical_json(
+            target / f"slot-closure-{slot_id}.json",
+            dict(closure),
+            exclusive=True,
+        )
 
 
 def place_subject_directory(
@@ -1221,7 +1237,12 @@ def place_subject_directory(
     staging_subject: Path,
     official_subject: Path,
 ) -> None:
-    return None
+    official = Path(official_subject)
+    staging = Path(staging_subject)
+    if official.exists() or official.is_symlink():
+        _execution_fail("official subject path exists")
+    official.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(staging, official)
 
 
 def write_official_cohort_terminal(
@@ -1230,11 +1251,35 @@ def write_official_cohort_terminal(
     official_terminal: Path,
     terminal: Mapping[str, object],
 ) -> None:
-    return None
+    if not isinstance(terminal, Mapping):
+        _execution_fail("cohort terminal must be an object")
+    validate_cohort_terminal(
+        terminal,
+        controller_source_sha256=str(terminal["controller_source_sha256"]),
+    )
+    staging = Path(staging_terminal)
+    official = Path(official_terminal)
+    write_canonical_json(staging, dict(terminal), exclusive=True)
+    if official.exists() or official.is_symlink():
+        _execution_fail("official terminal exists")
+    official.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(staging, official)
 
 
 def stdout_summary(result: Mapping[str, object]) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    payload = {
+        "status": result["status"],
+        "slice_id": SLICE_ID,
+        "design_commit": DESIGN_COMMIT,
+        "controller_source_sha256": result["controller_source_sha256"],
+        "attempted_count": result["attempted_count"],
+        "first_eligible_successor_ordinal": result["first_eligible_successor_ordinal"],
+        "official_terminal_written": result["official_terminal_written"],
+    }
+    validate_exact_object(payload, STDOUT_SUMMARY_SCHEMA, "stdout_summary")
+    if _walk_keys(payload) & FORBIDDEN_LEAK_KEYS:
+        _execution_fail("stdout summary contains forbidden site fields")
+    return payload
 
 
 def run_search(repo_root: Path) -> dict[str, object]:
@@ -1385,7 +1430,27 @@ def run_search(repo_root: Path) -> dict[str, object]:
 
 
 def main() -> int:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    if len(sys.argv) != 1:
+        sys.stdout.buffer.write(
+            canonical_json_bytes(
+                {
+                    "status": "V2_PREFLIGHT_FAIL",
+                    "slice_id": SLICE_ID,
+                    "design_commit": DESIGN_COMMIT,
+                    "controller_source_sha256": None,
+                    "attempted_count": 0,
+                    "first_eligible_successor_ordinal": None,
+                    "official_terminal_written": False,
+                }
+            )
+        )
+        return 2
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_search(repo_root)
+    sys.stdout.buffer.write(canonical_json_bytes(stdout_summary(result)))
+    if result["status"] in {"V2_ELIGIBLE_SUBJECT_FOUND", "V2_COHORT_EXHAUSTED"}:
+        return 0
+    return 2
 
 
 if __name__ == "__main__":

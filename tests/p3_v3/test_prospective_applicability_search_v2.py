@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import io
+import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -675,3 +680,343 @@ def test_cohort_terminal_has_no_path_symbol_source_or_outcome_fields(monkeypatch
     keys = _walk_keys(terminal)
     assert keys.isdisjoint(v2.FORBIDDEN_LEAK_KEYS)
     v2.validate_cohort_terminal(terminal, controller_source_sha256=digest)
+
+
+def _patch_tmp_search(
+    monkeypatch,
+    tmp_path: Path,
+    *,
+    closers_factory,
+    successors=None,
+    maximum_attempts=None,
+):
+    authority, subject, rows = _synthetic_authority()
+    if successors is None:
+        successors = (_synthetic_successor(1, subject),)
+    if maximum_attempts is None:
+        maximum_attempts = len(successors)
+    events: list[str] = []
+
+    def fake_close(*, authority, successor, pbf):
+        events.append(f"memory:{successor['successor_ordinal']}")
+        closers = closers_factory(successor, subject, rows)
+        return {
+            "attempted_subject": v2.build_attempted_subject(
+                successor=successor, official_closures=closers
+            ),
+            "official_closures": closers,
+        }
+
+    monkeypatch.setattr(v2, "MAXIMUM_ATTEMPTS", maximum_attempts)
+    monkeypatch.setattr(v2, "FROZEN_SUCCESSOR_ROWS", successors)
+    monkeypatch.setattr(
+        v2,
+        "validate_v2_preflight",
+        lambda **_kwargs: {
+            "status": "V2_PREFLIGHT_PASS",
+            "controller_source_sha256": file_sha256(CONTROLLER_PATH),
+            "authority_artifact_sha256": v2.AUTHORITY_ARTIFACT_SHA256,
+            "successor_count": len(successors),
+        },
+    )
+    monkeypatch.setattr(v2, "_load_official_authority", lambda _root: authority)
+    monkeypatch.setattr(v2, "read_successor_pbf", lambda *_args, **_kwargs: _synthetic_pbf())
+    monkeypatch.setattr(v2, "close_successor_subject", fake_close)
+    monkeypatch.setattr(v2, "inventory_rows_for_subject", lambda *_args, **_kwargs: rows)
+    return {
+        "authority": authority,
+        "subject": subject,
+        "rows": rows,
+        "successors": successors,
+        "events": events,
+        "repo_root": tmp_path,
+    }
+
+
+def test_subject_directory_written_only_after_10_closures_exist_in_memory(
+    tmp_path, monkeypatch
+):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    real_write = v2.write_subject_closures
+
+    def wrapped(directory, closures):
+        assert any(item.startswith("memory:") for item in ctx["events"])
+        assert len(tuple(closures)) == 10
+        ctx["events"].append("staging-write")
+        return real_write(directory, closures)
+
+    monkeypatch.setattr(v2, "write_subject_closures", wrapped)
+    result = v2.run_search(tmp_path)
+    successor = ctx["successors"][0]
+    official = v2.official_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    assert result["status"] == "V2_ELIGIBLE_SUBJECT_FOUND"
+    assert ctx["events"][:2] == ["memory:1", "staging-write"]
+    written = sorted(official.glob("slot-closure-*.json"))
+    assert len(written) == 10
+
+
+def test_atomic_subject_directory_written_only_after_10_closures_exist_in_memory(
+    tmp_path, monkeypatch
+):
+    test_subject_directory_written_only_after_10_closures_exist_in_memory(
+        tmp_path, monkeypatch
+    )
+
+
+def test_subject_directory_is_placed_atomically(tmp_path, monkeypatch):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    replaced: list[tuple[str, str]] = []
+    real_replace = os.replace
+
+    def spy(src, dst):
+        replaced.append((str(src), str(dst)))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", spy)
+    monkeypatch.setattr(v2, "os", os)
+    result = v2.run_search(tmp_path)
+    successor = ctx["successors"][0]
+    official = v2.official_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    staging = v2.staging_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    assert result["status"] == "V2_ELIGIBLE_SUBJECT_FOUND"
+    assert official.is_dir()
+    assert not staging.exists()
+    assert any(Path(dst) == official for _src, dst in replaced)
+
+
+def test_cohort_terminal_is_written_last(tmp_path, monkeypatch):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    order: list[str] = []
+    real_subject = v2.write_subject_closures
+    real_place = v2.place_subject_directory
+    real_terminal = v2.write_official_cohort_terminal
+
+    def write_subject(directory, closures):
+        order.append("closures")
+        return real_subject(directory, closures)
+
+    def place(**kwargs):
+        order.append("place")
+        return real_place(**kwargs)
+
+    def write_terminal(**kwargs):
+        order.append("terminal")
+        return real_terminal(**kwargs)
+
+    monkeypatch.setattr(v2, "write_subject_closures", write_subject)
+    monkeypatch.setattr(v2, "place_subject_directory", place)
+    monkeypatch.setattr(v2, "write_official_cohort_terminal", write_terminal)
+    result = v2.run_search(tmp_path)
+    assert result["status"] == "V2_ELIGIBLE_SUBJECT_FOUND"
+    assert order == ["closures", "place", "terminal"]
+    official_terminal = v2.official_root(tmp_path) / "cohort-terminal.json"
+    assert official_terminal.is_file()
+
+
+def test_terminal_write_cohort_is_written_last(tmp_path, monkeypatch):
+    test_cohort_terminal_is_written_last(tmp_path, monkeypatch)
+
+
+def test_no_pbf_open_or_closure_write_after_terminal(tmp_path, monkeypatch):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    result = v2.run_search(tmp_path)
+    assert result["status"] == "V2_ELIGIBLE_SUBJECT_FOUND"
+
+    def forbid(*_args, **_kwargs):
+        raise AssertionError("PBF or closure work after terminal")
+
+    monkeypatch.setattr(v2, "read_successor_pbf", forbid)
+    monkeypatch.setattr(v2, "close_successor_subject", forbid)
+    monkeypatch.setattr(v2, "write_subject_closures", forbid)
+    assert (v2.official_root(tmp_path) / "cohort-terminal.json").is_file()
+    assert result["official_terminal_written"] is True
+
+
+def test_terminal_write_no_pbf_open_or_closure_write_after_terminal(
+    tmp_path, monkeypatch
+):
+    test_no_pbf_open_or_closure_write_after_terminal(tmp_path, monkeypatch)
+
+
+def test_failure_does_not_write_cohort_terminal(tmp_path, monkeypatch):
+    def boom(_successor, _subject, _rows):
+        raise EvidenceError("V2_EXECUTION_FAIL", "partial")
+
+    _patch_tmp_search(monkeypatch, tmp_path, closers_factory=boom)
+    result = v2.run_search(tmp_path)
+    assert result["status"] == "V2_EXECUTION_FAIL"
+    assert result["terminal"] is None
+    assert not (v2.official_root(tmp_path) / "cohort-terminal.json").exists()
+    assert not (v2.staging_root(tmp_path) / "cohort-terminal.json").exists()
+
+
+def test_terminal_write_failure_does_not_write_cohort_terminal(tmp_path, monkeypatch):
+    test_failure_does_not_write_cohort_terminal(tmp_path, monkeypatch)
+
+
+def test_failure_keeps_partial_or_staging(tmp_path, monkeypatch):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    real = v2.write_canonical_json
+    seen = {"count": 0}
+
+    def flaky(path, value, *, exclusive):
+        seen["count"] += 1
+        if seen["count"] == 7:
+            raise EvidenceError("V2_EXECUTION_FAIL", "write failed")
+        return real(path, value, exclusive=exclusive)
+
+    monkeypatch.setattr(v2, "write_canonical_json", flaky)
+    result = v2.run_search(tmp_path)
+    successor = ctx["successors"][0]
+    official = v2.official_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    staging = v2.staging_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    assert result["status"] == "V2_EXECUTION_FAIL"
+    assert not official.exists()
+    assert not (v2.official_root(tmp_path) / "cohort-terminal.json").exists()
+    assert staging.exists()
+
+
+def test_existing_official_path_is_not_overwritten(tmp_path, monkeypatch):
+    ctx = _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    successor = ctx["successors"][0]
+    official = v2.official_subject_dir(tmp_path, str(successor["neutral_snapshot_id"]))
+    official.mkdir(parents=True)
+    marker = official / "marker.txt"
+    marker.write_text("keep", encoding="utf-8")
+    result = v2.run_search(tmp_path)
+    assert result["status"] == "V2_EXECUTION_FAIL"
+    assert marker.read_text(encoding="utf-8") == "keep"
+    assert not (v2.official_root(tmp_path) / "cohort-terminal.json").exists()
+
+
+def test_atomic_existing_official_path_is_not_overwritten(tmp_path, monkeypatch):
+    test_existing_official_path_is_not_overwritten(tmp_path, monkeypatch)
+
+
+def test_main_rejects_help_and_extra_arguments():
+    env = {
+        **os.environ,
+        "PYTHONPATH": "/tmp/p3-c3-applicability-authority/src",
+    }
+    for extra in (["--help"], ["--output-root", "x"]):
+        completed = subprocess.run(
+            [sys.executable, str(CONTROLLER_PATH), *extra],
+            cwd="/tmp/p3-c3-applicability-authority",
+            env=env,
+            capture_output=True,
+            check=False,
+        )
+        assert completed.returncode == 2
+        combined = completed.stdout + completed.stderr
+        assert b"path" not in combined.lower() or b'"path"' not in combined
+        text = combined.decode("utf-8", errors="replace")
+        assert "symbol" not in text
+        assert "start_line" not in text
+
+
+def test_cli_main_rejects_help_and_extra_arguments():
+    test_main_rejects_help_and_extra_arguments()
+
+
+def test_stdout_summary_has_no_site_path_symbol_or_span(monkeypatch, capsys):
+    fake_result = {
+        "status": "V2_ELIGIBLE_SUBJECT_FOUND",
+        "code": None,
+        "controller_source_sha256": file_sha256(CONTROLLER_PATH),
+        "attempted_count": 1,
+        "first_eligible_successor_ordinal": 1,
+        "first_eligible_neutral_snapshot_id": _sha("neutral-1"),
+        "official_terminal_written": True,
+        "terminal": {"terminal_status": "V2_ELIGIBLE_SUBJECT_FOUND"},
+    }
+    calls = {"n": 0}
+
+    def fake_run(_root):
+        calls["n"] += 1
+        return fake_result
+
+    monkeypatch.setattr(v2, "run_search", fake_run)
+    monkeypatch.setattr(sys, "argv", [str(CONTROLLER_PATH)])
+    code = v2.main()
+    assert code == 0
+    assert calls["n"] == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert set(payload) == set(v2.STDOUT_SUMMARY_SCHEMA)
+    assert payload["controller_source_sha256"] == file_sha256(CONTROLLER_PATH)
+    assert _walk_keys(payload).isdisjoint(v2.FORBIDDEN_LEAK_KEYS)
+    assert v2.stdout_summary(fake_result)["status"] == "V2_ELIGIBLE_SUBJECT_FOUND"
+
+
+def test_main_calls_run_search_once(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_run(_root):
+        calls["n"] += 1
+        return {
+            "status": "V2_COHORT_EXHAUSTED",
+            "code": None,
+            "controller_source_sha256": file_sha256(CONTROLLER_PATH),
+            "attempted_count": 22,
+            "first_eligible_successor_ordinal": None,
+            "first_eligible_neutral_snapshot_id": None,
+            "official_terminal_written": True,
+            "terminal": None,
+        }
+
+    monkeypatch.setattr(v2, "run_search", fake_run)
+    monkeypatch.setattr(sys, "argv", [str(CONTROLLER_PATH)])
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="utf-8"))
+    # main writes sys.stdout.buffer
+    buffer = io.BytesIO()
+
+    class _Stdout:
+        def __init__(self):
+            self.buffer = buffer
+
+    monkeypatch.setattr(sys, "stdout", _Stdout())
+    assert v2.main() == 0
+    assert calls["n"] == 1
+
+
+def test_controller_file_sha_is_bound_into_terminal(tmp_path, monkeypatch):
+    _patch_tmp_search(
+        monkeypatch,
+        tmp_path,
+        closers_factory=lambda _successor, subject, rows: _eligible_closers(subject, rows),
+    )
+    result = v2.run_search(tmp_path)
+    digest = file_sha256(CONTROLLER_PATH)
+    assert result["controller_source_sha256"] == digest
+    official_terminal = v2.official_root(tmp_path) / "cohort-terminal.json"
+    payload = json.loads(official_terminal.read_text(encoding="utf-8"))
+    assert payload["controller_source_sha256"] == digest
+
+
+def test_terminal_write_controller_file_sha_is_bound_into_terminal(
+    tmp_path, monkeypatch
+):
+    test_controller_file_sha_is_bound_into_terminal(tmp_path, monkeypatch)

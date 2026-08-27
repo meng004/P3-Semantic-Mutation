@@ -32,6 +32,7 @@ from p3_v3.slot_inventory import (
     MECHANISM_ORDER,
     SEMANTIC_CONTRACT_FAMILIES,
     freeze_slot_inventory,
+    load_phase1_identity_records,
     project_controlled_subject_ids,
     slot_id,
 )
@@ -310,6 +311,9 @@ def test_five_predicates_true_false_and_zero_rows():
     assert evaluate_predicate("APPLICABILITY_INV_V1", inv_site, [attached_json]) is True
     assert evaluate_predicate("APPLICABILITY_MONO_V1", inv_site, [attached_numeric]) is True
     assert evaluate_predicate("APPLICABILITY_MONO_V1", inv_site, [attached_json]) is False
+    injected = attach_schema_kind({**public_api, "schema_kind": "NUMERIC_ARRAY_DOMAIN_V1"}, [])
+    assert "schema_kind" not in injected
+    assert evaluate_predicate("APPLICABILITY_INV_V1", inv_site, [injected]) is False
     assert (
         evaluate_predicate(
             "APPLICABILITY_CONV_V1",
@@ -458,12 +462,20 @@ def test_close_slot_with_authority_selects_first_or_not_applicable():
     assert other["state"] == "APPLICABILITY_CLOSED_NOT_APPLICABLE"
     assert other["slot_id"] == second["slot_id"]
     assert applicable["slot_id"] == inv_row["slot_id"]
+    mutated = {**inv_row, "semantic_contract_family": "INV"}
+    with pytest.raises(EvidenceError, match="E_APPLICABILITY_AUTHORITY"):
+        close_slot_with_authority(authority, mutated, sites, pbf)
 
 
 def test_load_applicability_authority_accepts_tmp_bindings_and_rejects_byte_drift(
     tmp_path,
 ):
-    ids = project_controlled_subject_ids(_identity_records())
+    ids = project_controlled_subject_ids(
+        load_phase1_identity_records(
+            verified_bridge_path=Path("data/p3_v3/p12_intake/verified_bridge.json"),
+            workload_root=Path("data/p3_v3/phase1_frames/out"),
+        )
+    )
     inventory = freeze_slot_inventory(ids)
     slot_impl = tmp_path / "slot_inventory.py"
     pred_impl = tmp_path / "applicability_predicates.py"
@@ -514,6 +526,48 @@ def test_load_applicability_authority_accepts_tmp_bindings_and_rejects_byte_drif
             manifest_path=manifest_path,
             registry_path=registry_path,
             inventory_path=drifted,
+            slot_implementation_path=slot_impl,
+            predicate_implementation_path=pred_impl,
+        )
+
+
+def test_load_applicability_authority_rejects_synthetic_projection(tmp_path):
+    ids = project_controlled_subject_ids(_identity_records())
+    inventory = freeze_slot_inventory(ids)
+    slot_impl = tmp_path / "slot_inventory.py"
+    pred_impl = tmp_path / "applicability_predicates.py"
+    slot_impl.write_bytes(Path("src/p3_v3/slot_inventory.py").read_bytes())
+    pred_impl.write_bytes(Path("src/p3_v3/applicability_predicates.py").read_bytes())
+    registry = build_predicate_registry(file_sha256(pred_impl))
+    body = {
+        "authority_id": "p3-v3-phase2-applicability-authority-v1",
+        "schema_version": "p3-applicability-authority-v1",
+        "subject_identity_projection": list(ids),
+        "subject_identity_projection_sha256": canonical_sha256(list(ids)),
+        "site_policy_sha256": file_sha256(Path("data/p3_v3/protocol/site_policy.md")),
+        "operator_catalogue_sha256": file_sha256(
+            Path("data/p3_v3/protocol/operator_catalogue.md")
+        ),
+        "slot_inventory_artifact_sha256": inventory["artifact_sha256"],
+        "slot_implementation_source_sha256": file_sha256(slot_impl),
+        "predicate_registry_artifact_sha256": registry["artifact_sha256"],
+        "predicate_implementation_source_sha256": file_sha256(pred_impl),
+        "canonicalization_implementation_source_sha256": file_sha256(
+            Path("src/p3_v3/artifacts.py")
+        ),
+    }
+    manifest = {**body, "artifact_sha256": canonical_sha256(body)}
+    manifest_path = tmp_path / "authority.json"
+    registry_path = tmp_path / "registry.json"
+    inventory_path = tmp_path / "inventory.json"
+    write_canonical_json(manifest_path, manifest, exclusive=True)
+    write_canonical_json(registry_path, registry, exclusive=True)
+    write_canonical_json(inventory_path, inventory, exclusive=True)
+    with pytest.raises(EvidenceError, match="E_APPLICABILITY_AUTHORITY"):
+        load_applicability_authority(
+            manifest_path=manifest_path,
+            registry_path=registry_path,
+            inventory_path=inventory_path,
             slot_implementation_path=slot_impl,
             predicate_implementation_path=pred_impl,
         )

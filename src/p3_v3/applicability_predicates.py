@@ -133,6 +133,7 @@ def attach_schema_kind(
     public_schemas: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
     attached = dict(row)
+    attached.pop("schema_kind", None)
     target = row.get("declared_input_schema_sha256")
     matches: list[str] = []
     for schema in public_schemas:
@@ -256,13 +257,24 @@ def load_applicability_authority(
         validate_sha256(item, f"subject_identity_projection[{index}]")
     if canonical_sha256(list(ids)) != manifest["subject_identity_projection_sha256"]:
         raise EvidenceError("E_APPLICABILITY_AUTHORITY", "subject projection hash differs")
+    repo_root = Path(__file__).resolve().parents[2]
+    phase1_ids = project_controlled_subject_ids(
+        load_phase1_identity_records(
+            verified_bridge_path=repo_root / "data/p3_v3/p12_intake/verified_bridge.json",
+            workload_root=repo_root / "data/p3_v3/phase1_frames/out",
+        )
+    )
+    if ids != phase1_ids:
+        raise EvidenceError(
+            "E_APPLICABILITY_AUTHORITY",
+            "subject projection differs from Phase-1 rebuild",
+        )
     rebuilt_inventory = freeze_slot_inventory(ids)
     rebuilt_registry = build_predicate_registry(file_sha256(predicate_implementation_path))
     if rebuilt_inventory != inventory:
         raise EvidenceError("E_APPLICABILITY_AUTHORITY", "slot inventory bytes differ from rebuild")
     if rebuilt_registry != registry:
         raise EvidenceError("E_APPLICABILITY_AUTHORITY", "predicate registry bytes differ from rebuild")
-    repo_root = Path(__file__).resolve().parents[2]
     checks = {
         "site_policy_sha256": file_sha256(repo_root / "data/p3_v3/protocol/site_policy.md"),
         "operator_catalogue_sha256": file_sha256(
@@ -296,9 +308,39 @@ def close_slot_with_authority(
     canonical_sites: Sequence[Mapping[str, object]],
     public_behavior_frame: Mapping[str, object],
 ) -> dict[str, object]:
-    family = inventory_row.get("semantic_contract_family")
-    predicate_id = FAMILY_TO_PREDICATE_ID.get(family)
-    if predicate_id is None:
+    if not isinstance(authority, Mapping):
+        raise EvidenceError("E_APPLICABILITY_AUTHORITY", "authority is required")
+    inventory = authority.get("inventory")
+    registry = authority.get("registry")
+    if not isinstance(inventory, Mapping) or not isinstance(registry, Mapping):
+        raise EvidenceError(
+            "E_APPLICABILITY_AUTHORITY",
+            "authority inventory and registry are required",
+        )
+    slots = inventory.get("slots")
+    predicates = registry.get("predicates")
+    if not isinstance(slots, Sequence) or isinstance(slots, (str, bytes)):
+        raise EvidenceError("E_APPLICABILITY_AUTHORITY", "inventory slots are required")
+    if not isinstance(predicates, Sequence) or isinstance(predicates, (str, bytes)):
+        raise EvidenceError("E_APPLICABILITY_AUTHORITY", "registry predicates are required")
+    if not isinstance(inventory_row, Mapping):
+        raise EvidenceError("E_APPLICABILITY_AUTHORITY", "inventory row must be an object")
+    frozen = next((dict(row) for row in slots if dict(row) == dict(inventory_row)), None)
+    if frozen is None:
+        raise EvidenceError(
+            "E_APPLICABILITY_AUTHORITY",
+            "inventory row is not in the frozen inventory",
+        )
+    family = frozen.get("semantic_contract_family")
+    predicate_id = next(
+        (
+            item.get("predicate_id")
+            for item in predicates
+            if isinstance(item, Mapping) and item.get("semantic_contract_family") == family
+        ),
+        None,
+    )
+    if predicate_id not in PREDICATE_IDS:
         raise EvidenceError("E_APPLICABILITY_PREDICATE", "inventory row family is unknown")
     rows = public_behavior_frame.get("rows")
     schemas = public_behavior_frame.get("public_schemas")

@@ -19,6 +19,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from p3_v3.applicability_predicates import load_applicability_authority  # noqa: E402
 from p3_v3.artifacts import (  # noqa: E402
     EvidenceError,
     canonical_json_bytes,
@@ -3356,6 +3357,12 @@ def build_parser() -> argparse.ArgumentParser:
     command.add_argument("--index", required=True)
     command.add_argument("--authority-lock", required=True)
     command.add_argument("--authority-lock-sha256", required=True)
+    command = sub.add_parser("validate-applicability-authority")
+    command.add_argument("--manifest", required=True)
+    command.add_argument("--registry", required=True)
+    command.add_argument("--inventory", required=True)
+    command.add_argument("--slot-implementation", required=True)
+    command.add_argument("--predicate-implementation", required=True)
     return parser
 
 
@@ -3419,6 +3426,25 @@ def _subject_specs_by_neutral(
 
 
 def _dispatch_build_frames(args: argparse.Namespace) -> dict:
+    slots = read_canonical_json(args.slots)
+    contracts = read_canonical_json(args.contracts)
+    applicability_map = read_canonical_json(args.applicability_map)
+    if not isinstance(slots, list):
+        raise EvidenceError("E_SLOTS", "slots must be a list")
+    if not isinstance(contracts, Mapping):
+        raise EvidenceError("E_CONTRACTS", "contracts must be an object")
+    if not isinstance(applicability_map, Mapping):
+        raise EvidenceError("E_APPLICABILITY", "applicability-map must be an object")
+    if applicability_map:
+        raise EvidenceError(
+            "E_APPLICABILITY",
+            "handwritten applicability-map is forbidden; validate frozen authority",
+        )
+    if slots:
+        raise EvidenceError(
+            "E_SLOTS",
+            "build-frames does not close confirmatory slots; use validate-applicability-authority",
+        )
     bridge = read_canonical_json(args.bridge)
     indexed_specs = _subject_specs_by_neutral(
         bridge, read_canonical_json(args.subject_specs)
@@ -3483,15 +3509,6 @@ def _dispatch_build_frames(args: argparse.Namespace) -> dict:
     _write_under(output_root, "subject-frames.json", subject_frames)
     written.append("subject-frames.json")
 
-    slots = read_canonical_json(args.slots)
-    contracts = read_canonical_json(args.contracts)
-    applicability_map = read_canonical_json(args.applicability_map)
-    if not isinstance(slots, list):
-        raise EvidenceError("E_SLOTS", "slots must be a list")
-    if not isinstance(contracts, Mapping):
-        raise EvidenceError("E_CONTRACTS", "contracts must be an object")
-    if not isinstance(applicability_map, Mapping):
-        raise EvidenceError("E_APPLICABILITY", "applicability-map must be an object")
     subjects_by_id = {
         subject["controlled_subject_id"]: subject
         for subject in subject_frames["subjects"]
@@ -4882,6 +4899,21 @@ def dispatch(args: argparse.Namespace) -> dict:
         return {"status": "PASS", "receipt_sha256": canonical_sha256(receipt)}
     if args.command == "verify-evidence":
         return _dispatch_verify_evidence(args)
+    if args.command == "validate-applicability-authority":
+        loaded = load_applicability_authority(
+            manifest_path=Path(args.manifest),
+            registry_path=Path(args.registry),
+            inventory_path=Path(args.inventory),
+            slot_implementation_path=Path(args.slot_implementation),
+            predicate_implementation_path=Path(args.predicate_implementation),
+        )
+        return {
+            "status": "PASS",
+            "authority_id": loaded["manifest"]["authority_id"],
+            "subject_count": len(loaded["controlled_subject_ids"]),
+            "slot_count": len(loaded["inventory"]["slots"]),
+            "manifest_sha256": loaded["manifest"]["artifact_sha256"],
+        }
     raise EvidenceError("E_CLI_COMMAND", f"unsupported command: {args.command}")
 
 

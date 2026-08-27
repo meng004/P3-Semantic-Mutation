@@ -51,6 +51,7 @@ COMMANDS = {
     "verify-run-records",
     "close-phase",
     "verify-evidence",
+    "validate-applicability-authority",
 }
 SCIENTIFIC_PLAN_SHA256 = (
     "fea00496801c31ba074aa74742f5e6a77019ffc2e344642122a15462d7443830"
@@ -3336,6 +3337,160 @@ def test_cli_help_lists_only_frozen_commands():
     )
     observed = set(line[line.index("{") + 1 : line.index("}")].split(","))
     assert observed == COMMANDS
+
+
+def test_validate_applicability_authority_passes_official_bindings():
+    result = subprocess.run(
+        [
+            "python3",
+            str(CLI),
+            "validate-applicability-authority",
+            "--manifest",
+            str(ROOT / "data/p3_v3/phase2/applicability-authority.json"),
+            "--registry",
+            str(ROOT / "data/p3_v3/protocol/applicability-predicate-registry.json"),
+            "--inventory",
+            str(ROOT / "data/p3_v3/phase2/slot-inventory.json"),
+            "--slot-implementation",
+            str(ROOT / "src/p3_v3/slot_inventory.py"),
+            "--predicate-implementation",
+            str(ROOT / "src/p3_v3/applicability_predicates.py"),
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=_env(),
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "PASS"
+    assert payload["subject_count"] == 35
+    assert payload["slot_count"] == 350
+    assert "site_id" not in payload
+
+
+def test_validate_applicability_authority_fails_on_bound_byte_change(tmp_path):
+    drifted = tmp_path / "applicability_predicates.py"
+    drifted.write_bytes(
+        (ROOT / "src/p3_v3/applicability_predicates.py").read_bytes() + b"#drift\n"
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(CLI),
+            "validate-applicability-authority",
+            "--manifest",
+            str(ROOT / "data/p3_v3/phase2/applicability-authority.json"),
+            "--registry",
+            str(ROOT / "data/p3_v3/protocol/applicability-predicate-registry.json"),
+            "--inventory",
+            str(ROOT / "data/p3_v3/phase2/slot-inventory.json"),
+            "--slot-implementation",
+            str(ROOT / "src/p3_v3/slot_inventory.py"),
+            "--predicate-implementation",
+            str(drifted),
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=_env(),
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stderr)["code"] == "E_APPLICABILITY_AUTHORITY"
+
+
+def test_build_frames_rejects_nonempty_handwritten_applicability_map(tmp_path):
+    paths = {
+        "bridge": tmp_path / "bridge.json",
+        "specs": tmp_path / "subject-specs.json",
+        "slots": tmp_path / "slots.json",
+        "contracts": tmp_path / "contracts.json",
+        "applicability": tmp_path / "applicability.json",
+    }
+    write_canonical_json(paths["bridge"], {"records": []}, exclusive=True)
+    write_canonical_json(paths["specs"], [], exclusive=True)
+    write_canonical_json(paths["slots"], [], exclusive=True)
+    write_canonical_json(paths["contracts"], {}, exclusive=True)
+    write_canonical_json(paths["applicability"], {"a" * 64: True}, exclusive=True)
+    result = subprocess.run(
+        [
+            "python3",
+            str(CLI),
+            "build-frames",
+            "--bridge",
+            str(paths["bridge"]),
+            "--subject-specs",
+            str(paths["specs"]),
+            "--adapter-root",
+            str(tmp_path),
+            "--generator-root",
+            str(tmp_path),
+            "--slots",
+            str(paths["slots"]),
+            "--contracts",
+            str(paths["contracts"]),
+            "--applicability-map",
+            str(paths["applicability"]),
+            "--output-root",
+            str(tmp_path / "out"),
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=_env(),
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stderr)["code"] == "E_APPLICABILITY"
+
+
+def test_build_frames_rejects_nonempty_slots_without_running_closure(tmp_path):
+    output_root = tmp_path / "out"
+    paths = {
+        "bridge": tmp_path / "bridge.json",
+        "specs": tmp_path / "subject-specs.json",
+        "slots": tmp_path / "slots.json",
+        "contracts": tmp_path / "contracts.json",
+        "applicability": tmp_path / "applicability.json",
+    }
+    write_canonical_json(paths["bridge"], {"records": []}, exclusive=True)
+    write_canonical_json(paths["specs"], [], exclusive=True)
+    write_canonical_json(
+        paths["slots"],
+        [{"slot_id": "a" * 64, "controlled_subject_id": "b" * 64}],
+        exclusive=True,
+    )
+    write_canonical_json(paths["contracts"], {}, exclusive=True)
+    write_canonical_json(paths["applicability"], {}, exclusive=True)
+    result = subprocess.run(
+        [
+            "python3",
+            str(CLI),
+            "build-frames",
+            "--bridge",
+            str(paths["bridge"]),
+            "--subject-specs",
+            str(paths["specs"]),
+            "--adapter-root",
+            str(tmp_path),
+            "--generator-root",
+            str(tmp_path),
+            "--slots",
+            str(paths["slots"]),
+            "--contracts",
+            str(paths["contracts"]),
+            "--applicability-map",
+            str(paths["applicability"]),
+            "--output-root",
+            str(output_root),
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+        env=_env(),
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stderr)["code"] == "E_SLOTS"
+    assert not output_root.exists() or not any(output_root.glob("slot-closure-*.json"))
 
 
 def test_build_frames_subject_specs_are_the_only_subject_authority_options(tmp_path):

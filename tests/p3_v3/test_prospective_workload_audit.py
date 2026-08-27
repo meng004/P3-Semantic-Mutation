@@ -317,3 +317,92 @@ def test_verify_candidate_source_maps_archive_failures(tmp_path):
             archive_root=archive_root,
             runtime_root=runtime_root,
         )
+
+
+def _real_finalized_report(audit):
+    subjects = _load_real_population(audit)
+    audits = audit.audit_invocations_for_population(subjects)
+    finalized = audit.finalize_population(
+        subjects,
+        audits,
+        archive_root=REPO_ROOT / "data/p3_v3/p12_intake/archives",
+        runtime_root=Path("/tmp/p3-prospective-workload-audit-runtime-should-stay-absent"),
+    )
+    selected = audit.select_candidate(finalized)
+    return finalized, selected, audit.render_report(finalized, selected)
+
+
+def test_render_report_records_the_preregistered_no_candidate_terminal():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    finalized, selected, report = _real_finalized_report(audit)
+    assert selected is None
+    assert "# P3 Prospective Workload Selection Audit" in report
+    assert "## Terminal status" in report
+    assert "NO_PROSPECTIVE_EXECUTABLE_WORKLOAD" in report
+    assert "35 subjects audited" in report
+    assert "12 NO_FROZEN_WORKLOAD" in report
+    assert "1 TERMINAL_RETRY_FORBIDDEN" in report
+    assert "22 WORKLOAD_EXECUTION_UNDERSPECIFIED" in report
+    assert "0 PROSPECTIVE_EXECUTABLE" in report
+    ids = [row.neutral_snapshot_id for row in finalized]
+    assert ids == sorted(ids)
+    assert len(set(ids)) == 35
+    for snapshot_id in ids:
+        assert report.count(f"`{snapshot_id}`") == 1
+    for row in finalized:
+        if row.row_count == 20:
+            assert f"| `{row.neutral_snapshot_id}` |" in report
+            assert f"| {row.row_count} |" in report
+            assert len(row.row_decisions) == 20
+
+
+def test_render_report_names_selected_candidate_and_alternates():
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    selected = _eligible_subject("b" * 64, "PYTHON_CALL_TRACE_V1", 1)
+    alternate = _eligible_subject("c" * 64, "CMAKE_NATIVE_CALL_TRACE_V1", 2)
+    report = audit.render_report([alternate, selected], selected)
+    assert "PROSPECTIVE_CANDIDATE_SELECTED" in report
+    assert "Selected: `" + ("b" * 64) + "`" in report
+    assert "Runner class: `PYTHON_CALL_TRACE_V1`" in report
+    assert "Unrun alternates: `" + ("c" * 64) + "`" in report
+
+
+def test_write_exclusive_output_rejects_existing_path(tmp_path):
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    output = tmp_path / "audit.md"
+    output.write_text("original\n", encoding="utf-8")
+    with pytest.raises(EvidenceError, match="E_AUDIT_OUTPUT"):
+        audit.write_exclusive_output(output, "replacement\n")
+    assert output.read_text(encoding="utf-8") == "original\n"
+
+
+def test_main_prints_evidence_error_and_returns_1(tmp_path, capsys):
+    import scripts.p3_v3.audit_prospective_workloads as audit
+
+    exit_code = audit.main(
+        [
+            "--consumer-lock",
+            str(tmp_path / "missing-lock.json"),
+            "--verified-bridge",
+            str(tmp_path / "missing-bridge.json"),
+            "--phase1-root",
+            str(tmp_path / "phase1"),
+            "--descriptor-root",
+            str(tmp_path / "descriptors"),
+            "--archive-root",
+            str(tmp_path / "archives"),
+            "--runtime-root",
+            str(tmp_path / "runtime"),
+            "--output",
+            str(tmp_path / "audit.md"),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err
+    assert "E_" in captured.err
+    assert not (tmp_path / "audit.md").exists()

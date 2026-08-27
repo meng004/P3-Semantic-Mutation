@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -80,8 +82,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _read_canonical_object(path: Path, context: str) -> Any:
+    try:
+        return read_canonical_json(path)
+    except FileNotFoundError as exc:
+        raise EvidenceError("E_AUDIT_ARTIFACT", f"{context} is absent: {path}") from exc
+
+
 def read_self_hashed_object(path: Path, context: str) -> dict[str, Any]:
-    value = read_canonical_json(path)
+    value = _read_canonical_object(path, context)
     if not isinstance(value, dict):
         raise EvidenceError("E_AUDIT_ARTIFACT", f"{context} must be an object")
     artifact = validate_sha256(value.get("artifact_sha256"), f"{context}.artifact_sha256")
@@ -98,10 +107,10 @@ def load_population(
     phase1_root: Path,
     descriptor_root: Path,
 ) -> tuple[SubjectInputs, ...]:
-    consumer_lock = read_canonical_json(consumer_lock_path)
+    consumer_lock = _read_canonical_object(consumer_lock_path, "consumer lock")
     if not isinstance(consumer_lock, dict):
         raise EvidenceError("E_AUDIT_ARTIFACT", "consumer lock must be an object")
-    bridge = read_canonical_json(verified_bridge_path)
+    bridge = _read_canonical_object(verified_bridge_path, "verified bridge")
     if not isinstance(bridge, dict):
         raise EvidenceError("E_AUDIT_ARTIFACT", "verified bridge must be an object")
     validated = validate_bridge_document(bridge, consumer_lock)
@@ -127,12 +136,19 @@ def load_population(
         adapter_path = Path(phase1_root) / f"adapter-discovery-{snapshot_id}.json"
         frame_path = Path(phase1_root) / f"public-behavior-frame-{snapshot_id}.json"
         workload_path = Path(phase1_root) / f"profiling-workload-{snapshot_id}.json"
-        if file_sha256(descriptor_path) != record["build_descriptor_sha256"]:
+        try:
+            descriptor_hash = file_sha256(descriptor_path)
+        except FileNotFoundError as exc:
+            raise EvidenceError(
+                "E_AUDIT_DESCRIPTOR",
+                f"{snapshot_id} descriptor is absent: {descriptor_path}",
+            ) from exc
+        if descriptor_hash != record["build_descriptor_sha256"]:
             raise EvidenceError(
                 "E_AUDIT_DESCRIPTOR",
                 f"{snapshot_id} descriptor hash differs from the bridge",
             )
-        descriptor = read_canonical_json(descriptor_path)
+        descriptor = _read_canonical_object(descriptor_path, f"{snapshot_id} descriptor")
         if not isinstance(descriptor, dict):
             raise EvidenceError("E_AUDIT_ARTIFACT", f"{snapshot_id} descriptor must be an object")
         adapter_discovery = read_self_hashed_object(
@@ -473,3 +489,163 @@ def finalize_population(
             )
         )
     return tuple(finalized)
+
+
+def render_report(
+    subjects: Sequence[SubjectAudit],
+    selected: SubjectAudit | None,
+) -> str:
+    terminal = (
+        "PROSPECTIVE_CANDIDATE_SELECTED"
+        if selected is not None
+        else "NO_PROSPECTIVE_EXECUTABLE_WORKLOAD"
+    )
+    lines = [
+        "# P3 Prospective Workload Selection Audit",
+        "",
+        "## Terminal status",
+        "",
+        f"`{terminal}`",
+        "",
+    ]
+    counts = Counter(row.terminal for row in subjects)
+    eligible = sorted(
+        row.neutral_snapshot_id
+        for row in subjects
+        if row.terminal == "PROSPECTIVE_EXECUTABLE"
+    )
+    lines.extend(
+        [
+            "## Inventory summary",
+            "",
+            f"- {len(subjects)} subjects audited",
+            f"- {counts['NO_FROZEN_WORKLOAD']} NO_FROZEN_WORKLOAD",
+            f"- {counts['TERMINAL_RETRY_FORBIDDEN']} TERMINAL_RETRY_FORBIDDEN",
+            f"- {counts['WORKLOAD_EXECUTION_UNDERSPECIFIED']} WORKLOAD_EXECUTION_UNDERSPECIFIED",
+            f"- {len(eligible)} PROSPECTIVE_EXECUTABLE",
+            "",
+            "## Subject audit",
+            "",
+            "| neutral snapshot | language | ecosystem | rows | unique rows | trace strategy | source status | terminal |",
+            "|---|---|---|---:|---:|---|---|---|",
+        ]
+    )
+    for row in sorted(subjects, key=lambda item: item.neutral_snapshot_id):
+        unique_count = sum(decision.unique for _, decision in row.row_decisions)
+        lines.append(
+            f"| `{row.neutral_snapshot_id}` | {row.language_family} | "
+            f"{row.ecosystem} | {row.row_count} | {unique_count} | "
+            f"{row.trace_strategy or '-'} | {row.source_status or '-'} | "
+            f"`{row.terminal}` |"
+        )
+    lines.extend(["", "## Deterministic selection", ""])
+    if selected is None:
+        lines.extend(
+            [
+                "No subject passed all invocation, trace, and source-identity requirements.",
+                "",
+                "Within the existing 35-subject frozen population, no unrun subject has a",
+                "20-row workload whose execution action is uniquely specified for every row.",
+                "The current technique-profiling path therefore cannot produce another valid",
+                "formal receipt without a new prospective workload design. C2 remains blocked;",
+                "the result is a limitation of the frozen execution specification, not evidence",
+                "that the subjects lack the target techniques.",
+            ]
+        )
+    else:
+        alternates = [item for item in eligible if item != selected.neutral_snapshot_id]
+        lines.extend(
+            [
+                f"Selected: `{selected.neutral_snapshot_id}`",
+                f"Runner class: `{selected.trace_strategy}`",
+                "Unrun alternates: " + (", ".join(f"`{item}`" for item in alternates) or "none"),
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Actions not taken",
+            "",
+            "- No profiling receipt, technique profile, RQ handoff, or claim outcome was read.",
+            "- No subject behavior, compiler, build, test, benchmark, or profiler was executed.",
+            "- No frozen workload, prior observation, or claim ledger was modified.",
+            "",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_exclusive_output(path: Path, text: str) -> None:
+    target = Path(path)
+    payload = text.encode("utf-8")
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    created = False
+    fd: int | None = None
+    try:
+        fd = os.open(target, flags, 0o644)
+        created = True
+        view = memoryview(payload)
+        offset = 0
+        while offset < len(view):
+            offset += os.write(fd, view[offset:])
+        os.fsync(fd)
+    except FileExistsError as exc:
+        raise EvidenceError("E_AUDIT_OUTPUT", f"output already exists: {target}") from exc
+    except Exception:
+        if created and target.exists():
+            try:
+                os.unlink(target)
+            except OSError:
+                pass
+        raise
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def run_audit(
+    *,
+    consumer_lock: Path,
+    verified_bridge: Path,
+    phase1_root: Path,
+    descriptor_root: Path,
+    archive_root: Path,
+    runtime_root: Path,
+) -> tuple[tuple[SubjectAudit, ...], SubjectAudit | None, str]:
+    subjects = load_population(
+        consumer_lock_path=consumer_lock,
+        verified_bridge_path=verified_bridge,
+        phase1_root=phase1_root,
+        descriptor_root=descriptor_root,
+    )
+    audits = audit_invocations_for_population(subjects)
+    finalized = finalize_population(
+        subjects,
+        audits,
+        archive_root=archive_root,
+        runtime_root=runtime_root,
+    )
+    selected = select_candidate(finalized)
+    return finalized, selected, render_report(finalized, selected)
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        args = build_parser().parse_args(argv)
+        _finalized, _selected, report = run_audit(
+            consumer_lock=Path(args.consumer_lock),
+            verified_bridge=Path(args.verified_bridge),
+            phase1_root=Path(args.phase1_root),
+            descriptor_root=Path(args.descriptor_root),
+            archive_root=Path(args.archive_root),
+            runtime_root=Path(args.runtime_root),
+        )
+        write_exclusive_output(Path(args.output), report)
+    except EvidenceError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

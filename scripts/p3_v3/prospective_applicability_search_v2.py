@@ -851,11 +851,76 @@ def validate_v2_preflight(
     }
 
 
+def _execution_fail(detail: str) -> None:
+    raise EvidenceError("V2_EXECUTION_FAIL", detail)
+
+
+def _walk_keys(value: object) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(value, Mapping):
+        keys.update(value)
+        for item in value.values():
+            keys.update(_walk_keys(item))
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for item in value:
+            keys.update(_walk_keys(item))
+    return keys
+
+
+def _search_result(
+    *,
+    status: str,
+    code: str | None,
+    controller_source_sha256: str | None,
+    attempted_count: int,
+    first_eligible_successor_ordinal: int | None,
+    first_eligible_neutral_snapshot_id: str | None,
+    official_terminal_written: bool,
+    terminal: dict[str, object] | None,
+) -> dict[str, object]:
+    return {
+        "status": status,
+        "code": code,
+        "controller_source_sha256": controller_source_sha256,
+        "attempted_count": attempted_count,
+        "first_eligible_successor_ordinal": first_eligible_successor_ordinal,
+        "first_eligible_neutral_snapshot_id": first_eligible_neutral_snapshot_id,
+        "official_terminal_written": official_terminal_written,
+        "terminal": terminal,
+    }
+
+
+def read_successor_pbf(
+    repo_root: Path, successor: Mapping[str, object]
+) -> Mapping[str, object]:
+    path = pbf_path(repo_root, str(successor["neutral_snapshot_id"]))
+    try:
+        require_regular_file(path, "successor pbf")
+        payload = read_canonical_regular_json(path, "successor pbf")
+        identity = pbf_identity(path)
+    except EvidenceError as exc:
+        if exc.code == "V2_PREFLIGHT_FAIL":
+            _execution_fail(str(exc))
+        raise
+    if (
+        identity["file_sha256"] != successor["pbf_file_sha256"]
+        or identity["artifact_sha256"] != successor["pbf_artifact_sha256"]
+        or identity["controlled_subject_source_id"]
+        != successor["controlled_subject_source_id"]
+        or identity["pbf_site_count"] != successor["pbf_site_count"]
+    ):
+        _execution_fail("successor PBF identity changed")
+    return payload
+
+
 def canonical_sites_from_pbf(
     controlled_subject_id: str,
     pbf: Mapping[str, object],
 ) -> list[dict[str, object]]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    sites = pbf.get("sites")
+    if not isinstance(sites, Sequence) or isinstance(sites, (str, bytes)):
+        _execution_fail("pbf sites must be a sequence")
+    return _sites(controlled_subject_id, sites)
 
 
 def close_successor_subject(
@@ -864,17 +929,103 @@ def close_successor_subject(
     successor: Mapping[str, object],
     pbf: Mapping[str, object],
 ) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    try:
+        rows = inventory_rows_for_subject(
+            authority, str(successor["controlled_subject_id"])
+        )
+    except EvidenceError as exc:
+        if exc.code == "V2_PREFLIGHT_FAIL":
+            _execution_fail("subject slot count is not 10")
+        raise
+    if len(rows) != SLOTS_PER_SUBJECT:
+        _execution_fail("subject slot count is not 10")
+    sites = canonical_sites_from_pbf(str(successor["controlled_subject_id"]), pbf)
+    official: list[dict[str, object]] = []
+    for row in rows:
+        official.append(close_slot_with_authority(authority, row, sites, pbf))
+    if len(official) != SLOTS_PER_SUBJECT:
+        _execution_fail("closer returned a partial subject")
+    attempted = build_attempted_subject(successor=successor, official_closures=official)
+    return {"attempted_subject": attempted, "official_closures": tuple(official)}
 
 
 def derive_subject_eligibility(
     closures: Sequence[Mapping[str, object]],
 ) -> str:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    if not isinstance(closures, Sequence) or isinstance(closures, (str, bytes)):
+        _execution_fail("closures must be a sequence")
+    if len(closures) != SLOTS_PER_SUBJECT:
+        _execution_fail("subject closure count is not 10")
+    states: list[str] = []
+    for index, closure in enumerate(closures):
+        if not isinstance(closure, Mapping) or "state" not in closure:
+            _execution_fail(f"closure {index} is partial")
+        state = closure["state"]
+        if state not in {
+            "SITE_FROZEN",
+            "APPLICABILITY_CLOSED_NOT_APPLICABLE",
+        }:
+            _execution_fail(f"closure {index} has a non-scientific state")
+        states.append(state)
+    if "SITE_FROZEN" in states:
+        return "V2_APPLICABILITY_ELIGIBLE"
+    return "V2_APPLICABILITY_INELIGIBLE"
+
+
+def _official_closure_self_hash(
+    *,
+    slot_id: object,
+    controlled_subject_id: object,
+    site_id: object,
+    state: object,
+) -> str:
+    if state == "APPLICABILITY_CLOSED_NOT_APPLICABLE":
+        path = "APPLICABILITY_CLOSED_NOT_APPLICABLE"
+    elif state == "SITE_FROZEN":
+        path = "APPLICABLE"
+    else:
+        _execution_fail("closure state is not a scientific eligibility state")
+    body = {
+        "schema_version": "p3-slot-closure-v1",
+        "slot_id": slot_id,
+        "controlled_subject_id": controlled_subject_id,
+        "site_id": site_id,
+        "state": state,
+        "path": path,
+    }
+    return canonical_sha256(body)
 
 
 def closure_terminal_row(closure: Mapping[str, object]) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    if not isinstance(closure, Mapping):
+        _execution_fail("closure must be an object")
+    body = {key: value for key, value in closure.items() if key != "artifact_sha256"}
+    if closure.get("artifact_sha256") != canonical_sha256(body):
+        _execution_fail("official closer self-hash differs")
+    row = {
+        "slot_id": closure["slot_id"],
+        "state": closure["state"],
+        "site_id": closure["site_id"],
+        "closure_artifact_sha256": closure["artifact_sha256"],
+    }
+    validate_exact_object(row, TERMINAL_CLOSURE_ROW_SCHEMA, "terminal_closure")
+    validate_sha256(row["slot_id"], "terminal_closure.slot_id")
+    validate_sha256(row["closure_artifact_sha256"], "terminal_closure.closure_artifact_sha256")
+    if row["state"] == "APPLICABILITY_CLOSED_NOT_APPLICABLE":
+        if row["site_id"] is not None:
+            _execution_fail("not-applicable closure must have null site_id")
+    elif row["state"] == "SITE_FROZEN":
+        validate_sha256(row["site_id"], "terminal_closure.site_id")
+    else:
+        _execution_fail("closure state is not a scientific eligibility state")
+    if row["closure_artifact_sha256"] != _official_closure_self_hash(
+        slot_id=row["slot_id"],
+        controlled_subject_id=closure["controlled_subject_id"],
+        site_id=row["site_id"],
+        state=row["state"],
+    ):
+        _execution_fail("referenced closure artifact self-hash differs")
+    return row
 
 
 def build_attempted_subject(
@@ -882,7 +1033,17 @@ def build_attempted_subject(
     successor: Mapping[str, object],
     official_closures: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    if len(official_closures) != SLOTS_PER_SUBJECT:
+        _execution_fail("attempted subject must contain 10 closures")
+    payload = {
+        "successor_ordinal": successor["successor_ordinal"],
+        "neutral_snapshot_id": successor["neutral_snapshot_id"],
+        "controlled_subject_source_id": successor["controlled_subject_source_id"],
+        "controlled_subject_id": successor["controlled_subject_id"],
+        "eligibility": derive_subject_eligibility(official_closures),
+        "closures": [closure_terminal_row(item) for item in official_closures],
+    }
+    return validate_exact_object(payload, ATTEMPTED_SUBJECT_SCHEMA, "attempted_subject")
 
 
 def build_cohort_terminal(
@@ -890,7 +1051,36 @@ def build_cohort_terminal(
     attempted_subjects: Sequence[Mapping[str, object]],
     controller_source_sha256: str,
 ) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    rows = [dict(item) for item in attempted_subjects]
+    eligible = [
+        row for row in rows if row.get("eligibility") == "V2_APPLICABILITY_ELIGIBLE"
+    ]
+    if eligible:
+        last = rows[-1]
+        terminal_status = "V2_ELIGIBLE_SUBJECT_FOUND"
+        first_ordinal = last.get("successor_ordinal")
+        first_neutral = last.get("neutral_snapshot_id")
+    else:
+        terminal_status = "V2_COHORT_EXHAUSTED"
+        first_ordinal = None
+        first_neutral = None
+    body = {
+        "schema_version": TERMINAL_SCHEMA_VERSION,
+        "slice_id": SLICE_ID,
+        "design_commit": DESIGN_COMMIT,
+        "design_file_sha256": DESIGN_FILE_SHA256,
+        "authority_artifact_sha256": AUTHORITY_ARTIFACT_SHA256,
+        "controller_source_sha256": controller_source_sha256,
+        "prior_closure_commit": PRIOR_CLOSURE_COMMIT,
+        "terminal_status": terminal_status,
+        "attempted_subjects": rows,
+        "first_eligible_successor_ordinal": first_ordinal,
+        "first_eligible_neutral_snapshot_id": first_neutral,
+    }
+    terminal = {**body, "artifact_sha256": canonical_sha256(body)}
+    return validate_cohort_terminal(
+        terminal, controller_source_sha256=controller_source_sha256
+    )
 
 
 def validate_cohort_terminal(
@@ -898,14 +1088,132 @@ def validate_cohort_terminal(
     *,
     controller_source_sha256: str,
 ) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    payload = validate_exact_object(dict(terminal), COHORT_TERMINAL_SCHEMA, "cohort_terminal")
+    body = {key: value for key, value in payload.items() if key != "artifact_sha256"}
+    if payload["artifact_sha256"] != canonical_sha256(body):
+        _execution_fail("cohort terminal self-hash differs")
+    if _walk_keys(payload) & FORBIDDEN_LEAK_KEYS:
+        _execution_fail("cohort terminal contains forbidden site fields")
+    if payload["controller_source_sha256"] != controller_source_sha256:
+        _execution_fail("controller source SHA-256 differs")
+    if (
+        payload["schema_version"] != TERMINAL_SCHEMA_VERSION
+        or payload["slice_id"] != SLICE_ID
+        or payload["design_commit"] != DESIGN_COMMIT
+        or payload["design_file_sha256"] != DESIGN_FILE_SHA256
+        or payload["authority_artifact_sha256"] != AUTHORITY_ARTIFACT_SHA256
+        or payload["prior_closure_commit"] != PRIOR_CLOSURE_COMMIT
+    ):
+        _execution_fail("cohort terminal identity bindings differ")
+    attempted = payload["attempted_subjects"]
+    if not isinstance(attempted, list) or not attempted:
+        _execution_fail("attempted_subjects must be nonempty")
+    if len(attempted) > MAXIMUM_ATTEMPTS:
+        _execution_fail("attempted subject count exceeds 22")
+    authority = _load_official_authority(Path(__file__).resolve().parents[2])
+    for index, raw in enumerate(attempted):
+        row = validate_exact_object(dict(raw), ATTEMPTED_SUBJECT_SCHEMA, f"attempted[{index}]")
+        expected_ordinal = index + 1
+        if row["successor_ordinal"] != expected_ordinal:
+            _execution_fail("attempted successor ordinals are not contiguous")
+        if index >= len(FROZEN_SUCCESSOR_ROWS):
+            _execution_fail("attempted subject is outside the frozen successor table")
+        frozen = FROZEN_SUCCESSOR_ROWS[index]
+        if (
+            row["neutral_snapshot_id"] != frozen["neutral_snapshot_id"]
+            or row["controlled_subject_source_id"]
+            != frozen["controlled_subject_source_id"]
+            or row["controlled_subject_id"] != frozen["controlled_subject_id"]
+        ):
+            _execution_fail("attempted subject identity differs from frozen successor")
+        validate_sha256(row["neutral_snapshot_id"], "attempted.neutral_snapshot_id")
+        validate_sha256(
+            row["controlled_subject_source_id"], "attempted.controlled_subject_source_id"
+        )
+        validate_sha256(row["controlled_subject_id"], "attempted.controlled_subject_id")
+        closures = row["closures"]
+        if not isinstance(closures, list) or len(closures) != SLOTS_PER_SUBJECT:
+            _execution_fail("attempted subject must contain 10 closures")
+        expected_rows = inventory_rows_for_subject(
+            authority, str(row["controlled_subject_id"])
+        )
+        if [item["slot_id"] for item in expected_rows] != [
+            item["slot_id"] for item in closures
+        ]:
+            _execution_fail("closure slot order differs from frozen inventory")
+        for closure in closures:
+            item = validate_exact_object(
+                dict(closure), TERMINAL_CLOSURE_ROW_SCHEMA, "closure"
+            )
+            if item["state"] == "APPLICABILITY_CLOSED_NOT_APPLICABLE":
+                if item["site_id"] is not None:
+                    _execution_fail("not-applicable closure must have null site_id")
+            elif item["state"] == "SITE_FROZEN":
+                validate_sha256(item["site_id"], "closure.site_id")
+            else:
+                _execution_fail("closure state is not a scientific eligibility state")
+            if item["closure_artifact_sha256"] != _official_closure_self_hash(
+                slot_id=item["slot_id"],
+                controlled_subject_id=row["controlled_subject_id"],
+                site_id=item["site_id"],
+                state=item["state"],
+            ):
+                _execution_fail("referenced closure artifact self-hash differs")
+        derived = derive_subject_eligibility(closures)
+        if row["eligibility"] != derived:
+            _execution_fail("eligibility is not derived from the 10 closure states")
+        attempted[index] = row
+    if payload["terminal_status"] == "V2_ELIGIBLE_SUBJECT_FOUND":
+        last = attempted[-1]
+        earlier = attempted[:-1]
+        if last["eligibility"] != "V2_APPLICABILITY_ELIGIBLE":
+            _execution_fail("FOUND terminal last subject is not eligible")
+        if any(row["eligibility"] != "V2_APPLICABILITY_INELIGIBLE" for row in earlier):
+            _execution_fail("FOUND terminal opened a later subject after an eligible one")
+        if any(
+            closure["state"] != "APPLICABILITY_CLOSED_NOT_APPLICABLE"
+            for row in earlier
+            for closure in row["closures"]
+        ):
+            _execution_fail("FOUND terminal earlier subject is not 10/10 not-applicable")
+        if not any(closure["state"] == "SITE_FROZEN" for closure in last["closures"]):
+            _execution_fail("FOUND terminal last subject has no SITE_FROZEN closure")
+        if payload["first_eligible_successor_ordinal"] != last["successor_ordinal"]:
+            _execution_fail("FOUND first_eligible_successor_ordinal differs")
+        if payload["first_eligible_neutral_snapshot_id"] != last["neutral_snapshot_id"]:
+            _execution_fail("FOUND first_eligible_neutral_snapshot_id differs")
+    elif payload["terminal_status"] == "V2_COHORT_EXHAUSTED":
+        if len(attempted) != MAXIMUM_ATTEMPTS:
+            _execution_fail("EXHAUSTED terminal must contain 22 attempted subjects")
+        if [row["successor_ordinal"] for row in attempted] != list(
+            range(1, MAXIMUM_ATTEMPTS + 1)
+        ):
+            _execution_fail("EXHAUSTED ordinals are not 1 through 22")
+        if any(
+            row["eligibility"] != "V2_APPLICABILITY_INELIGIBLE" for row in attempted
+        ):
+            _execution_fail("EXHAUSTED terminal contains an eligible subject")
+        if any(
+            closure["state"] != "APPLICABILITY_CLOSED_NOT_APPLICABLE"
+            for row in attempted
+            for closure in row["closures"]
+        ):
+            _execution_fail("EXHAUSTED terminal is not 22x10 not-applicable")
+        if (
+            payload["first_eligible_successor_ordinal"] is not None
+            or payload["first_eligible_neutral_snapshot_id"] is not None
+        ):
+            _execution_fail("EXHAUSTED first-eligible fields must be null")
+    else:
+        _execution_fail("terminal_status is not a scientific v2 terminal")
+    return payload
 
 
 def write_subject_closures(
     directory: Path,
     official_closures: Sequence[Mapping[str, object]],
 ) -> None:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    return None
 
 
 def place_subject_directory(
@@ -913,7 +1221,7 @@ def place_subject_directory(
     staging_subject: Path,
     official_subject: Path,
 ) -> None:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    return None
 
 
 def write_official_cohort_terminal(
@@ -922,7 +1230,7 @@ def write_official_cohort_terminal(
     official_terminal: Path,
     terminal: Mapping[str, object],
 ) -> None:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    return None
 
 
 def stdout_summary(result: Mapping[str, object]) -> dict[str, object]:
@@ -930,7 +1238,150 @@ def stdout_summary(result: Mapping[str, object]) -> dict[str, object]:
 
 
 def run_search(repo_root: Path) -> dict[str, object]:
-    raise EvidenceError("V2_EXECUTION_FAIL", "not implemented")
+    root = Path(repo_root)
+    controller_path = Path(__file__).resolve()
+    controller_source_sha256 = file_sha256(controller_path)
+    attempted: list[dict[str, object]] = []
+    search_opened = False
+    try:
+        try:
+            validate_v2_preflight(
+                repo_root=root, controller_path=root / CONTROLLER_RELPATH
+            )
+        except EvidenceError as exc:
+            if exc.code in {"V2_PREFLIGHT_FAIL", "V2_SUCCESSOR_IDENTITY_CONFLICT"}:
+                return _search_result(
+                    status="V2_PREFLIGHT_FAIL",
+                    code=exc.code,
+                    controller_source_sha256=controller_source_sha256,
+                    attempted_count=0,
+                    first_eligible_successor_ordinal=None,
+                    first_eligible_neutral_snapshot_id=None,
+                    official_terminal_written=False,
+                    terminal=None,
+                )
+            raise
+        search_opened = True
+        ordinals = [row["successor_ordinal"] for row in FROZEN_SUCCESSOR_ROWS]
+        if ordinals != list(range(1, len(ordinals) + 1)):
+            _execution_fail("successor ordinals are not contiguous")
+        if len(ordinals) > MAXIMUM_ATTEMPTS:
+            _execution_fail("successor table exceeds maximum attempts")
+        authority = _load_official_authority(root)
+        for expected_ordinal, successor in enumerate(FROZEN_SUCCESSOR_ROWS, start=1):
+            if expected_ordinal > MAXIMUM_ATTEMPTS:
+                _execution_fail("search exceeded maximum attempts")
+            if successor["successor_ordinal"] != expected_ordinal:
+                _execution_fail("successor ordinal skipped or reordered")
+            pbf = read_successor_pbf(root, successor)
+            closed = close_successor_subject(
+                authority=authority, successor=successor, pbf=pbf
+            )
+            subject = dict(closed["attempted_subject"])
+            if subject["successor_ordinal"] != expected_ordinal:
+                _execution_fail("closed subject ordinal differs")
+            if subject["eligibility"] not in {
+                "V2_APPLICABILITY_ELIGIBLE",
+                "V2_APPLICABILITY_INELIGIBLE",
+            }:
+                _execution_fail("subject eligibility is not a scientific label")
+            official_closures = closed["official_closures"]
+            if len(official_closures) != SLOTS_PER_SUBJECT:
+                _execution_fail("partial closures cannot be recorded as ineligible")
+            write_subject_closures(
+                staging_subject_dir(root, str(successor["neutral_snapshot_id"])),
+                official_closures,
+            )
+            place_subject_directory(
+                staging_subject=staging_subject_dir(
+                    root, str(successor["neutral_snapshot_id"])
+                ),
+                official_subject=official_subject_dir(
+                    root, str(successor["neutral_snapshot_id"])
+                ),
+            )
+            attempted.append(subject)
+            if subject["eligibility"] == "V2_APPLICABILITY_ELIGIBLE":
+                terminal = build_cohort_terminal(
+                    attempted_subjects=attempted,
+                    controller_source_sha256=controller_source_sha256,
+                )
+                write_official_cohort_terminal(
+                    staging_terminal=staging_root(root) / "cohort-terminal.json",
+                    official_terminal=official_root(root) / "cohort-terminal.json",
+                    terminal=terminal,
+                )
+                return _search_result(
+                    status="V2_ELIGIBLE_SUBJECT_FOUND",
+                    code=None,
+                    controller_source_sha256=controller_source_sha256,
+                    attempted_count=len(attempted),
+                    first_eligible_successor_ordinal=terminal[
+                        "first_eligible_successor_ordinal"
+                    ],
+                    first_eligible_neutral_snapshot_id=terminal[
+                        "first_eligible_neutral_snapshot_id"
+                    ],
+                    official_terminal_written=True,
+                    terminal=terminal,
+                )
+            if expected_ordinal == MAXIMUM_ATTEMPTS:
+                terminal = build_cohort_terminal(
+                    attempted_subjects=attempted,
+                    controller_source_sha256=controller_source_sha256,
+                )
+                write_official_cohort_terminal(
+                    staging_terminal=staging_root(root) / "cohort-terminal.json",
+                    official_terminal=official_root(root) / "cohort-terminal.json",
+                    terminal=terminal,
+                )
+                return _search_result(
+                    status="V2_COHORT_EXHAUSTED",
+                    code=None,
+                    controller_source_sha256=controller_source_sha256,
+                    attempted_count=len(attempted),
+                    first_eligible_successor_ordinal=None,
+                    first_eligible_neutral_snapshot_id=None,
+                    official_terminal_written=True,
+                    terminal=terminal,
+                )
+        _execution_fail("search ended without a scientific terminal")
+    except EvidenceError as exc:
+        if (
+            not search_opened
+            and exc.code in {"V2_PREFLIGHT_FAIL", "V2_SUCCESSOR_IDENTITY_CONFLICT"}
+        ):
+            return _search_result(
+                status="V2_PREFLIGHT_FAIL",
+                code=exc.code,
+                controller_source_sha256=controller_source_sha256,
+                attempted_count=len(attempted),
+                first_eligible_successor_ordinal=None,
+                first_eligible_neutral_snapshot_id=None,
+                official_terminal_written=False,
+                terminal=None,
+            )
+        return _search_result(
+            status="V2_EXECUTION_FAIL",
+            code=exc.code,
+            controller_source_sha256=controller_source_sha256,
+            attempted_count=len(attempted),
+            first_eligible_successor_ordinal=None,
+            first_eligible_neutral_snapshot_id=None,
+            official_terminal_written=False,
+            terminal=None,
+        )
+    except Exception as exc:
+        return _search_result(
+            status="V2_EXECUTION_FAIL",
+            code="V2_EXECUTION_FAIL",
+            controller_source_sha256=controller_source_sha256,
+            attempted_count=len(attempted),
+            first_eligible_successor_ordinal=None,
+            first_eligible_neutral_snapshot_id=None,
+            official_terminal_written=False,
+            terminal=None,
+        )
 
 
 def main() -> int:

@@ -46,8 +46,10 @@ Cursor Cloud commands use `python3`, `/workspace/.venv/bin/python`, `git`,
 
 ## 1. Frozen baseline
 
-Worktree: `/tmp/p3-c3-applicability-authority`  
-Branch: `codex/p3-c3-applicability-authority`  
+Worktree: `/tmp/p3-c3-applicability-authority`
+
+Branch: `codex/p3-c3-applicability-authority`
+
 Implementation start HEAD (design commit): `4ea6f05b44c76ebaa031277872c3711cdd1953eb`
 
 Approved design:

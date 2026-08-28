@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import json
+import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from p3_v3.artifacts import EvidenceError
+from p3_v3.artifacts import (
+    EvidenceError,
+    canonical_sha256,
+    validate_exact_object,
+    validate_sha256,
+    write_canonical_json,
+)
 
 SLICE_ID = "p3-c3-prospective-multiproject-paired-slice-v1"
 DESIGN_COMMIT = "de3e7c85f3bebd7bd3efa5b30d87bddd813abc55"
@@ -302,27 +310,13 @@ def run_multiproject_search(
 
     terminal = None
     official_terminal_written = False
-    if (
-        state.status in SCIENTIFIC_COHORT_TERMINALS
-        and write_terminal is not None
-        and controller_source_sha256 is not None
-    ):
-        terminal = {
-            "terminal_status": state.status.value,
-            "attempted_subjects": [
-                {
-                    "successor_ordinal": row.successor_ordinal,
-                    "neutral_snapshot_id": row.neutral_snapshot_id,
-                    "controlled_subject_source_id": row.controlled_subject_source_id,
-                    "controlled_subject_id": row.controlled_subject_id,
-                    "project_cluster_key": row.project_cluster_key,
-                    "subject_terminal": row.subject_terminal.value,
-                    "pair_count": row.pair_count,
-                }
-                for row in state.attempted
-            ],
-            "completed_new_project_keys": list(state.completed_new_project_keys),
-        }
+    if state.status in SCIENTIFIC_COHORT_TERMINALS and write_terminal is not None:
+        if controller_source_sha256 is None:
+            raise EvidenceError("IDENTITY_CONFLICT", "scientific terminal requires controller SHA")
+        terminal = build_cohort_terminal(
+            state=state,
+            controller_source_sha256=controller_source_sha256,
+        )
         write_terminal(terminal)
         official_terminal_written = True
 
@@ -334,3 +328,241 @@ def run_multiproject_search(
         terminal=terminal,
         opened_ordinals=tuple(opened),
     )
+
+
+_ORDINAL8_NEUTRAL_SNAPSHOT_ID = (
+    "4e7e9556b3d621681c88c82f26cd95f5604d7a8b85cc56bf7e6d4db5a274f38b"
+)
+_ORDINAL8_CONTROLLED_SUBJECT_SOURCE_ID = (
+    "667f66bbdb3b392af99b044181dcfa861040546fc5550906e30fca2f9aabb5d0"
+)
+_ORDINAL8_CONTROLLED_SUBJECT_ID = (
+    "0fefefc546f7c4519d036849a85279cc7d3aa00fe88d6ed5e259209769b5bb48"
+)
+
+_TERMINAL_SCHEMA = {
+    "schema_version": str,
+    "slice_id": str,
+    "design_commit": str,
+    "design_file_sha256": str,
+    "authority_artifact_sha256": str,
+    "controller_source_sha256": str,
+    "ordinal8_handoff_artifact_sha256": str,
+    "ordinal8_overlap_artifact_sha256": str,
+    "ordinal8_retained": dict,
+    "terminal_status": str,
+    "attempted_subjects": list,
+    "completed_new_project_keys": list,
+    "artifact_sha256": str,
+}
+_ORDINAL8_RETAINED_SCHEMA = {
+    "successor_ordinal": int,
+    "neutral_snapshot_id": str,
+    "controlled_subject_source_id": str,
+    "controlled_subject_id": str,
+    "project_cluster_key": str,
+    "pair_count": int,
+    "semantic_pair_kills": int,
+    "syntactic_pair_kills": int,
+    "d_subject": float,
+    "normalized_patch_overlap_numerator": int,
+    "normalized_patch_overlap_denominator": int,
+    "mutant_tree_overlap_numerator": int,
+    "mutant_tree_overlap_denominator": int,
+    "rerun_forbidden": bool,
+}
+_ATTEMPTED_SCHEMA = {
+    "successor_ordinal": int,
+    "neutral_snapshot_id": str,
+    "controlled_subject_source_id": str,
+    "controlled_subject_id": str,
+    "project_cluster_key": str,
+    "subject_terminal": str,
+    "pair_count": int,
+}
+
+
+def _ordinal8_retained_object(ordinal8: Ordinal8RetainedObservation) -> dict[str, object]:
+    return {
+        "successor_ordinal": ordinal8.successor_ordinal,
+        "neutral_snapshot_id": ordinal8.neutral_snapshot_id,
+        "controlled_subject_source_id": ordinal8.controlled_subject_source_id,
+        "controlled_subject_id": ordinal8.controlled_subject_id,
+        "project_cluster_key": ordinal8.project_cluster_key,
+        "pair_count": ordinal8.pair_count,
+        "semantic_pair_kills": ordinal8.semantic_pair_kills,
+        "syntactic_pair_kills": ordinal8.syntactic_pair_kills,
+        "d_subject": ordinal8.d_subject,
+        "normalized_patch_overlap_numerator": ordinal8.normalized_patch_overlap_numerator,
+        "normalized_patch_overlap_denominator": ordinal8.normalized_patch_overlap_denominator,
+        "mutant_tree_overlap_numerator": ordinal8.mutant_tree_overlap_numerator,
+        "mutant_tree_overlap_denominator": ordinal8.mutant_tree_overlap_denominator,
+        "rerun_forbidden": ordinal8.rerun_forbidden,
+    }
+
+
+def _attempted_object(row: AttemptedSubject) -> dict[str, object]:
+    return {
+        "successor_ordinal": row.successor_ordinal,
+        "neutral_snapshot_id": row.neutral_snapshot_id,
+        "controlled_subject_source_id": row.controlled_subject_source_id,
+        "controlled_subject_id": row.controlled_subject_id,
+        "project_cluster_key": row.project_cluster_key,
+        "subject_terminal": row.subject_terminal.value,
+        "pair_count": row.pair_count,
+    }
+
+
+def load_ordinal8_retained_observation(
+    repo_root: Path,
+    *,
+    project_cluster_key: str,
+) -> Ordinal8RetainedObservation:
+    handoff = json.loads((repo_root / HANDOFF_RELPATH).read_text(encoding="utf-8"))
+    overlap = json.loads((repo_root / OVERLAP_RELPATH).read_text(encoding="utf-8"))
+    if handoff.get("artifact_sha256") != ORDINAL8_HANDOFF_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 handoff artifact SHA mismatch")
+    if overlap.get("artifact_sha256") != ORDINAL8_OVERLAP_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 overlap artifact SHA mismatch")
+    if overlap.get("neutral_snapshot_id") != _ORDINAL8_NEUTRAL_SNAPSHOT_ID:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 snapshot identity mismatch")
+    if overlap.get("controlled_subject_source_id") != _ORDINAL8_CONTROLLED_SUBJECT_SOURCE_ID:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 source identity mismatch")
+    if overlap.get("controlled_subject_id") != _ORDINAL8_CONTROLLED_SUBJECT_ID:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 subject identity mismatch")
+    return Ordinal8RetainedObservation(
+        successor_ordinal=8,
+        neutral_snapshot_id=_ORDINAL8_NEUTRAL_SNAPSHOT_ID,
+        controlled_subject_source_id=_ORDINAL8_CONTROLLED_SUBJECT_SOURCE_ID,
+        controlled_subject_id=_ORDINAL8_CONTROLLED_SUBJECT_ID,
+        project_cluster_key=project_cluster_key,
+        pair_count=4,
+        semantic_pair_kills=4,
+        syntactic_pair_kills=3,
+        d_subject=0.25,
+        normalized_patch_overlap_numerator=0,
+        normalized_patch_overlap_denominator=4,
+        mutant_tree_overlap_numerator=0,
+        mutant_tree_overlap_denominator=4,
+        rerun_forbidden=True,
+    )
+
+
+def build_cohort_terminal(
+    *,
+    state: CohortState,
+    controller_source_sha256: str,
+) -> dict[str, object]:
+    if state.status not in SCIENTIFIC_COHORT_TERMINALS:
+        raise EvidenceError(
+            state.status.value if state.status in FAILURE_TERMINALS else "IDENTITY_CONFLICT",
+            "scientific terminal requires FOUND or EXHAUSTED",
+        )
+    validate_sha256(controller_source_sha256, "controller_source_sha256")
+    body: dict[str, object] = {
+        "schema_version": TERMINAL_SCHEMA_VERSION,
+        "slice_id": SLICE_ID,
+        "design_commit": DESIGN_COMMIT,
+        "design_file_sha256": DESIGN_FILE_SHA256,
+        "authority_artifact_sha256": AUTHORITY_ARTIFACT_SHA256,
+        "controller_source_sha256": controller_source_sha256,
+        "ordinal8_handoff_artifact_sha256": ORDINAL8_HANDOFF_ARTIFACT_SHA256,
+        "ordinal8_overlap_artifact_sha256": ORDINAL8_OVERLAP_ARTIFACT_SHA256,
+        "ordinal8_retained": _ordinal8_retained_object(state.ordinal8),
+        "terminal_status": state.status.value,
+        "attempted_subjects": [_attempted_object(row) for row in state.attempted],
+        "completed_new_project_keys": list(state.completed_new_project_keys),
+    }
+    body["artifact_sha256"] = canonical_sha256(body)
+    return body
+
+
+def validate_cohort_terminal(
+    terminal: Mapping[str, object],
+    *,
+    controller_source_sha256: str,
+    successors: Sequence[SuccessorIdentity],
+    ordinal8: Ordinal8RetainedObservation,
+) -> dict[str, object]:
+    payload = validate_exact_object(dict(terminal), _TERMINAL_SCHEMA, "cohort-terminal")
+    if payload["terminal_status"] not in {
+        CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND.value,
+        CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED.value,
+    }:
+        raise EvidenceError(
+            "IDENTITY_CONFLICT",
+            f"scientific terminal cannot use {payload['terminal_status']}",
+        )
+    validate_exact_object(payload["ordinal8_retained"], _ORDINAL8_RETAINED_SCHEMA, "ordinal8_retained")
+    frozen = _require_frozen_successors(successors)
+    attempted = payload["attempted_subjects"]
+    if not attempted:
+        raise EvidenceError("IDENTITY_CONFLICT", "scientific terminal has no attempted subjects")
+    expected_rows = [
+        {
+            "successor_ordinal": successor.successor_ordinal,
+            "neutral_snapshot_id": successor.neutral_snapshot_id,
+            "controlled_subject_source_id": successor.controlled_subject_source_id,
+            "controlled_subject_id": successor.controlled_subject_id,
+        }
+        for successor in frozen[: len(attempted)]
+    ]
+    for index, row in enumerate(attempted):
+        validate_exact_object(row, _ATTEMPTED_SCHEMA, f"attempted_subjects[{index}]")
+        identity = {key: row[key] for key in expected_rows[index]}
+        if identity != expected_rows[index]:
+            raise EvidenceError("IDENTITY_CONFLICT", "attempted subject order or identity mismatch")
+    if payload["controller_source_sha256"] != controller_source_sha256:
+        raise EvidenceError("IDENTITY_CONFLICT", "controller SHA mismatch")
+    if payload["design_commit"] != DESIGN_COMMIT:
+        raise EvidenceError("IDENTITY_CONFLICT", "DESIGN_COMMIT mismatch")
+    if payload["ordinal8_retained"] != _ordinal8_retained_object(ordinal8):
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal8 retained observation mismatch")
+    body = {key: value for key, value in payload.items() if key != "artifact_sha256"}
+    if payload["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("IDENTITY_CONFLICT", "terminal self-hash mismatch")
+    return payload
+
+
+def _place_exclusive(staging: Path, official: Path, record: Mapping[str, object]) -> None:
+    if official.exists():
+        raise EvidenceError("IDENTITY_CONFLICT", f"official path already exists: {official}")
+    official.parent.mkdir(parents=True, exist_ok=True)
+    write_canonical_json(staging, record, exclusive=True)
+    try:
+        os.replace(staging, official)
+    except OSError as exc:
+        raise EvidenceError("INFRASTRUCTURE_FAILURE", f"replace failed: {official}") from exc
+
+
+def write_subject_record(
+    *,
+    staging_subject: Path,
+    official_subject: Path,
+    record: Mapping[str, object],
+) -> None:
+    staging_file = Path(staging_subject) / "subject-record.json"
+    official_file = Path(official_subject) / "subject-record.json"
+    staging_file.parent.mkdir(parents=True, exist_ok=True)
+    _place_exclusive(staging_file, official_file, record)
+    leftover = Path(staging_subject)
+    if leftover.exists() and leftover.is_dir() and not any(leftover.iterdir()):
+        leftover.rmdir()
+
+
+def write_official_cohort_terminal(
+    *,
+    staging_terminal: Path,
+    official_terminal: Path,
+    terminal: Mapping[str, object],
+    controller_source_sha256: str,
+    successors: Sequence[SuccessorIdentity],
+    ordinal8: Ordinal8RetainedObservation,
+) -> None:
+    validated = validate_cohort_terminal(
+        terminal,
+        controller_source_sha256=controller_source_sha256,
+        successors=successors,
+        ordinal8=ordinal8,
+    )
+    _place_exclusive(Path(staging_terminal), Path(official_terminal), validated)

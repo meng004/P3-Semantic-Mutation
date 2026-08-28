@@ -252,3 +252,192 @@ def test_run_search_failure_does_not_continue_or_write_terminal():
     assert result.status is CohortStatus.INFRASTRUCTURE_FAILURE
     assert result.terminal is None
     assert result.official_terminal_written is False
+
+
+import json
+from pathlib import Path
+
+from p3_v3.artifacts import canonical_sha256, file_sha256
+from p3_v3.prospective_multiproject import (
+    AUTHORITY_ARTIFACT_SHA256,
+    DESIGN_COMMIT,
+    DESIGN_FILE_SHA256,
+    ORDINAL8_HANDOFF_ARTIFACT_SHA256,
+    ORDINAL8_OVERLAP_ARTIFACT_SHA256,
+    build_cohort_terminal,
+    load_ordinal8_retained_observation,
+    validate_cohort_terminal,
+    write_official_cohort_terminal,
+    write_subject_record,
+)
+
+
+def _complete_state(status: CohortStatus) -> tuple:
+    successors = load_frozen_successors()
+    ordinal8 = _ordinal8("numpy-readonly")
+    state = initial_cohort_state(successors, ordinal8)
+    if status is CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND:
+        state = advance_multiproject_state(
+            state, _result(9, SubjectTerminal.PAIRED_EVIDENCE_COMPLETE, "proj-a", 1)
+        )
+        state = advance_multiproject_state(
+            state, _result(10, SubjectTerminal.PAIRED_EVIDENCE_COMPLETE, "proj-b", 2)
+        )
+    else:
+        for ordinal in range(9, 23):
+            state = advance_multiproject_state(
+                state, _result(ordinal, SubjectTerminal.ALL_SLOTS_NOT_APPLICABLE, f"p-{ordinal}")
+            )
+    return state, successors, ordinal8
+
+
+def test_build_and_validate_found_and_exhausted_terminals():
+    controller = "a" * 64
+    for status in (
+        CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND,
+        CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED,
+    ):
+        state, successors, ordinal8 = _complete_state(status)
+        terminal = build_cohort_terminal(state=state, controller_source_sha256=controller)
+        validated = validate_cohort_terminal(
+            terminal,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+        body = {key: value for key, value in validated.items() if key != "artifact_sha256"}
+        assert validated["artifact_sha256"] == canonical_sha256(body)
+        assert validated["terminal_status"] == status.value
+        assert validated["design_commit"] == DESIGN_COMMIT
+        assert validated["design_file_sha256"] == DESIGN_FILE_SHA256
+        assert validated["authority_artifact_sha256"] == AUTHORITY_ARTIFACT_SHA256
+        assert validated["ordinal8_handoff_artifact_sha256"] == ORDINAL8_HANDOFF_ARTIFACT_SHA256
+        assert validated["ordinal8_overlap_artifact_sha256"] == ORDINAL8_OVERLAP_ARTIFACT_SHA256
+        assert validated["ordinal8_retained"]["rerun_forbidden"] is True
+        assert validated["ordinal8_retained"]["pair_count"] == 4
+
+
+def test_validate_rejects_failure_status_and_hash_or_order_tamper():
+    controller = "b" * 64
+    state, successors, ordinal8 = _complete_state(
+        CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND
+    )
+    terminal = build_cohort_terminal(state=state, controller_source_sha256=controller)
+    bad_status = dict(terminal)
+    bad_status["terminal_status"] = "INFRASTRUCTURE_FAILURE"
+    body = {key: value for key, value in bad_status.items() if key != "artifact_sha256"}
+    bad_status["artifact_sha256"] = canonical_sha256(body)
+    with pytest.raises(EvidenceError, match="INFRASTRUCTURE_FAILURE|IDENTITY_CONFLICT|E_"):
+        validate_cohort_terminal(
+            bad_status,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+    bad_hash = dict(terminal)
+    bad_hash["controller_source_sha256"] = "c" * 64
+    with pytest.raises(EvidenceError):
+        validate_cohort_terminal(
+            bad_hash,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+    bad_order = dict(terminal)
+    attempted = list(bad_order["attempted_subjects"])
+    attempted[0], attempted[1] = attempted[1], attempted[0]
+    bad_order["attempted_subjects"] = attempted
+    with pytest.raises(EvidenceError):
+        validate_cohort_terminal(
+            bad_order,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+
+
+def test_atomic_write_and_fail_closed_existing_output(tmp_path: Path):
+    controller = "d" * 64
+    state, successors, ordinal8 = _complete_state(
+        CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND
+    )
+    terminal = build_cohort_terminal(state=state, controller_source_sha256=controller)
+    staging_root = tmp_path / "staging"
+    official_root = tmp_path / "official"
+    subject = state.attempted[0]
+    write_subject_record(
+        staging_subject=staging_root / subject.neutral_snapshot_id,
+        official_subject=official_root / "subjects" / subject.neutral_snapshot_id,
+        record={
+            "successor_ordinal": subject.successor_ordinal,
+            "neutral_snapshot_id": subject.neutral_snapshot_id,
+            "controlled_subject_source_id": subject.controlled_subject_source_id,
+            "controlled_subject_id": subject.controlled_subject_id,
+            "project_cluster_key": subject.project_cluster_key,
+            "subject_terminal": subject.subject_terminal.value,
+            "pair_count": subject.pair_count,
+        },
+    )
+    assert (official_root / "subjects" / subject.neutral_snapshot_id / "subject-record.json").is_file()
+    assert not (staging_root / subject.neutral_snapshot_id).exists()
+    write_official_cohort_terminal(
+        staging_terminal=staging_root / "cohort-terminal.json",
+        official_terminal=official_root / "cohort-terminal.json",
+        terminal=terminal,
+        controller_source_sha256=controller,
+        successors=successors,
+        ordinal8=ordinal8,
+    )
+    assert (official_root / "cohort-terminal.json").is_file()
+    assert not (staging_root / "cohort-terminal.json").exists()
+    with pytest.raises(EvidenceError):
+        write_official_cohort_terminal(
+            staging_terminal=staging_root / "cohort-terminal.json",
+            official_terminal=official_root / "cohort-terminal.json",
+            terminal=terminal,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+
+
+def test_staging_failure_keeps_residue(tmp_path: Path, monkeypatch):
+    controller = "e" * 64
+    state, successors, ordinal8 = _complete_state(
+        CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED
+    )
+    terminal = build_cohort_terminal(state=state, controller_source_sha256=controller)
+    staging = tmp_path / "staging" / "cohort-terminal.json"
+    official = tmp_path / "official" / "cohort-terminal.json"
+
+    def boom(*args, **kwargs):
+        raise OSError("replace failed")
+
+    monkeypatch.setattr("os.replace", boom)
+    with pytest.raises(EvidenceError):
+        write_official_cohort_terminal(
+            staging_terminal=staging,
+            official_terminal=official,
+            terminal=terminal,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+    assert staging.is_file()
+    assert not official.exists()
+
+
+def test_load_ordinal8_is_readonly_and_matches_frozen_artifacts():
+    root = Path("/tmp/p3-c3-applicability-authority")
+    observed = load_ordinal8_retained_observation(root, project_cluster_key="numpy-readonly")
+    assert observed.rerun_forbidden is True
+    assert observed.pair_count == 4
+    assert observed.semantic_pair_kills == 4
+    assert observed.syntactic_pair_kills == 3
+    assert observed.d_subject == 0.25
+    assert file_sha256(root / "data/p3_v3/phase3/ordinal8-paired-evidence-rq2-handoff.json") == (
+        "ad3361f990ff0a611ece2704077780d7f097459560085eb9a996acb8b69e1b3d"
+    )
+    assert file_sha256(root / "data/p3_v3/phase3/ordinal8-exact-overlap-v1/exact-overlap.json") == (
+        "d64872250399ac0230d55d2e7fa2883fed783110061188d3fe6597272f571074"
+    )

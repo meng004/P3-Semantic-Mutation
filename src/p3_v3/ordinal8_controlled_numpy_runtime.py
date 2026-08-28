@@ -69,7 +69,7 @@ ADAPTER_ID = "MESON_TEST_V1"
 EXPECTED_NUMPY_VERSION = "2.0.0.dev0"
 VENDORED_MESON_URL = "https://github.com/numpy/meson.git"
 VENDORED_MESON_COMMIT = "4e370ca8ab73c07f7b84abe8a4b937caace050a4"
-NUMPY_IDENTITY_COMMIT = "61f97f07b73f64c0dce92cb8158739d6d92ceb82"
+NUMPY_IDENTITY_COMMIT = "fc94dfdcaea41b0d67a9f2bdc53b69e35a5e572c"
 FROZEN_SUBMODULES = (
     {
         "commit": VENDORED_MESON_COMMIT,
@@ -82,7 +82,7 @@ FROZEN_SUBMODULES = (
         "url": "https://github.com/numpy/SVML.git",
     },
     {
-        "commit": "7060e3c768992441aa6454a6f9320a9fe1f870da",
+        "commit": "978731d047eb07d7f1b61c9407e7a8f48a377ccc",
         "path": "numpy/_core/src/npysort/x86-simd-sort",
         "url": "https://github.com/intel/x86-simd-sort",
     },

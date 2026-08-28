@@ -66,11 +66,11 @@ This recovery does not re-select, rewrite, or execute the frozen slice. The foll
 
 The isolated build must consume that descriptor and the extracted snapshot. It must not install NumPy from PyPI as a substitute for the frozen tree. Build work happens on a copy under the new runtime root so the extracted snapshot stays bit-identical. Git environment variables from this repository must not leak into `gitversion.py`.
 
-The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`. The admitted tarball omitted every gitlink. File-identity search against NumPy history maps `pyproject.toml`, `meson.build`, `.gitmodules`, and `numpy/array_api/linalg.py` onto commit `61f97f07b73f64c0dce92cb8158739d6d92ceb82`. The recovery clones that commit's build submodules into the source copy only:
+The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`. The admitted tarball omitted every gitlink. File-identity search against NumPy history maps `pyproject.toml`, `meson.build`, `.gitmodules`, and `numpy/_core/src/npysort/x86_simd_argsort.dispatch.cpp` onto commit `fc94dfdcaea41b0d67a9f2bdc53b69e35a5e572c`. The recovery clones that commit's build submodules into the source copy only:
 
 - `vendored-meson/meson` @ `4e370ca8…` (Meson 1.2.99 plus `features`)
 - `numpy/_core/src/umath/svml` @ `1b21e453…`
-- `numpy/_core/src/npysort/x86-simd-sort` @ `7060e3c7…`
+- `numpy/_core/src/npysort/x86-simd-sort` @ `978731d0…`
 - `numpy/_core/src/highway` @ `ba0900a4…`
 
 It does not rewrite the extracted snapshot and does not disable those components through extra Meson options. Isolated `PATH` still exposes Cython and Ninja from the prefix.

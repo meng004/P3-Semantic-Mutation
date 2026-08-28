@@ -53,17 +53,6 @@ _INV_DOMAIN = {
     "diagonal_min": 2.0,
     "off_diagonal_max": 0.25,
 }
-_MONO_DOMAIN = {
-    "semantic_contract_family": "MONO",
-    "executable_predicate": "a_le_b_implies_bool_func_a_le_bool_func_b",
-    "oracle": "MONOTONE_BOOLEAN_PAIR_V1",
-    "tolerance": {"comparison": "exact"},
-    "activation_obligation": "both_calls_return_boolean",
-    "expected_violation_direction": "ordered_pair_produces_decreasing_boolean_output",
-    "lower": -32,
-    "upper": 32,
-    "integer": True,
-}
 _CMP_DOMAIN = {
     "semantic_contract_family": "CMP",
     "executable_predicate": "yielded_ids_equal_python_suffix_projection",
@@ -79,8 +68,6 @@ _CMP_DOMAIN = {
 _CONTRACT_TEMPLATES = {
     _SLOT_ORDER[0]: ("CONTRACT_ARRAY_DOMAIN_V1", _INV_DOMAIN),
     _SLOT_ORDER[1]: ("CONTRACT_ARRAY_DOMAIN_V1", _INV_DOMAIN),
-    _SLOT_ORDER[2]: ("CONTRACT_RELATION_PAIR_DOMAIN_V1", _MONO_DOMAIN),
-    _SLOT_ORDER[3]: ("CONTRACT_RELATION_PAIR_DOMAIN_V1", _MONO_DOMAIN),
     _SLOT_ORDER[8]: ("CONTRACT_SEQUENCE_DOMAIN_V1", _CMP_DOMAIN),
     _SLOT_ORDER[9]: ("CONTRACT_SEQUENCE_DOMAIN_V1", _CMP_DOMAIN),
 }

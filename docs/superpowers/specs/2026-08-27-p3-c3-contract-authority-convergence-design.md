@@ -2,11 +2,12 @@
 
 ## Outcome
 
-Move ordinal 8 from six frozen sites to an implementation-ready contract freeze
-without creating another policy layer. The slice adds the five already-allowed
-`E_CONTRACT` generators, a fixed mapping for the six frozen slots, and one
-exclusive-write command that a later authorization can use to freeze contracts
-and their five input rows. This slice does not run that command on formal paths.
+Move the four source-authorized ordinal-8 slots to an implementation-ready
+partial contract freeze without creating another policy layer. The slice adds
+the five already-allowed `E_CONTRACT` generators, a fixed mapping for four of
+the six frozen slots, and one exclusive-write command that a later authorization
+can use to freeze contracts and their five input rows. This slice does not run
+that command on formal paths.
 
 ## Frozen scientific input
 
@@ -15,6 +16,10 @@ and their five input rows. This slice does not run that command on formal paths.
 - Source tree: `f8826c3b975f8699e136e0b6b4cd4c29bf0d7e9a3be04fe09b947eb8998e727b`.
 - Six `SITE_FROZEN` slots: two `INV` slots at `cholesky`, two `MONO`
   slots at `func`, and two `CMP` slots at `get_test_cases`.
+- Only the `INV` and `CMP` slots have source-stated, outcome-blind contract
+  authority. The `MONO` source is a typing fixture that returns a constant
+  Boolean and states no monotonic or order relation, so both `MONO` slots
+  remain without contracts.
 - Four `CONV`/`DYN` slots remain closed and receive no downstream artifacts.
 - Mutation, MR, profiling, P12 outcome, and reveal material are excluded.
 
@@ -26,7 +31,8 @@ the existing contract object, generator registry, verified source snapshot, and
 plus subject adapters was rejected because adapter bytes would become an
 unbound second implementation source. The selected design uses five standalone
 registered generators and one contract-authority module that validates and
-returns the exact six-slot mapping.
+returns the exact four-contract mapping while still validating all ten slot
+closures.
 
 The module interface is deliberately small:
 
@@ -36,7 +42,7 @@ freeze_ordinal8_package(*, closures, registry) -> dict[str, object]
 ```
 
 The implementation hides site/slot identities, contract-ID construction,
-generator selection, domain validation, and the six calls to
+generator selection, domain validation, and the four calls to
 `build_contract_inputs()`. Callers learn only the frozen evidence inputs and the
 returned contracts/inventories.
 
@@ -45,9 +51,9 @@ returned contracts/inventories.
 - `INV/cholesky`: generate symmetric positive-definite arrays. The oracle is
   reconstruction of the input by the returned triangular factor within the
   frozen tolerance; activation requires successful factorization.
-- `MONO/func`: generate ordered integer pairs. The oracle is nondecreasing
-  Boolean output for `a <= b`; activation requires both calls to return Boolean
-  values. The deliberately trivial original is retained rather than replaced.
+- `MONO/func`: no contract. Its typing-stub source states neither monotonicity
+  nor an order relation. A generic ordered-pair generator would supply the
+  missing scientific premise rather than encode source authority.
 - `CMP/get_test_cases`: generate directory-entry sequences. The oracle compares
   yielded case identifiers with the `.py`/`.pyi` projection of the same entry
   sequence; activation requires at least one accepted and one rejected suffix.
@@ -69,11 +75,11 @@ the existing `CONTRACT_INPUT_UNAVAILABLE` path.
 
 ## Data flow and failure behavior
 
-The later formal command reads the six existing closure files, validates the
-registered implementation snapshots, builds all six contracts in canonical
-slot order, then computes five rows per contract through
+The later formal command reads all ten existing closure files, validates the
+registered implementation snapshots, builds the four authorized contracts in
+canonical slot order, then computes five rows per contract through
 `build_contract_inputs()`. Only after the full in-memory package validates does
-it exclusively write one contracts file and six inventories. Existing paths,
+it exclusively write one contracts file and four inventories. Existing paths,
 identity mismatches, incomplete registry state, or a non-generated row fail
 before any formal write.
 
@@ -82,17 +88,17 @@ authorization and does not run in this implementation slice.
 
 ## Verification
 
-Focused tests prove exact six-slot coverage, no downstream artifact for the four
-closed slots, recomputable contract IDs, generator determinism, domain-specific
-payload invariants, registry source binding, fail-closed identity handling, and
-exclusive output preflight. Existing contract-registry and chronology tests are
-the regression surface. No full suite, subject build, mutation, or profiling is
-part of this slice.
+Focused tests prove exact four-contract coverage, no downstream artifact for
+the two unauthorized `MONO` slots or four closed slots, recomputable contract
+IDs, generator determinism, domain-specific payload invariants, registry source
+binding, fail-closed identity handling, and exclusive output preflight. Existing
+contract-registry and chronology tests are the regression surface. No full
+suite, subject build, mutation, or profiling is part of this slice.
 
 ## Scientific status
 
 This engineering slice does not add an observation and does not upgrade C3.
-Its completion removes the final engineering blocker before a separately
-authorized `CONTRACT_FROZEN`/`E_CONTRACT_FROZEN` write. The next scientific
-target after that write is a semantic-mutant and syntactic-baseline paired
-execution, not another authority review.
+Its completion permits only a separately authorized partial
+`CONTRACT_FROZEN`/`E_CONTRACT_FROZEN` write for four slots. It does not close
+Package A: both `MONO` slots remain `SITE_FROZEN` without defensible contract
+authority, so C3 remains blocked.

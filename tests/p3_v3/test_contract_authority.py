@@ -134,7 +134,7 @@ def _closures() -> list[dict]:
     return [read_canonical_json(path) for path in sorted(CLOSURE_ROOT.glob("*.json"))]
 
 
-def test_ordinal8_contracts_cover_only_the_six_frozen_slots():
+def test_ordinal8_contracts_cover_only_the_four_source_authorized_slots():
     closures = _closures()
     contracts = build_ordinal8_contracts(closures)
     frozen = {row["slot_id"] for row in closures if row["state"] == "SITE_FROZEN"}
@@ -144,9 +144,19 @@ def test_ordinal8_contracts_cover_only_the_six_frozen_slots():
         if row["state"] == "APPLICABILITY_CLOSED_NOT_APPLICABLE"
     }
     assert len(closures) == 10
-    assert len(contracts) == len(frozen) == 6
-    assert set(contracts) == frozen
+    assert len(frozen) == 6
+    assert len(contracts) == 4
+    assert set(contracts) < frozen
     assert set(contracts).isdisjoint(closed)
+
+
+def test_ordinal8_mono_slots_remain_without_contract_authority():
+    contracts = build_ordinal8_contracts(_closures())
+    mono_slots = {
+        "77f69dc9343febceb4f3f5163d6da260dbb08ed3e1a08bd30828bec11d9ca40a",
+        "07546603ddbc9fca6e73bc7f7e551fa52f9dfd94c648c19e7b96cb12bcb0aac0",
+    }
+    assert set(contracts).isdisjoint(mono_slots)
 
 
 def test_ordinal8_contract_ids_bind_slot_site_generator_and_domain():
@@ -164,26 +174,25 @@ def test_ordinal8_contract_ids_bind_slot_site_generator_and_domain():
         assert contract["contract_id"] == expected
     assert {row["generator_id"] for row in contracts.values()} == {
         "CONTRACT_ARRAY_DOMAIN_V1",
-        "CONTRACT_RELATION_PAIR_DOMAIN_V1",
         "CONTRACT_SEQUENCE_DOMAIN_V1",
     }
 
 
-def test_ordinal8_package_generates_thirty_rows_through_existing_seam():
+def test_ordinal8_package_generates_twenty_rows_through_existing_seam():
     registry = validate_contract_generator_registry(
         read_canonical_json(REGISTRY_PATH), REPO_ROOT
     )
     package = freeze_ordinal8_package(closures=_closures(), registry=registry)
     assert set(package) == {"contracts", "inventories"}
-    assert len(package["contracts"]) == len(package["inventories"]) == 6
+    assert len(package["contracts"]) == len(package["inventories"]) == 4
     rows = [
         row
         for inventory in package["inventories"].values()
         for row in inventory["rows"]
     ]
-    assert len(rows) == 30
+    assert len(rows) == 20
     assert {row["status"] for row in rows} == {"CONTRACT_INPUT_GENERATED"}
-    assert len({row["input_id"] for row in rows}) == 30
+    assert len({row["input_id"] for row in rows}) == 20
 
 
 def test_ordinal8_package_rejects_an_alternate_valid_registry():
@@ -230,16 +239,16 @@ def _cli_args(output_root: Path, closure_root: Path = CLOSURE_ROOT) -> list[str]
     ]
 
 
-def test_freeze_cli_atomically_writes_one_contract_map_and_six_inventories(tmp_path):
+def test_freeze_cli_atomically_writes_one_contract_map_and_four_inventories(tmp_path):
     output_root = tmp_path / "formal-output"
     result = _freeze_cli().main(_cli_args(output_root))
     assert result == 0
     assert not output_root.with_name(output_root.name + ".staging").exists()
     files = sorted(path.name for path in output_root.iterdir())
     assert files[0] == "contracts.json"
-    assert len(files) == 7
+    assert len(files) == 5
     contracts = read_canonical_json(output_root / "contracts.json")
-    assert len(contracts) == 6
+    assert len(contracts) == 4
 
 
 def test_freeze_cli_refuses_existing_output_root(tmp_path):

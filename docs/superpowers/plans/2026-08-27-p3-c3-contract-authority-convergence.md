@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make ordinal 8's six frozen slots ready for one separately authorized contract and `E_CONTRACT` freeze.
+**Goal:** Make ordinal 8's four source-authorized slots ready for one separately authorized partial contract and `E_CONTRACT` freeze while leaving both `MONO` slots without contracts.
 
 **Architecture:** Reuse the existing contract registry validator and `build_contract_inputs()` seam. Add five hash-bound generator implementations, one deep ordinal-8 authority module, and one exclusive-write command; do not add a schema, manifest, ledger, or gate.
 
@@ -45,9 +45,9 @@
 - Consumes: the ten formal closures and validated generator registry.
 - Produces: `build_ordinal8_contracts()` and `freeze_ordinal8_package()`.
 
-- [ ] Write tests for six exact contracts, four excluded closures, three semantic domains, recomputable IDs, and 30 generated rows.
+- [ ] Write tests for four exact contracts, two unauthorized `MONO` slots, four closed closures, two semantic domains, recomputable IDs, and 20 generated rows.
 - [ ] Run the focused test and observe missing module failure.
-- [ ] Implement exact identity checks and the three outcome-blind contract templates.
+- [ ] Implement exact identity checks and the two outcome-blind contract templates; do not infer a `MONO` contract from the typing fixture.
 - [ ] Delegate row generation only to `build_contract_inputs()`.
 - [ ] Run focused tests and the existing chronology regression.
 
@@ -59,7 +59,7 @@
 
 **Interfaces:**
 - Consumes: closure root, registry path/root, and an empty output root.
-- Produces later, under separate authorization: one contracts JSON and six `E_CONTRACT` inventories.
+- Produces later, under separate authorization: one contracts JSON and four `E_CONTRACT` inventories.
 
 - [ ] Write CLI tests for in-memory validation, refusal of existing output, and no partial writes on invalid identity.
 - [ ] Run the focused test and observe missing command failure.

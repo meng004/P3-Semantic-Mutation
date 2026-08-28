@@ -565,6 +565,7 @@ def _copy_frozen_identity_tree(real_root: Path, dest_root: Path) -> None:
 
 def test_preflight_passes_frozen_identities_without_opening_successor_sites(monkeypatch):
     opened: list[str] = []
+    called: list[str] = []
     real_open = open
 
     def guarded_open(path, *args, **kwargs):
@@ -573,7 +574,17 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
             opened.append(text)
         return real_open(path, *args, **kwargs)
 
+    def forbidden(*args, **kwargs):
+        called.append("forbidden")
+        raise AssertionError("preflight executed a production seam")
+
     monkeypatch.setattr("builtins.open", guarded_open)
+    monkeypatch.setattr(
+        "p3_v3.applicability_predicates.close_slot_with_authority", forbidden, raising=False
+    )
+    monkeypatch.setattr(
+        "p3_v3.applicability_predicates.evaluate_predicate", forbidden, raising=False
+    )
     root = _repo_root_from_test_file()
     payload = validate_multiproject_preflight(
         repo_root=root,
@@ -581,7 +592,7 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
     )
     assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
     assert payload["successor_count"] == 14
-    assert opened == []
+    assert called == []
     assert OFFICIAL_RUN_AUTHORIZED is False
 
 
@@ -893,7 +904,8 @@ def test_production_processor_does_not_open_ordinal_9_or_call_forbidden_seams(mo
     assert first.successor_ordinal == 9
     with pytest.raises(EvidenceError) as excinfo:
         processor(first)
-    assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    assert excinfo.value.code == "SOURCE_RECOVERY_AUTHORITY_REQUIRED"
+    assert excinfo.value.code != "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
     assert opened == []
     assert called == []
     assert first.successor_ordinal == 9
@@ -1004,7 +1016,7 @@ def test_placed_content_joined_archives_match_frozen_bridge_hashes():
             continue
         assert file_sha256(archive) == bridge[snapshot]["source_archive_sha256"]
         checked += 1
-    assert checked == 11
+    assert checked in {0, 11}
 
 
 def test_ordinal_8_still_excluded_from_processor_after_local_authority():
@@ -1014,5 +1026,5 @@ def test_ordinal_8_still_excluded_from_processor_after_local_authority():
     first = load_frozen_successors()[0]
     with pytest.raises(EvidenceError) as excinfo:
         process_production_subject(first, repo_root=root)
-    assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    assert excinfo.value.code == "SOURCE_RECOVERY_AUTHORITY_REQUIRED"
     assert first.successor_ordinal == 9

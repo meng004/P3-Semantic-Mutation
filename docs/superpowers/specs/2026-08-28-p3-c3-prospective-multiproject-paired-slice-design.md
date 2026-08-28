@@ -108,16 +108,32 @@ descriptor. `neutral_snapshot_id`, `controlled_subject_id`,
 `source_archive_sha256`, `build_descriptor_sha256`, ecosystem, and
 language family are not project keys.
 
-The project-cluster key is the originating P12 repository identity bound
-to that `neutral_snapshot_id` in the already-frozen P12 eligible
-inventory. This design does not open that inventory. Slice A must bind
-the key before any successor site is opened. Binding failure is
+The project-cluster key is the originating repository identity bound to
+that `neutral_snapshot_id` by the P3 local project-cluster authority at
+`data/p3_v3/phase3/inputs/project-cluster-authority-v1.json`. That file
+is a P3 analysis input. It is created only after every frozen
+`source_archive_sha256` and `normalized_source_tree_sha256` pair uniquely
+matches one public upstream revision under P12-BRIDGE-SNAPSHOT-RULE-v2.
+It does not extend bridge v1, does not modify the consumer lock, and does
+not open the P12 eligible inventory.
+
+The controller uses 19 originating repository identities as project
+clusters. The manuscript may describe 18 program groups; those groups
+are paper-only labels and are not project-cluster keys.
+
+Slice A must bind the key from the validated local authority before any
+successor site is opened. A user-supplied map is forbidden. Language,
+ecosystem, and program labels are not fallback keys. Binding failure is
 `IDENTITY_CONFLICT` and stops the slice.
 
 Two subjects belong to the same project if and only if those bound
 repository identities are equal. NumPy ordinal 8 is one project. Two
 later subjects count as two of the two required new projects only when
-their repository identities differ from each other and from NumPy.
+their repository identities differ from each other and from NumPy. The
+scientific terminal records
+`project_cluster_authority_artifact_sha256` in addition to the existing
+applicability `authority_artifact_sha256`. Stopping, successor identity,
+pair budget, and failure rules in this design are unchanged.
 
 If two ordinals from the same repository both reach
 `PAIRED_EVIDENCE_COMPLETE`, both remain in the funnel. They are averaged

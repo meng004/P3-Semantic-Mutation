@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -732,3 +735,197 @@ def test_old_v1_official_namespace_is_untouched(tmp_path: Path):
     )
     assert (tmp_path / OLD_V1_OFFICIAL_RELDIR).exists() is False
     assert (tmp_path / OLD_V1_STAGING_RELDIR).exists() is False
+
+
+import json
+import subprocess
+import sys
+
+from scripts.p3_v3.run_prospective_multiproject_applicability_stage1_v2 import main
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def test_cli_rejects_user_arguments(monkeypatch, capsys):
+    from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
+
+    called = []
+    monkeypatch.setattr(
+        cli,
+        "run_stage1_census",
+        lambda **kwargs: called.append(kwargs),
+    )
+    for argv in (
+        ["--help"],
+        ["--order", "9"],
+        ["--max-attempts", "14"],
+        ["--output", "/tmp"],
+        ["--resume"],
+        ["--retry"],
+    ):
+        monkeypatch.setattr(sys, "argv", ["run_stage1.py", *argv])
+        assert main() == 2
+    assert called == []
+    payload = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert payload["status"] == "PREFLIGHT_FAIL"
+    assert payload["official_terminal_written"] is False
+
+
+def test_cli_unauthorized_zero_args_stable_json(monkeypatch, capsys):
+    from p3_v3.prospective_applicability_census_stage1 import OFFICIAL_RUN_AUTHORIZED
+    from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
+
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {
+        "status": "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED",
+        "slice_id": "p3-c3-prospective-multiproject-applicability-stage1-v2",
+        "design_commit": "270025608be7db631484b77ffda181438100d785",
+        "official_run_authorized": False,
+        "official_terminal_written": False,
+        "successor_count": 14,
+    }
+    assert called == []
+    assert OFFICIAL_RUN_AUTHORIZED is False
+
+
+def test_cli_unauthorized_does_not_create_output_or_staging():
+    root = _repo_root()
+    official = root / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    staging = root / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2.staging"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts/p3_v3/run_prospective_multiproject_applicability_stage1_v2.py"),
+        ],
+        cwd=str(root),
+        env={**os.environ, "PYTHONPATH": str(root / "src")},
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 2
+    payload = json.loads(completed.stdout.decode("utf-8"))
+    assert payload["status"] == "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert official.exists() is False
+    assert staging.exists() is False
+    assert (
+        root / "data/p3_v3/phase3/prospective-multiproject-paired-slice-v1"
+    ).exists() is False
+
+
+def test_cli_unauthorized_does_not_open_successor_site(monkeypatch, capsys):
+    from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
+
+    opened: list[str] = []
+    real_open = open
+
+    def guarded_open(path, *args, **kwargs):
+        text = str(path)
+        if "public-behavior-frame-" in text:
+            opened.append(text)
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", guarded_open)
+    monkeypatch.setattr(cli, "process_stage1_subject", lambda *a, **k: opened.append("processor"))
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: opened.append("census"))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["official_terminal_written"] is False
+    assert opened == []
+
+
+def test_cli_authorized_path_uses_synthetic_processor_only(tmp_path: Path, monkeypatch):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+    from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    captured: dict[str, object] = {}
+
+    def redirected_census(*, repo_root, output_root, staging_root, subject_processor):
+        del repo_root, output_root, staging_root
+        captured["subject_processor"] = subject_processor
+        if subject_processor is not processor:
+            raise AssertionError("authorized CLI test must inject the synthetic processor")
+        return run_stage1_census(
+            repo_root=tmp_path,
+            output_root=tmp_path / "official",
+            staging_root=tmp_path / "staging",
+            subject_processor=processor,
+        )
+
+    monkeypatch.setattr(cli, "OFFICIAL_RUN_AUTHORIZED", True)
+    monkeypatch.setattr(cli, "process_stage1_subject", processor)
+    monkeypatch.setattr(cli, "run_stage1_census", redirected_census)
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 0
+    assert captured["subject_processor"] is processor
+    assert (tmp_path / "official" / "cohort-terminal.json").is_file()
+    assert (
+        _repo_root()
+        / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    ).exists() is False
+
+
+def test_cli_does_not_flip_authorization_for_real_processor():
+    from p3_v3.prospective_applicability_census_stage1 import OFFICIAL_RUN_AUTHORIZED
+    from scripts.p3_v3.run_prospective_multiproject_applicability_stage1_v2 import (
+        OFFICIAL_RUN_AUTHORIZED as CLI_FLAG,
+    )
+
+    source = (
+        _repo_root() / "src/p3_v3/prospective_applicability_census_stage1.py"
+    ).read_text(encoding="utf-8")
+    cli_source = (
+        _repo_root()
+        / "scripts/p3_v3/run_prospective_multiproject_applicability_stage1_v2.py"
+    ).read_text(encoding="utf-8")
+    assert "OFFICIAL_RUN_AUTHORIZED = False" in source
+    assert "OFFICIAL_RUN_AUTHORIZED = False" in cli_source
+    assert "OFFICIAL_RUN_AUTHORIZED = True" not in source
+    assert "OFFICIAL_RUN_AUTHORIZED = True" not in cli_source
+    assert OFFICIAL_RUN_AUTHORIZED is False
+    assert CLI_FLAG is False
+
+
+def test_stage1_constants_match_frozen_design_identities():
+    from p3_v3.prospective_applicability_census_stage1 import (
+        STAGE1_APPLICABILITY_AUTHORITY_ARTIFACT_SHA256,
+        STAGE1_DESIGN_COMMIT,
+        STAGE1_DESIGN_FILE_SHA256,
+        STAGE1_OFFICIAL_RELDIR,
+        STAGE1_ORDINALS,
+        STAGE1_PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
+        STAGE1_SLICE_ID,
+        STAGE1_SLOT_INVENTORY_ARTIFACT_SHA256,
+        STAGE1_STAGING_RELDIR,
+        STAGE1_TERMINAL_STATUS,
+    )
+
+    assert STAGE1_SLICE_ID == "p3-c3-prospective-multiproject-applicability-stage1-v2"
+    assert STAGE1_TERMINAL_STATUS == "STAGE1_APPLICABILITY_CENSUS_COMPLETE"
+    assert STAGE1_DESIGN_COMMIT == "270025608be7db631484b77ffda181438100d785"
+    assert STAGE1_DESIGN_FILE_SHA256 == (
+        "a8828022ee2095b4209261c26d0ecbab66141e59b2c9f18ce3df2045f6dd79c5"
+    )
+    assert STAGE1_APPLICABILITY_AUTHORITY_ARTIFACT_SHA256 == (
+        "30b08271eafdead14a06707b461f108c1ec5a53eb5d2859a37b2cd6238e20214"
+    )
+    assert STAGE1_SLOT_INVENTORY_ARTIFACT_SHA256 == (
+        "5c7f2dae8b0b7fd72926e2569354dbf6e878186f69d512e259e6034026dd0e27"
+    )
+    assert STAGE1_PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256 == (
+        "802ec9a8db866c1c1d79b29e03d4e5dc0f55d4961a3f415a2486dd562fbf810e"
+    )
+    assert STAGE1_ORDINALS == tuple(range(9, 23))
+    assert str(STAGE1_OFFICIAL_RELDIR) == (
+        "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    )
+    assert str(STAGE1_STAGING_RELDIR) == (
+        "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2.staging"
+    )

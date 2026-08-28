@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from p3_v3.artifacts import EvidenceError, canonical_sha256, validate_exact_object, validate_sha256
+from p3_v3.artifacts import (
+    EvidenceError,
+    canonical_sha256,
+    file_sha256,
+    validate_exact_object,
+    validate_sha256,
+    write_canonical_json,
+)
+from p3_v3.prospective_multiproject import load_frozen_successors
 
 STAGE1_SLICE_ID = "p3-c3-prospective-multiproject-applicability-stage1-v2"
 STAGE1_SCHEMA_VERSION = "p3-c3-prospective-multiproject-applicability-stage1-v2-terminal-v1"
@@ -326,6 +335,49 @@ def validate_stage1_terminal(
         "artifact_sha256": payload["artifact_sha256"],
     }
 
+def stage1_subject_directory(root: Path, ordinal: int, controlled_subject_id: str) -> Path:
+    return Path(root) / "subjects" / f"{ordinal:02d}-{controlled_subject_id}"
+
+
+def write_stage1_closure(
+    path: Path,
+    closure: Mapping[str, Any],
+    write_log: list[Path],
+) -> None:
+    write_canonical_json(path, closure, exclusive=True)
+    write_log.append(Path(path))
+
+
+def publish_stage1_official(*, staging_root: Path, output_root: Path) -> None:
+    if Path(output_root).exists():
+        raise EvidenceError("E_STAGE1_FAIL_CLOSED", f"official path already exists: {output_root}")
+    os.replace(Path(staging_root), Path(output_root))
+
+
+def _controller_source_sha256(repo_root: Path) -> str:
+    candidate = Path(repo_root) / STAGE1_CONTROLLER_RELPATH
+    if candidate.is_file():
+        return file_sha256(candidate)
+    return file_sha256(STAGE1_CONTROLLER_RELPATH)
+
+
+def _inventory_from_subject_rows(subject_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    slots: list[dict[str, Any]] = []
+    families = [family for family in INVENTORY_FAMILY_ORDER for _slot in (0, 1)]
+    ordinals = [0, 1] * 5
+    for produced in subject_rows:
+        closures = list(produced["closures"])
+        for closure, family, slot_ordinal in zip(closures, families, ordinals, strict=True):
+            slots.append({
+                "controlled_subject_id": produced["controlled_subject_id"],
+                "permitted_construction_mechanism": "CE",
+                "semantic_contract_family": family,
+                "slot_id": closure["slot_id"],
+                "slot_ordinal": slot_ordinal,
+            })
+    return {"slots": slots}
+
+
 def run_stage1_census(
     *,
     repo_root: Path,
@@ -333,11 +385,135 @@ def run_stage1_census(
     staging_root: Path,
     subject_processor: Callable[..., Mapping[str, Any]],
 ) -> dict[str, Any]:
-    raise EvidenceError("E_STAGE1_FAIL_CLOSED", "implemented in Task 2")
+    official = Path(output_root)
+    staging = Path(staging_root)
+    if official.exists() or staging.exists():
+        raise EvidenceError("E_STAGE1_FAIL_CLOSED", "official or staging path already exists")
+    successors = load_frozen_successors()
+    ordinals = [item.successor_ordinal for item in successors]
+    if 8 in ordinals:
+        raise EvidenceError("E_STAGE1_IDENTITY", "ordinal 8 is excluded from Stage I")
+    if ordinals != list(STAGE1_ORDINALS):
+        raise EvidenceError("E_STAGE1_IDENTITY", "frozen successors must be ordinals 9-22")
+    staging.mkdir(parents=True)
+    write_log: list[Path] = []
+    subject_rows: list[dict[str, Any]] = []
+    all_closures: list[list[dict[str, Any]]] = []
+    try:
+        for successor in successors:
+            if successor.successor_ordinal == 8:
+                raise EvidenceError("E_STAGE1_IDENTITY", "ordinal 8 is excluded from Stage I")
+            produced = dict(subject_processor(successor, repo_root=Path(repo_root)))
+            closures = [dict(item) for item in produced["closures"]]
+            if len(closures) != STAGE1_CLOSURES_PER_SUBJECT:
+                raise EvidenceError("E_STAGE1_TERMINAL", "each subject must have 10 closures")
+            produced["closures"] = closures
+            directory = stage1_subject_directory(
+                staging,
+                int(successor.successor_ordinal),
+                str(successor.controlled_subject_id),
+            )
+            directory.mkdir(parents=True)
+            for closure in closures:
+                target = directory / f"{closure['slot_id']}.json"
+                write_stage1_closure(target, closure, write_log)
+            subject_rows.append(produced)
+            all_closures.append(closures)
+        if len(subject_rows) != STAGE1_SUBJECT_COUNT:
+            raise EvidenceError("E_STAGE1_TERMINAL", "subject count must be 14")
+        inventory = _inventory_from_subject_rows(subject_rows)
+        controller_sha = _controller_source_sha256(Path(repo_root))
+        terminal = build_stage1_terminal(
+            design_commit=STAGE1_DESIGN_COMMIT,
+            design_file_sha256=STAGE1_DESIGN_FILE_SHA256,
+            controller_source_sha256=controller_sha,
+            applicability_authority_artifact_sha256=STAGE1_APPLICABILITY_AUTHORITY_ARTIFACT_SHA256,
+            slot_inventory_artifact_sha256=STAGE1_SLOT_INVENTORY_ARTIFACT_SHA256,
+            project_cluster_authority_artifact_sha256=STAGE1_PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
+            subjects=subject_rows,
+        )
+        validate_stage1_terminal(
+            terminal,
+            expected_design_commit=STAGE1_DESIGN_COMMIT,
+            expected_design_file_sha256=STAGE1_DESIGN_FILE_SHA256,
+            expected_controller_source_sha256=controller_sha,
+            expected_applicability_authority_artifact_sha256=STAGE1_APPLICABILITY_AUTHORITY_ARTIFACT_SHA256,
+            expected_slot_inventory_artifact_sha256=STAGE1_SLOT_INVENTORY_ARTIFACT_SHA256,
+            expected_project_cluster_authority_artifact_sha256=STAGE1_PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
+            subject_closures=all_closures,
+            inventory=inventory,
+        )
+        terminal_path = staging / STAGE1_TERMINAL_FILENAME
+        write_canonical_json(terminal_path, terminal, exclusive=True)
+        write_log.append(terminal_path)
+        if write_log[-1].name != STAGE1_TERMINAL_FILENAME:
+            raise EvidenceError("E_STAGE1_TERMINAL", "terminal must be the last written file")
+        if len(write_log) != STAGE1_CLOSURE_COUNT + 1:
+            raise EvidenceError("E_STAGE1_TERMINAL", "staging must contain 140 closures and 1 terminal")
+        publish_stage1_official(staging_root=staging, output_root=official)
+    except Exception:
+        if official.exists():
+            raise EvidenceError("E_STAGE1_FAIL_CLOSED", "official namespace written after failure")
+        raise
+    if staging.exists():
+        raise EvidenceError("E_STAGE1_FAIL_CLOSED", "staging sibling remained after publication")
+    return {
+        "status": STAGE1_TERMINAL_STATUS,
+        "official_root": str(official),
+        "subject_count": STAGE1_SUBJECT_COUNT,
+        "closure_count": STAGE1_CLOSURE_COUNT,
+        "write_order": [str(path) for path in write_log],
+        "terminal": terminal,
+    }
 
-def process_stage1_subject(
-    successor: Any,
-    *,
-    repo_root: Path,
-) -> dict[str, Any]:
-    raise EvidenceError("E_STAGE1_FAIL_CLOSED", "implemented in Task 2")
+
+def process_stage1_subject(successor: Any, *, repo_root: Path) -> dict[str, Any]:
+    import json
+
+    from p3_v3.applicability_predicates import (
+        close_slot_with_authority,
+        load_applicability_authority,
+    )
+    from p3_v3.multiproject_production_processor import (
+        _pbf_path,
+        _subject_inventory_rows,
+        canonicalize_production_sites,
+        freeze_subject_identity,
+        inspect_regular_identity_file,
+        recover_production_source,
+    )
+
+    if successor.successor_ordinal == 8:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal 8 is excluded from Stage I")
+    root = Path(repo_root)
+    binding = freeze_subject_identity(successor, root)
+    recover_production_source(binding, root)
+    authority = load_applicability_authority(
+        manifest_path=root / STAGE1_AUTHORITY_RELPATH,
+        registry_path=root / STAGE1_PREDICATE_REGISTRY_RELPATH,
+        inventory_path=root / STAGE1_INVENTORY_RELPATH,
+        slot_implementation_path=root / STAGE1_SLOT_IMPLEMENTATION_RELPATH,
+        predicate_implementation_path=root / STAGE1_PREDICATE_IMPLEMENTATION_RELPATH,
+    )
+    rows = sort_stage1_inventory_rows(
+        _subject_inventory_rows(authority["inventory"], successor.controlled_subject_id)
+    )
+    pbf_path = _pbf_path(root, successor.neutral_snapshot_id)
+    inspect_regular_identity_file(pbf_path)
+    frame = json.loads(pbf_path.read_text(encoding="utf-8"))
+    canonical_sites = canonicalize_production_sites(
+        successor.controlled_subject_id,
+        frame["sites"],
+        frozen_controlled_subject_id=successor.controlled_subject_id,
+    )
+    closures = [
+        close_slot_with_authority(authority, row, canonical_sites, frame) for row in rows
+    ]
+    return {
+        "successor_ordinal": successor.successor_ordinal,
+        "neutral_snapshot_id": successor.neutral_snapshot_id,
+        "controlled_subject_source_id": successor.controlled_subject_source_id,
+        "controlled_subject_id": successor.controlled_subject_id,
+        "project_cluster_key": binding.project_cluster_key,
+        "closures": closures,
+    }

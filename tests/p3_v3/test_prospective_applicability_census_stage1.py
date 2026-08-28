@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
+import os
 from pathlib import Path
 
 import pytest
@@ -417,3 +419,316 @@ def test_validate_accepts_mixed_site_frozen_and_not_applicable_counts():
     ]
     assert rebuilt == [10] * 14
     assert report["closure_count"] == 140
+
+
+def _synthetic_processor_factory(fail_ordinal: int | None = None):
+    inventory, subjects, closures = _synthetic_inventory_and_subjects(mixed=True)
+    by_ordinal = {int(row["successor_ordinal"]): row for row in subjects}
+
+    def processor(successor, *, repo_root):
+        del repo_root
+        if successor.successor_ordinal == 8:
+            raise EvidenceError("IDENTITY_CONFLICT", "ordinal 8 is excluded from Stage I")
+        if fail_ordinal is not None and successor.successor_ordinal == fail_ordinal:
+            raise EvidenceError("INFRASTRUCTURE_FAILURE", f"synthetic failure at {fail_ordinal}")
+        return by_ordinal[int(successor.successor_ordinal)]
+
+    return processor, inventory, subjects, closures
+
+
+def test_run_stage1_census_fixed_order_9_to_22(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    seen: list[int] = []
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+
+    def wrapped(successor, *, repo_root):
+        seen.append(successor.successor_ordinal)
+        return processor(successor, repo_root=repo_root)
+
+    output = tmp_path / "official"
+    staging = tmp_path / "staging"
+    result = run_stage1_census(
+        repo_root=tmp_path,
+        output_root=output,
+        staging_root=staging,
+        subject_processor=wrapped,
+    )
+    assert seen == list(range(9, 23))
+    assert result["subject_count"] == 14
+    assert result["closure_count"] == 140
+    assert result["status"] == "STAGE1_APPLICABILITY_CENSUS_COMPLETE"
+
+
+def test_run_stage1_census_rejects_ordinal_8(tmp_path: Path, monkeypatch):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+    from p3_v3.prospective_multiproject import SuccessorIdentity, load_frozen_successors
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    frozen = load_frozen_successors()
+    fake = SuccessorIdentity(
+        successor_ordinal=8,
+        neutral_snapshot_id=frozen[0].neutral_snapshot_id,
+        controlled_subject_source_id=frozen[0].controlled_subject_source_id,
+        controlled_subject_id=frozen[0].controlled_subject_id,
+    )
+    monkeypatch.setattr(
+        "p3_v3.prospective_applicability_census_stage1.load_frozen_successors",
+        lambda: (fake, *frozen[1:]),
+    )
+    with pytest.raises(EvidenceError, match="ordinal 8"):
+        run_stage1_census(
+            repo_root=tmp_path,
+            output_root=tmp_path / "official",
+            staging_root=tmp_path / "staging",
+            subject_processor=processor,
+        )
+    assert not (tmp_path / "official").exists()
+
+
+def test_run_stage1_census_writes_fourteen_by_ten(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    output = tmp_path / "official"
+    run_stage1_census(
+        repo_root=tmp_path,
+        output_root=output,
+        staging_root=tmp_path / "staging",
+        subject_processor=processor,
+    )
+    subject_dirs = sorted((output / "subjects").iterdir())
+    assert len(subject_dirs) == 14
+    closure_files = list(output.glob("subjects/*/*.json"))
+    assert len(closure_files) == 140
+    assert (output / "cohort-terminal.json").is_file()
+
+
+def test_run_stage1_census_does_not_stop_early_on_site_frozen(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    seen: list[int] = []
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+
+    def wrapped(successor, *, repo_root):
+        seen.append(successor.successor_ordinal)
+        return processor(successor, repo_root=repo_root)
+
+    run_stage1_census(
+        repo_root=tmp_path,
+        output_root=tmp_path / "official",
+        staging_root=tmp_path / "staging",
+        subject_processor=wrapped,
+    )
+    assert seen == list(range(9, 23))
+
+
+def test_run_stage1_census_signature_forbids_order_max_attempts_and_map():
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    names = set(inspect.signature(run_stage1_census).parameters)
+    assert names == {"repo_root", "output_root", "staging_root", "subject_processor"}
+    with pytest.raises(TypeError):
+        run_stage1_census(
+            repo_root=Path("."),
+            output_root=Path("o"),
+            staging_root=Path("s"),
+            subject_processor=lambda successor, repo_root=None: {},
+            order=(9, 10),
+        )
+    with pytest.raises(TypeError):
+        run_stage1_census(
+            repo_root=Path("."),
+            output_root=Path("o"),
+            staging_root=Path("s"),
+            subject_processor=lambda successor, repo_root=None: {},
+            max_attempts=3,
+        )
+    with pytest.raises(TypeError):
+        run_stage1_census(
+            repo_root=Path("."),
+            output_root=Path("o"),
+            staging_root=Path("s"),
+            subject_processor=lambda successor, repo_root=None: {},
+            project_map={"x": "y"},
+        )
+
+
+def test_run_stage1_census_writes_mixed_synthetic_states(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+    from p3_v3.artifacts import read_canonical_json
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    output = tmp_path / "official"
+    result = run_stage1_census(
+        repo_root=tmp_path,
+        output_root=output,
+        staging_root=tmp_path / "staging",
+        subject_processor=processor,
+    )
+    states = set()
+    for path in output.glob("subjects/*/*.json"):
+        states.add(read_canonical_json(path)["state"])
+    assert states == {"SITE_FROZEN", "APPLICABILITY_CLOSED_NOT_APPLICABLE"}
+    assert result["closure_count"] == 140
+
+
+def test_nth_subject_failure_keeps_partial_staging_without_official(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory(fail_ordinal=12)
+    output = tmp_path / "official"
+    staging = tmp_path / "staging"
+    with pytest.raises(EvidenceError, match="synthetic failure at 12"):
+        run_stage1_census(
+            repo_root=tmp_path,
+            output_root=output,
+            staging_root=staging,
+            subject_processor=processor,
+        )
+    assert output.exists() is False
+    assert staging.exists() is True
+    written = list(staging.glob("subjects/*/*.json"))
+    assert 0 < len(written) < 140
+    assert (staging / "cohort-terminal.json").exists() is False
+
+
+def test_partial_failure_writes_no_complete_terminal(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import (
+        STAGE1_TERMINAL_STATUS,
+        run_stage1_census,
+    )
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory(fail_ordinal=15)
+    staging = tmp_path / "staging"
+    with pytest.raises(EvidenceError):
+        run_stage1_census(
+            repo_root=tmp_path,
+            output_root=tmp_path / "official",
+            staging_root=staging,
+            subject_processor=processor,
+        )
+    assert list(staging.glob("**/cohort-terminal.json")) == []
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in staging.rglob("*.json"))
+    assert STAGE1_TERMINAL_STATUS not in combined
+
+
+def test_existing_output_or_staging_fail_closed(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    output = tmp_path / "official"
+    staging = tmp_path / "staging"
+    output.mkdir()
+    with pytest.raises(EvidenceError, match="already exists"):
+        run_stage1_census(
+            repo_root=tmp_path,
+            output_root=output,
+            staging_root=staging,
+            subject_processor=processor,
+        )
+    output.rmdir()
+    staging.mkdir()
+    with pytest.raises(EvidenceError, match="already exists"):
+        run_stage1_census(
+            repo_root=tmp_path,
+            output_root=output,
+            staging_root=staging,
+            subject_processor=processor,
+        )
+    assert output.exists() is False
+
+
+def test_cohort_terminal_is_last_written_file(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    result = run_stage1_census(
+        repo_root=tmp_path,
+        output_root=tmp_path / "official",
+        staging_root=tmp_path / "staging",
+        subject_processor=processor,
+    )
+    assert result["write_order"][-1].endswith("cohort-terminal.json")
+    assert len(result["write_order"]) == 141
+
+
+def test_success_atomically_publishes_and_removes_staging(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    output = tmp_path / "official"
+    staging = tmp_path / "staging"
+    run_stage1_census(
+        repo_root=tmp_path,
+        output_root=output,
+        staging_root=staging,
+        subject_processor=processor,
+    )
+    assert output.is_dir()
+    assert staging.exists() is False
+    assert (output / "cohort-terminal.json").is_file()
+
+
+def test_forbidden_contract_pair_runner_seams_are_never_called(tmp_path: Path, monkeypatch):
+    from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
+
+    called: list[str] = []
+
+    def fail(name):
+        def inner(*args, **kwargs):
+            called.append(name)
+            raise AssertionError(name)
+
+        return inner
+
+    monkeypatch.setattr(
+        "p3_v3.prospective_multiproject.process_production_subject",
+        fail("process_production_subject"),
+    )
+    monkeypatch.setattr(
+        "p3_v3.multiproject_production_processor.run_production_subject_pipeline",
+        fail("run_production_subject_pipeline"),
+    )
+    monkeypatch.setattr(
+        "p3_v3.multiproject_production_processor.freeze_production_contracts",
+        fail("freeze_production_contracts"),
+    )
+    monkeypatch.setattr(
+        "p3_v3.multiproject_production_processor.construct_production_pairs",
+        fail("construct_production_pairs"),
+    )
+    monkeypatch.setattr(
+        "p3_v3.multiproject_production_processor.execute_production_pairs",
+        fail("execute_production_pairs"),
+    )
+    monkeypatch.setattr(
+        "p3_v3.multiproject_production_processor.measure_production_overlap",
+        fail("measure_production_overlap"),
+    )
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    run_stage1_census(
+        repo_root=tmp_path,
+        output_root=tmp_path / "official",
+        staging_root=tmp_path / "staging",
+        subject_processor=processor,
+    )
+    assert called == []
+
+
+def test_old_v1_official_namespace_is_untouched(tmp_path: Path):
+    from p3_v3.prospective_applicability_census_stage1 import (
+        OLD_V1_OFFICIAL_RELDIR,
+        OLD_V1_STAGING_RELDIR,
+        run_stage1_census,
+    )
+
+    processor, inventory, subjects, closures = _synthetic_processor_factory()
+    run_stage1_census(
+        repo_root=tmp_path,
+        output_root=tmp_path / "official",
+        staging_root=tmp_path / "staging",
+        subject_processor=processor,
+    )
+    assert (tmp_path / OLD_V1_OFFICIAL_RELDIR).exists() is False
+    assert (tmp_path / OLD_V1_STAGING_RELDIR).exists() is False

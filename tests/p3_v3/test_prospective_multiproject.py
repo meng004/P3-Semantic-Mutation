@@ -881,3 +881,34 @@ def test_production_processor_does_not_open_ordinal_9_or_call_forbidden_seams(mo
     assert opened == []
     assert called == []
     assert first.successor_ordinal == 9
+
+
+_FROZEN_BRIDGE_RECORD_KEYS = frozenset({
+    "neutral_snapshot_id",
+    "fixed_tree_commitment",
+    "normalized_source_tree_sha256",
+    "source_archive_sha256",
+    "build_descriptor_sha256",
+    "eligibility_reason",
+    "eligible_for_construct",
+    "eligible_for_criterion",
+})
+
+
+def test_frozen_bridge_has_no_legal_seam_for_originating_repository_identity():
+    from p3_v3.artifacts import canonical_sha256, validate_exact_object
+    from p3_v3.bridge_and_frames import _RECORD_SCHEMA
+
+    root = _repo_root_from_test_file()
+    bridge = json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
+    assert len(bridge["records"]) == 35
+    for record in bridge["records"]:
+        assert set(record) == _FROZEN_BRIDGE_RECORD_KEYS
+        assert "originating_repository_identity" not in record
+    mutated = dict(bridge["records"][0])
+    mutated["originating_repository_identity"] = "github.com/example/demo"
+    with pytest.raises(EvidenceError, match="keys differ"):
+        validate_exact_object(mutated, _RECORD_SCHEMA, "bridge.records[0]")
+    rewritten = [dict(row) for row in bridge["records"]]
+    rewritten[0] = mutated
+    assert canonical_sha256(rewritten) != bridge["eligible_inventory_root_sha256"]

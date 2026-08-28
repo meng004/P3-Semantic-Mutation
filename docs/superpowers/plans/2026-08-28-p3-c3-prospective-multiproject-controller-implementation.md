@@ -1236,6 +1236,7 @@ feat(p3-v3): add fail-closed multiproject controller CLI
 | terminal self-hash | `test_build_and_validate_found_and_exhausted_terminals` |
 | staging failure keeps residue | `test_staging_failure_keeps_residue` |
 | existing output fail-closed | `test_atomic_write_and_fail_closed_existing_output` |
+| official/staging namespace fail-closed after identity PASS | `test_preflight_rejects_existing_official_namespace` |
 
 If any row lacks a passing test, add only that missing test to the same file. Do not add a second test module.
 

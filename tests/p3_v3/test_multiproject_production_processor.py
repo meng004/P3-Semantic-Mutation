@@ -47,6 +47,7 @@ from p3_v3.prospective_multiproject import (
     load_frozen_successors,
     process_production_subject,
     run_multiproject_search,
+    validate_multiproject_preflight,
 )
 
 
@@ -514,10 +515,21 @@ def test_readiness_function_rejects_stub_without_run_side_effects(monkeypatch):
     readiness = assess_production_processor_readiness(root)
     assert readiness["processor_executable"] is True
     assert readiness["unconditional_stub"] is False
+    payload = validate_multiproject_preflight(
+        repo_root=root,
+        controller_path=root / "src/p3_v3/prospective_multiproject.py",
+    )
+    assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
+    assert payload["processor_executable"] is True
     assert called == []
     monkeypatch.setattr(processor, "production_processor_is_unconditional_stub", lambda: True)
     with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
         assess_production_processor_readiness(root)
+    with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
+        validate_multiproject_preflight(
+            repo_root=root,
+            controller_path=root / "src/p3_v3/prospective_multiproject.py",
+        )
 
 
 def test_official_staging_absent_and_frozen_bytes_unchanged():

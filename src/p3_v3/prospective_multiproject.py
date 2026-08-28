@@ -871,9 +871,30 @@ def validate_multiproject_preflight(
         raise EvidenceError("PREFLIGHT_FAIL", "frozen successors are not ordinals 9-22")
     if (root / OFFICIAL_RELDIR).exists() or (root / STAGING_RELDIR).exists():
         raise EvidenceError("PREFLIGHT_FAIL", "official or staging namespace already exists")
+    from p3_v3.multiproject_production_processor import (
+        assess_production_processor_readiness,
+        load_production_processor_adapters,
+        production_processor_is_unconditional_stub,
+    )
+
+    if production_processor_is_unconditional_stub():
+        raise EvidenceError("PREFLIGHT_FAIL", "production processor is an unconditional stub")
+    adapters = load_production_processor_adapters(root)
+    readiness: dict[str, object] = {
+        "processor_executable": True,
+        "unconditional_stub": False,
+        "adapters_loadable": sorted(adapters),
+    }
+    frames_out = root / "data/p3_v3/phase1_frames/out"
+    inventory = root / "data/p3_v3/phase2/slot-inventory.json"
+    descriptors = root / "data/p3_v3/p12_intake/descriptors"
+    if frames_out.is_dir() and inventory.is_file() and descriptors.is_dir():
+        readiness = assess_production_processor_readiness(root)
     return {
         "status": "MULTIPROJECT_PREFLIGHT_PASS",
         "slice_id": SLICE_ID,
         "successor_count": len(successors),
         "official_run_authorized": OFFICIAL_RUN_AUTHORIZED,
+        "processor_executable": True,
+        "processor_readiness": readiness,
     }

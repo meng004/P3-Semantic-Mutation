@@ -592,6 +592,8 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
     )
     assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
     assert payload["successor_count"] == 14
+    assert payload["processor_executable"] is True
+    assert payload["processor_readiness"]["unconditional_stub"] is False
     assert called == []
     assert OFFICIAL_RUN_AUTHORIZED is False
 

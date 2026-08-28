@@ -1011,15 +1011,34 @@ Forbidden argv tokens, each `PREFLIGHT_FAIL`: `--help`, `--order`, `--max-attemp
 Append:
 
 ```python
-import io
 import sys
 
 from p3_v3.artifacts import canonical_json_bytes
 from p3_v3.prospective_multiproject import (
+    AUTHORITY_RELPATH,
+    CONTROLLER_RELPATH,
+    DESIGN_RELPATH,
+    HANDOFF_RELPATH,
+    OFFICIAL_RELDIR,
     OFFICIAL_RUN_AUTHORIZED,
+    OVERLAP_RELPATH,
+    STAGING_RELDIR,
     validate_multiproject_preflight,
 )
 from scripts.p3_v3.run_prospective_multiproject_paired_slice import main
+
+
+def _copy_frozen_identity_tree(real_root: Path, dest_root: Path) -> None:
+    for rel in (
+        DESIGN_RELPATH,
+        AUTHORITY_RELPATH,
+        HANDOFF_RELPATH,
+        OVERLAP_RELPATH,
+        CONTROLLER_RELPATH,
+    ):
+        dest = dest_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes((real_root / rel).read_bytes())
 
 
 def test_preflight_passes_frozen_identities_without_opening_successor_sites(monkeypatch):
@@ -1045,13 +1064,29 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
 
 
 def test_preflight_rejects_existing_official_namespace(tmp_path: Path):
-    root = Path("/tmp/p3-c3-applicability-authority")
-    official = tmp_path / "data/p3_v3/phase3/prospective-multiproject-paired-slice-v1"
+    real_root = Path("/tmp/p3-c3-applicability-authority")
+    _copy_frozen_identity_tree(real_root, tmp_path)
+    payload = validate_multiproject_preflight(
+        repo_root=tmp_path,
+        controller_path=tmp_path / CONTROLLER_RELPATH,
+    )
+    assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
+
+    official = tmp_path / OFFICIAL_RELDIR
     official.mkdir(parents=True)
     with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
         validate_multiproject_preflight(
             repo_root=tmp_path,
-            controller_path=root / "src/p3_v3/prospective_multiproject.py",
+            controller_path=tmp_path / CONTROLLER_RELPATH,
+        )
+
+    official.rmdir()
+    staging = tmp_path / STAGING_RELDIR
+    staging.mkdir(parents=True)
+    with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
+        validate_multiproject_preflight(
+            repo_root=tmp_path,
+            controller_path=tmp_path / CONTROLLER_RELPATH,
         )
 
 
@@ -1142,6 +1177,8 @@ Preflight must verify, without opening successor PBF site arrays:
 5. official and staging namespaces are absent
 6. controller path is the unique `CONTROLLER_RELPATH`
 7. `OFFICIAL_RUN_AUTHORIZED is False`
+
+The official/staging absence check is independent of missing identity files. A fixture that copies only the frozen identity files and then creates `OFFICIAL_RELDIR` or `STAGING_RELDIR` must raise `PREFLIGHT_FAIL`. An empty `tmp_path` is not a sufficient RED for this rule.
 
 Do not parse PBF `sites`. Do not restore source.
 
@@ -1243,6 +1280,7 @@ Success of Tasks 1–4 is `MULTIPROJECT_CONTROLLER_IMPLEMENTATION_PASS`. It is n
 8. No schema, manifest, or ledger file is added.
 9. `OFFICIAL_RUN_AUTHORIZED = False`; `main()` cannot write the official terminal.
 10. C3 remains `blocked`; ledger is not edited.
+11. Official/staging fail-closed is isolated: the RED first proves identity-complete preflight PASS, then creates only `OFFICIAL_RELDIR` / `STAGING_RELDIR`.
 
 ---
 

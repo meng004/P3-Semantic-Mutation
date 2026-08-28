@@ -15,11 +15,17 @@ from p3_v3.artifacts import (
     validate_sha256,
     write_canonical_json,
 )
+from p3_v3.content_addressed_source_join import (
+    validate_originating_repository_identity,
+)
 
 SLICE_ID = "p3-c3-prospective-multiproject-paired-slice-v1"
-DESIGN_COMMIT = "de3e7c85f3bebd7bd3efa5b30d87bddd813abc55"
-DESIGN_FILE_SHA256 = "fbf1291b5a0df59b6ca68af772a21491099b0a46901aa7f97c749c6ebc85439c"
+DESIGN_COMMIT = "432dfa744a84330410f6a1d0564ca5586bee730f"
+DESIGN_FILE_SHA256 = "fb31e3feb3c35175495549e60cdfe8b18145c1c871a7c175cb7a859b18c5db15"
 AUTHORITY_ARTIFACT_SHA256 = "30b08271eafdead14a06707b461f108c1ec5a53eb5d2859a37b2cd6238e20214"
+PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256 = (
+    "802ec9a8db866c1c1d79b29e03d4e5dc0f55d4961a3f415a2486dd562fbf810e"
+)
 ORDINAL8_HANDOFF_ARTIFACT_SHA256 = (
     "a846ca2edded55ed48e0e9071a9aa218efc3dbcc9bd302a77ceb53bce9d822c5"
 )
@@ -40,6 +46,9 @@ DESIGN_RELPATH = Path(
     "docs/superpowers/specs/2026-08-28-p3-c3-prospective-multiproject-paired-slice-design.md"
 )
 AUTHORITY_RELPATH = Path("data/p3_v3/phase2/applicability-authority.json")
+PROJECT_CLUSTER_AUTHORITY_RELPATH = Path(
+    "data/p3_v3/phase3/inputs/project-cluster-authority-v1.json"
+)
 HANDOFF_RELPATH = Path("data/p3_v3/phase3/ordinal8-paired-evidence-rq2-handoff.json")
 OVERLAP_RELPATH = Path("data/p3_v3/phase3/ordinal8-exact-overlap-v1/exact-overlap.json")
 CONTROLLER_RELPATH = Path("src/p3_v3/prospective_multiproject.py")
@@ -226,6 +235,89 @@ def load_frozen_bridge_identity_records(
     return tuple(narrowed)
 
 
+_PROJECT_CLUSTER_AUTHORITY_SCHEMA = {
+    "schema_version": str,
+    "authority_id": str,
+    "derivation_provenance": dict,
+    "records": list,
+    "artifact_sha256": str,
+}
+_PROJECT_CLUSTER_PROVENANCE_SCHEMA = {
+    "method": str,
+    "join_report_artifact_sha256": str,
+    "verified_bridge_file_sha256": str,
+    "p3_baseline_commit": str,
+}
+_PROJECT_CLUSTER_RECORD_SCHEMA = {
+    "neutral_snapshot_id": str,
+    "originating_repository_identity": str,
+}
+_EXPECTED_PROJECT_CLUSTER_COUNT = 19
+
+
+def load_project_cluster_authority(
+    *,
+    authority_path: Path,
+    verified_bridge_path: Path,
+) -> dict[str, str]:
+    payload = validate_exact_object(
+        json.loads(Path(authority_path).read_text(encoding="utf-8")),
+        _PROJECT_CLUSTER_AUTHORITY_SCHEMA,
+        "project-cluster-authority",
+    )
+    if payload["schema_version"] != "p3-project-cluster-authority-v1":
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority schema mismatch")
+    if payload["authority_id"] != "p3-c3-35-subject-originating-repository-v1":
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority_id mismatch")
+    validate_exact_object(
+        payload["derivation_provenance"],
+        _PROJECT_CLUSTER_PROVENANCE_SCHEMA,
+        "derivation_provenance",
+    )
+    validate_sha256(
+        payload["derivation_provenance"]["join_report_artifact_sha256"],
+        "derivation_provenance.join_report_artifact_sha256",
+    )
+    if (
+        payload["derivation_provenance"]["verified_bridge_file_sha256"]
+        != file_sha256(verified_bridge_path)
+    ):
+        raise EvidenceError("IDENTITY_CONFLICT", "authority provenance does not bind verified_bridge")
+    records = payload["records"]
+    if not isinstance(records, list) or len(records) != 35:
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority must contain 35 records")
+    mapping: dict[str, str] = {}
+    repositories: set[str] = set()
+    previous = ""
+    for index, raw in enumerate(records):
+        row = validate_exact_object(raw, _PROJECT_CLUSTER_RECORD_SCHEMA, f"records[{index}]")
+        snapshot = validate_sha256(row["neutral_snapshot_id"], f"records[{index}].neutral_snapshot_id")
+        repository = validate_originating_repository_identity(
+            row["originating_repository_identity"],
+            f"records[{index}].originating_repository_identity",
+        )
+        if snapshot in mapping:
+            raise EvidenceError("IDENTITY_CONFLICT", "duplicate authority snapshot")
+        if previous and snapshot <= previous:
+            raise EvidenceError("IDENTITY_CONFLICT", "authority records must be sorted by snapshot")
+        mapping[snapshot] = repository
+        repositories.add(repository)
+        previous = snapshot
+    if len(repositories) != _EXPECTED_PROJECT_CLUSTER_COUNT:
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority must bind 19 repositories")
+    bridge_payload = json.loads(Path(verified_bridge_path).read_text(encoding="utf-8"))
+    bridge_ids = {
+        validate_sha256(row["neutral_snapshot_id"], "bridge.neutral_snapshot_id")
+        for row in bridge_payload["records"]
+    }
+    if set(mapping) != bridge_ids:
+        raise EvidenceError("IDENTITY_CONFLICT", "authority IDs must equal verified_bridge IDs")
+    body = {key: value for key, value in payload.items() if key != "artifact_sha256"}
+    if payload["artifact_sha256"] != canonical_sha256(body):
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority self-hash mismatch")
+    return mapping
+
+
 def _require_production_successor(successor: SuccessorIdentity) -> SuccessorIdentity:
     if successor.successor_ordinal == 8:
         raise EvidenceError("IDENTITY_CONFLICT", "ordinal 8 must not enter the production binder")
@@ -244,30 +336,18 @@ def bind_production_project_identity(
     if project_map is not None:
         raise EvidenceError("IDENTITY_CONFLICT", "user project map is forbidden")
     locked = _require_production_successor(successor)
-    matches = [
-        row
-        for row in load_frozen_bridge_identity_records(repo_root)
-        if row.get("neutral_snapshot_id") == locked.neutral_snapshot_id
-    ]
-    if len(matches) != 1:
-        raise EvidenceError("IDENTITY_CONFLICT", "frozen identity does not uniquely match successor")
-    record = matches[0]
-    found: list[str] = []
-    for field in _ORIGINATING_REPOSITORY_FIELDS:
-        if field in _FORBIDDEN_PROJECT_KEY_FIELDS:
-            continue
-        value = record.get(field)
-        if isinstance(value, str) and value.strip():
-            found.append(value.strip())
-    unique = tuple(dict.fromkeys(found))
-    if len(unique) == 1:
-        return unique[0]
-    if len(unique) > 1:
-        raise EvidenceError("IDENTITY_CONFLICT", "originating repository fields conflict")
-    raise EvidenceError(
-        "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED",
-        "frozen 35-subject identity has no originating P12 repository identity",
+    authority_path = Path(repo_root) / PROJECT_CLUSTER_AUTHORITY_RELPATH
+    mapping = load_project_cluster_authority(
+        authority_path=authority_path,
+        verified_bridge_path=Path(repo_root) / VERIFIED_BRIDGE_RELPATH,
     )
+    artifact = json.loads(authority_path.read_text(encoding="utf-8"))["artifact_sha256"]
+    if artifact != PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority artifact SHA mismatch")
+    key = mapping.get(locked.neutral_snapshot_id)
+    if key is None:
+        raise EvidenceError("IDENTITY_CONFLICT", "frozen identity is absent from local authority")
+    return key
 
 
 def production_project_binder(repo_root: Path | None = None) -> ProjectIdentityBinder:
@@ -481,6 +561,7 @@ _TERMINAL_SCHEMA = {
     "design_commit": str,
     "design_file_sha256": str,
     "authority_artifact_sha256": str,
+    "project_cluster_authority_artifact_sha256": str,
     "controller_source_sha256": str,
     "ordinal8_handoff_artifact_sha256": str,
     "ordinal8_overlap_artifact_sha256": str,
@@ -600,6 +681,7 @@ def build_cohort_terminal(
         "design_commit": DESIGN_COMMIT,
         "design_file_sha256": DESIGN_FILE_SHA256,
         "authority_artifact_sha256": AUTHORITY_ARTIFACT_SHA256,
+        "project_cluster_authority_artifact_sha256": PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
         "controller_source_sha256": controller_source_sha256,
         "ordinal8_handoff_artifact_sha256": ORDINAL8_HANDOFF_ARTIFACT_SHA256,
         "ordinal8_overlap_artifact_sha256": ORDINAL8_OVERLAP_ARTIFACT_SHA256,
@@ -659,6 +741,8 @@ def validate_cohort_terminal(
         raise EvidenceError("IDENTITY_CONFLICT", "design file SHA mismatch")
     if payload["authority_artifact_sha256"] != AUTHORITY_ARTIFACT_SHA256:
         raise EvidenceError("IDENTITY_CONFLICT", "authority artifact SHA mismatch")
+    if payload["project_cluster_authority_artifact_sha256"] != PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "project-cluster authority artifact SHA mismatch")
     if payload["ordinal8_handoff_artifact_sha256"] != ORDINAL8_HANDOFF_ARTIFACT_SHA256:
         raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 handoff artifact SHA mismatch")
     if payload["ordinal8_overlap_artifact_sha256"] != ORDINAL8_OVERLAP_ARTIFACT_SHA256:
@@ -765,6 +849,17 @@ def validate_multiproject_preflight(
     authority = json.loads((root / AUTHORITY_RELPATH).read_text(encoding="utf-8"))
     if authority.get("artifact_sha256") != AUTHORITY_ARTIFACT_SHA256:
         raise EvidenceError("PREFLIGHT_FAIL", "authority artifact SHA mismatch")
+    project_authority = load_project_cluster_authority(
+        authority_path=root / PROJECT_CLUSTER_AUTHORITY_RELPATH,
+        verified_bridge_path=root / VERIFIED_BRIDGE_RELPATH,
+    )
+    if len(project_authority) != 35:
+        raise EvidenceError("PREFLIGHT_FAIL", "project-cluster authority must bind 35 snapshots")
+    observed_cluster = json.loads(
+        (root / PROJECT_CLUSTER_AUTHORITY_RELPATH).read_text(encoding="utf-8")
+    )
+    if observed_cluster.get("artifact_sha256") != PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256:
+        raise EvidenceError("PREFLIGHT_FAIL", "project-cluster authority artifact SHA mismatch")
     handoff = json.loads((root / HANDOFF_RELPATH).read_text(encoding="utf-8"))
     overlap = json.loads((root / OVERLAP_RELPATH).read_text(encoding="utf-8"))
     if handoff.get("artifact_sha256") != ORDINAL8_HANDOFF_ARTIFACT_SHA256:

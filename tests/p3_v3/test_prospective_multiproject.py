@@ -262,6 +262,7 @@ from pathlib import Path
 from p3_v3.artifacts import canonical_sha256, file_sha256
 from p3_v3.prospective_multiproject import (
     AUTHORITY_ARTIFACT_SHA256,
+    PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
     DESIGN_COMMIT,
     DESIGN_FILE_SHA256,
     ORDINAL8_HANDOFF_ARTIFACT_SHA256,
@@ -313,6 +314,10 @@ def test_build_and_validate_found_and_exhausted_terminals():
         assert validated["design_commit"] == DESIGN_COMMIT
         assert validated["design_file_sha256"] == DESIGN_FILE_SHA256
         assert validated["authority_artifact_sha256"] == AUTHORITY_ARTIFACT_SHA256
+        assert (
+            validated["project_cluster_authority_artifact_sha256"]
+            == PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256
+        )
         assert validated["ordinal8_handoff_artifact_sha256"] == ORDINAL8_HANDOFF_ARTIFACT_SHA256
         assert validated["ordinal8_overlap_artifact_sha256"] == ORDINAL8_OVERLAP_ARTIFACT_SHA256
         assert validated["ordinal8_retained"]["rerun_forbidden"] is True
@@ -369,6 +374,7 @@ def test_validate_rejects_frozen_identity_and_stop_rule_tamper():
         ("slice_id", "tampered-slice"),
         ("design_file_sha256", "0" * 64),
         ("authority_artifact_sha256", "1" * 64),
+        ("project_cluster_authority_artifact_sha256", "4" * 64),
         ("ordinal8_handoff_artifact_sha256", "2" * 64),
         ("ordinal8_overlap_artifact_sha256", "3" * 64),
     ):
@@ -514,7 +520,9 @@ from p3_v3.prospective_multiproject import (
     OFFICIAL_RELDIR,
     OFFICIAL_RUN_AUTHORIZED,
     OVERLAP_RELPATH,
+    PROJECT_CLUSTER_AUTHORITY_RELPATH,
     STAGING_RELDIR,
+    VERIFIED_BRIDGE_RELPATH,
     validate_multiproject_preflight,
 )
 from scripts.p3_v3.run_prospective_multiproject_paired_slice import main
@@ -544,6 +552,8 @@ def _copy_frozen_identity_tree(real_root: Path, dest_root: Path) -> None:
     for rel in (
         DESIGN_RELPATH,
         AUTHORITY_RELPATH,
+        PROJECT_CLUSTER_AUTHORITY_RELPATH,
+        VERIFIED_BRIDGE_RELPATH,
         HANDOFF_RELPATH,
         OVERLAP_RELPATH,
         CONTROLLER_RELPATH,
@@ -762,7 +772,7 @@ def test_frozen_35_subject_identity_uniquely_matches_successors_9_to_22():
         assert "originating_repository" not in matches[0]
 
 
-def test_production_binder_rejects_user_map_ordinal_8_and_does_not_invent_project_key():
+def test_production_binder_rejects_user_map_ordinal_8_and_covers_ordinals_9_to_22():
     root = _repo_root_from_test_file()
     successors = load_frozen_successors()
     first = successors[0]
@@ -775,15 +785,15 @@ def test_production_binder_rejects_user_map_ordinal_8_and_does_not_invent_projec
     with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
         bind_production_project_identity(_ordinal8_successor(), repo_root=root)
     binder = production_project_binder(repo_root=root)
-    seen = []
+    keys = []
     for successor in successors:
-        with pytest.raises(EvidenceError) as excinfo:
-            binder(successor)
-        seen.append(successor.successor_ordinal)
-        assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
-        assert "originating" in str(excinfo.value).lower()
-    assert seen == list(range(9, 23))
-    assert 8 not in seen
+        key = binder(successor)
+        keys.append(key)
+        assert "/" in key
+        assert successor.neutral_snapshot_id not in key
+    assert [row.successor_ordinal for row in successors] == list(range(9, 23))
+    assert len(keys) == 14
+    assert 8 not in [row.successor_ordinal for row in successors]
 
 
 def test_production_binder_does_not_use_forbidden_identity_fields_as_project_key():
@@ -800,16 +810,22 @@ def test_production_binder_does_not_use_forbidden_identity_fields_as_project_key
     binder = production_project_binder(repo_root=root)
     keys = []
     for successor in successors:
-        with pytest.raises(EvidenceError) as excinfo:
-            keys.append(binder(successor))
-        assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
-    assert keys == []
+        key = binder(successor)
+        keys.append(key)
+        record = next(
+            row for row in records if row["neutral_snapshot_id"] == successor.neutral_snapshot_id
+        )
+        assert key not in {
+            successor.neutral_snapshot_id,
+            record["source_archive_sha256"],
+            record["build_descriptor_sha256"],
+        }
+    assert keys
+    assert all(key.count("/") == 2 for key in keys)
     bridge = json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
     inventory_repo = bridge["p12_repository_identity"]
     assert inventory_repo == "github.com/meng004/P12-Defect4MR"
-    with pytest.raises(EvidenceError) as excinfo:
-        bind_production_project_identity(successors[0], repo_root=root)
-    assert inventory_repo not in str(excinfo.value) or excinfo.value.code != inventory_repo
+    assert inventory_repo not in keys
 
 
 def test_production_processor_stages_and_selector_rejection():
@@ -912,3 +928,91 @@ def test_frozen_bridge_has_no_legal_seam_for_originating_repository_identity():
     rewritten = [dict(row) for row in bridge["records"]]
     rewritten[0] = mutated
     assert canonical_sha256(rewritten) != bridge["eligible_inventory_root_sha256"]
+
+
+_CONTENT_JOINED = {
+    "09d68a08265580090b8f294221b1c98c91ba95d9c3d357219341569bc6ed0fef": "github.com/scipy/scipy",
+    "0e5083ae446a47f6baf389a1b395454da59dea57586e3e2a8d143e8bc63b1b32": "github.com/scipy/scipy",
+    "4bd7cd8976f2ced7956c2cbd9b1c0644f5ecd51b020008cc867dc1cf3e4692af": "github.com/scipy/scipy",
+    "6dbda0ca35433b15550b35780460f4cbedc21ed4afc34a5c17bae8da9f3d2300": "github.com/sciml/ordinarydiffeq.jl",
+    "748ce0fa24a32b11d2f8096f9b6803943a9b5998ab9fa600b0cc781607836bb1": "github.com/amrex-astro/castro",
+    "76adbf4193d953c4fdc0933a30495976ffa128585255db9621573d2090670e02": "github.com/lammps/lammps",
+    "78d4f9c45640bac958bdd85ea4597432c3e956e3aea084c58c99a39b7bb18a0a": "github.com/sciml/ordinarydiffeq.jl",
+    "8fc2d3296ad1245742455682fe2e6b98489cb8776553bea9acf10c599bbd15c8": "github.com/vislearn/freia",
+    "95e5fd62f2fa59f819fe6583d1fc7b9ce5755f9024f482592cc4aff6b677dc42": "github.com/drtimothyaldendavis/suitesparse",
+    "a15c7019d4627aa01064874a3414923571e6dadec35ddd13a1551cd8c762883a": "github.com/mreineck/pocketfft",
+    "f91f803b4cf9f187a4718fe96a5ad03c00cebe1e4b1b4f2eceef9f377956ef2f": "github.com/sciml/datainterpolations.jl",
+}
+
+
+def test_local_project_cluster_authority_has_35_ids_and_19_repositories():
+    from p3_v3.prospective_multiproject import (
+        PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256,
+        load_project_cluster_authority,
+    )
+
+    root = _repo_root_from_test_file()
+    mapping = load_project_cluster_authority(
+        authority_path=root / PROJECT_CLUSTER_AUTHORITY_RELPATH,
+        verified_bridge_path=root / VERIFIED_BRIDGE_RELPATH,
+    )
+    bridge = json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
+    authority = json.loads((root / PROJECT_CLUSTER_AUTHORITY_RELPATH).read_text(encoding="utf-8"))
+    assert set(mapping) == {row["neutral_snapshot_id"] for row in bridge["records"]}
+    assert len(mapping) == 35
+    assert len(set(mapping.values())) == 19
+    assert [row["neutral_snapshot_id"] for row in authority["records"]] == sorted(mapping)
+    assert authority["artifact_sha256"] == PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256
+    body = {key: value for key, value in authority.items() if key != "artifact_sha256"}
+    assert authority["artifact_sha256"] == canonical_sha256(body)
+    for snapshot, repository in _CONTENT_JOINED.items():
+        assert mapping[snapshot] == repository
+
+
+def test_authority_self_hash_and_user_map_remain_fail_closed(tmp_path: Path):
+    from p3_v3.prospective_multiproject import load_project_cluster_authority
+
+    root = _repo_root_from_test_file()
+    authority = json.loads((root / PROJECT_CLUSTER_AUTHORITY_RELPATH).read_text(encoding="utf-8"))
+    authority["artifact_sha256"] = "0" * 64
+    bad = tmp_path / "bad-authority.json"
+    bad.write_text(json.dumps(authority), encoding="utf-8")
+    with pytest.raises(EvidenceError, match="self-hash"):
+        load_project_cluster_authority(
+            authority_path=bad,
+            verified_bridge_path=root / VERIFIED_BRIDGE_RELPATH,
+        )
+    first = load_frozen_successors()[0]
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        bind_production_project_identity(
+            first,
+            repo_root=root,
+            project_map={"github.com/example/user-map": first.neutral_snapshot_id},
+        )
+
+
+def test_placed_content_joined_archives_match_frozen_bridge_hashes():
+    root = _repo_root_from_test_file()
+    bridge = {
+        row["neutral_snapshot_id"]: row
+        for row in json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))["records"]
+    }
+    checked = 0
+    for snapshot in _CONTENT_JOINED:
+        archive = root / "data/p3_v3/p12_intake/archives" / f"{snapshot}.tar"
+        if not archive.is_file():
+            continue
+        assert file_sha256(archive) == bridge[snapshot]["source_archive_sha256"]
+        checked += 1
+    assert checked == 11
+
+
+def test_ordinal_8_still_excluded_from_processor_after_local_authority():
+    root = _repo_root_from_test_file()
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        process_production_subject(_ordinal8_successor(), repo_root=root)
+    first = load_frozen_successors()[0]
+    with pytest.raises(EvidenceError) as excinfo:
+        process_production_subject(first, repo_root=root)
+    assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    assert first.successor_ordinal == 9

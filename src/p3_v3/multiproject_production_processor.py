@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from p3_v3.artifacts import EvidenceError, file_sha256, read_canonical_json, validate_sha256
 from p3_v3.applicability_predicates import close_slot_with_authority, load_applicability_authority
-from p3_v3.bridge_and_frames import validate_contract_generator_registry
+from p3_v3.bridge_and_frames import _sites, validate_contract_generator_registry
 from p3_v3.prospective_multiproject import (
     AUTHORITY_RELPATH,
     FIRST_SUCCESSOR_ORDINAL,
@@ -288,6 +288,37 @@ def _subject_inventory_rows(
     return rows
 
 
+def _map_applicability_boundary_error(exc: EvidenceError) -> EvidenceError:
+    if exc.code in _PIPELINE_FAILURE_CODES:
+        return EvidenceError(exc.code, str(exc))
+    if exc.code in _AUTHORITY_GAP_CODES:
+        return exc
+    return EvidenceError("IDENTITY_CONFLICT", str(exc))
+
+
+def canonicalize_production_sites(
+    controlled_subject_id: str,
+    raw_sites: Sequence[object],
+    *,
+    frozen_controlled_subject_id: str | None = None,
+) -> list[dict[str, object]]:
+    try:
+        subject = validate_sha256(controlled_subject_id, "controlled_subject_id")
+        if frozen_controlled_subject_id is not None:
+            frozen = validate_sha256(
+                frozen_controlled_subject_id,
+                "frozen_controlled_subject_id",
+            )
+            if subject != frozen:
+                raise EvidenceError(
+                    "IDENTITY_CONFLICT",
+                    "controlled_subject_id does not match frozen successor",
+                )
+        return _sites(subject, raw_sites)
+    except EvidenceError as exc:
+        raise _map_applicability_boundary_error(exc) from exc
+
+
 def close_production_applicability(
     binding: FrozenSubjectBinding,
     source: RecoveredSource,
@@ -325,20 +356,36 @@ def close_production_applicability(
     sites = frame.get("sites")
     if not isinstance(sites, Sequence) or isinstance(sites, (str, bytes)):
         raise EvidenceError("IDENTITY_CONFLICT", "public behavior frame sites are absent")
-    closures: list[SlotClosureRecord] = []
-    for row in rows:
-        closed = close_slot_with_authority(authority, row, sites, frame)
-        closures.append(
-            SlotClosureRecord(
-                slot_id=str(closed["slot_id"]),
-                controlled_subject_id=str(closed["controlled_subject_id"]),
-                state=str(closed["state"]),
-                site_id=closed.get("site_id") if isinstance(closed.get("site_id"), str) else None,
-            )
+    try:
+        subject_id = validate_sha256(
+            binding.successor.controlled_subject_id, "controlled_subject_id"
         )
-    if len(closures) != 10:
-        raise EvidenceError("IDENTITY_CONFLICT", "applicability must close exactly 10 slots")
-    return tuple(closures)
+        if any(str(row.get("controlled_subject_id")) != subject_id for row in rows):
+            raise EvidenceError(
+                "IDENTITY_CONFLICT",
+                "inventory subject does not match frozen successor",
+            )
+        canonical_sites = canonicalize_production_sites(
+            subject_id,
+            sites,
+            frozen_controlled_subject_id=subject_id,
+        )
+        closures: list[SlotClosureRecord] = []
+        for row in rows:
+            closed = close_slot_with_authority(authority, row, canonical_sites, frame)
+            closures.append(
+                SlotClosureRecord(
+                    slot_id=str(closed["slot_id"]),
+                    controlled_subject_id=str(closed["controlled_subject_id"]),
+                    state=str(closed["state"]),
+                    site_id=closed.get("site_id") if isinstance(closed.get("site_id"), str) else None,
+                )
+            )
+        if len(closures) != 10:
+            raise EvidenceError("IDENTITY_CONFLICT", "applicability must close exactly 10 slots")
+        return tuple(closures)
+    except EvidenceError as exc:
+        raise _map_applicability_boundary_error(exc) from exc
 
 
 def freeze_production_contracts(
@@ -440,6 +487,7 @@ def load_production_processor_adapters(repo_root: Path | None = None) -> dict[st
         "load_applicability_authority": load_applicability_authority,
         "close_slot_with_authority": close_slot_with_authority,
         "validate_contract_generator_registry": validate_contract_generator_registry,
+        "canonicalize_production_sites": canonicalize_production_sites,
         "exact_overlap": exact_overlap,
         "bind_production_project_identity": bind_production_project_identity,
         "recover_production_source": recover_production_source,
@@ -574,7 +622,7 @@ def run_production_subject_pipeline(
             return finish(SubjectTerminal(exc.code), 0)
         if exc.code in _AUTHORITY_GAP_CODES:
             raise
-        raise
+        return finish(SubjectTerminal.IDENTITY_CONFLICT, 0)
 
 
 def inspect_successor_source_inputs(repo_root: Path) -> dict[str, object]:

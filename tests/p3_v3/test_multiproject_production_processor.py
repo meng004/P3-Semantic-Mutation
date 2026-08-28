@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from p3_v3.artifacts import EvidenceError, file_sha256
+from p3_v3.artifacts import EvidenceError, canonical_sha256, file_sha256
 from p3_v3.multiproject_production_processor import (
     PROCESSOR_IMPLEMENTATION_KIND,
     AuthorizedContract,
@@ -19,6 +19,7 @@ from p3_v3.multiproject_production_processor import (
     SlotClosureRecord,
     VariantResult,
     assess_production_processor_readiness,
+    canonicalize_production_sites,
     default_production_seams,
     production_processor_is_unconditional_stub,
 )
@@ -187,6 +188,8 @@ def _seams(
     executions: Sequence[PairExecutionRecord] | None = None,
     overlaps: Sequence[PairOverlapRecord] | None = None,
     recover_error: EvidenceError | None = None,
+    close_error: EvidenceError | None = None,
+    close_fn=None,
     execute_error: EvidenceError | None = None,
     calls: list[str] | None = None,
     execution_order: tuple[str, ...] | None = None,
@@ -201,6 +204,10 @@ def _seams(
 
     def close(binding, source, repo_root):
         observed.append("close")
+        if close_error is not None:
+            raise close_error
+        if close_fn is not None:
+            return tuple(close_fn(binding, source, repo_root))
         return tuple(closures)
 
     def freeze(binding, closed, repo_root):
@@ -253,11 +260,12 @@ def _run(successor=None, **kwargs) -> SubjectPipelineResult:
 def test_unconditional_stub_is_gone_and_default_path_is_not_renamed_authority():
     assert production_processor_is_unconditional_stub() is False
     assert PROCESSOR_IMPLEMENTATION_KIND == "nine_stage_orchestration"
-    first = load_frozen_successors()[0]
-    with pytest.raises(EvidenceError) as excinfo:
-        process_production_subject(first, repo_root=_repo_root())
-    assert excinfo.value.code == "SOURCE_RECOVERY_AUTHORITY_REQUIRED"
-    assert excinfo.value.code != "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    seams = default_production_seams()
+    assert seams.close_applicability.__name__ == "close_production_applicability"
+    assert seams.close_applicability.__module__ == "p3_v3.multiproject_production_processor"
+    result = _run(_seams=_seams(closures=_not_applicable()))
+    assert result.subject_terminal is SubjectTerminal.ALL_SLOTS_NOT_APPLICABLE
+    assert result.subject_terminal.value != "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
 
 
 def test_nine_stages_are_fixed_and_each_runs_at_most_once():
@@ -546,6 +554,99 @@ def test_official_staging_absent_and_frozen_bytes_unchanged():
     assert authority["artifact_sha256"] == PROJECT_CLUSTER_AUTHORITY_ARTIFACT_SHA256
     bridge = json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
     assert len(bridge["records"]) == 35
+
+
+def _synthetic_raw_site(
+    path: str,
+    symbol: str,
+    *,
+    start_line: int = 1,
+    start_col: int = 0,
+    end_line: int = 2,
+    end_col: int = 1,
+) -> dict[str, object]:
+    return {
+        "path": path,
+        "symbol": symbol,
+        "start_line": start_line,
+        "start_col": start_col,
+        "end_line": end_line,
+        "end_col": end_col,
+    }
+
+
+def _p3_site_v1_id(controlled_subject_id: str, raw_site: Mapping[str, object]) -> str:
+    return canonical_sha256(
+        {
+            "controlled_subject_id": controlled_subject_id,
+            **dict(raw_site),
+            "domain": "P3-SITE-v1",
+        }
+    )
+
+
+def test_raw_pbf_sites_canonicalize_through_existing_p3_site_v1_seam():
+    subject = load_frozen_successors()[0].controlled_subject_id
+    raw = [
+        _synthetic_raw_site("synthetic/z_mod.py", "beta"),
+        _synthetic_raw_site("synthetic/a_mod.py", "alpha"),
+    ]
+    assert all("site_id" not in item for item in raw)
+    observed = canonicalize_production_sites(subject, raw)
+    from p3_v3.bridge_and_frames import _sites
+
+    assert observed == _sites(subject, raw)
+    assert [item["path"] for item in observed] == [
+        "synthetic/a_mod.py",
+        "synthetic/z_mod.py",
+    ]
+    assert [item["site_id"] for item in observed] == [
+        _p3_site_v1_id(subject, _synthetic_raw_site("synthetic/a_mod.py", "alpha")),
+        _p3_site_v1_id(subject, _synthetic_raw_site("synthetic/z_mod.py", "beta")),
+    ]
+    shuffled = canonicalize_production_sites(subject, list(reversed(raw)))
+    assert [item["site_id"] for item in shuffled] == [item["site_id"] for item in observed]
+    assert [item["path"] for item in shuffled] == [item["path"] for item in observed]
+
+
+def test_malformed_raw_site_maps_to_identity_conflict_and_does_not_leak():
+    subject = load_frozen_successors()[0].controlled_subject_id
+    with pytest.raises(EvidenceError) as direct:
+        canonicalize_production_sites(subject, [{"path": "synthetic/broken.py"}])
+    assert direct.value.code == "IDENTITY_CONFLICT"
+    assert direct.value.code != "E_SCHEMA_KEYS"
+
+    def close(binding, source, repo_root):
+        canonicalize_production_sites(
+            binding.successor.controlled_subject_id,
+            [{"path": "synthetic/broken.py"}],
+        )
+        return _not_applicable()
+
+    result = _run(_seams=_seams(closures=_not_applicable(), close_fn=close))
+    assert result.subject_terminal is SubjectTerminal.IDENTITY_CONFLICT
+    mapped = _run(
+        _seams=_seams(
+            closures=_not_applicable(),
+            close_error=EvidenceError("E_SCHEMA_KEYS", "canonical_sites[0] keys differ"),
+        )
+    )
+    assert mapped.subject_terminal is SubjectTerminal.IDENTITY_CONFLICT
+
+
+def test_controlled_subject_id_mismatch_is_fail_closed():
+    first, second = load_frozen_successors()[0], load_frozen_successors()[1]
+    raw = [_synthetic_raw_site("synthetic/only.py", "gamma")]
+    with pytest.raises(EvidenceError) as excinfo:
+        canonicalize_production_sites(
+            second.controlled_subject_id,
+            raw,
+            frozen_controlled_subject_id=first.controlled_subject_id,
+        )
+    assert excinfo.value.code == "IDENTITY_CONFLICT"
+    left = canonicalize_production_sites(first.controlled_subject_id, raw)
+    right = canonicalize_production_sites(second.controlled_subject_id, raw)
+    assert left[0]["site_id"] != right[0]["site_id"]
 
 
 def test_default_seams_are_production_adapters_not_ordinal8_copies():

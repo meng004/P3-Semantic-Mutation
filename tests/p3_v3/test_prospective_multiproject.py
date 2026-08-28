@@ -486,7 +486,7 @@ def test_staging_failure_keeps_residue(tmp_path: Path, monkeypatch):
 
 
 def test_load_ordinal8_is_readonly_and_matches_frozen_artifacts():
-    root = Path("/tmp/p3-c3-applicability-authority")
+    root = _repo_root_from_test_file()
     observed = load_ordinal8_retained_observation(root, project_cluster_key="numpy-readonly")
     assert observed.rerun_forbidden is True
     assert observed.pair_count == 4
@@ -517,6 +517,26 @@ from p3_v3.prospective_multiproject import (
 )
 from scripts.p3_v3.run_prospective_multiproject_paired_slice import main
 
+_OLD_FIXED_WORKTREE = "/tmp/" + "p3-c3-applicability-authority"
+_FOCUSED_TEST_RELPATHS = (
+    Path("tests/p3_v3/test_prospective_multiproject.py"),
+    Path("tests/p3_v3/test_prospective_applicability_search_v2.py"),
+    Path("tests/p3_v3/test_applicability_authority.py"),
+)
+
+
+def _repo_root_from_test_file() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def test_focused_tests_run_from_any_checkout_without_fixed_tmp_worktree():
+    root = _repo_root_from_test_file()
+    assert (root / "src/p3_v3/prospective_multiproject.py").is_file()
+    assert (root / "scripts/p3_v3/run_prospective_multiproject_paired_slice.py").is_file()
+    for relpath in _FOCUSED_TEST_RELPATHS:
+        text = (root / relpath).read_text(encoding="utf-8")
+        assert _OLD_FIXED_WORKTREE not in text
+
 
 def _copy_frozen_identity_tree(real_root: Path, dest_root: Path) -> None:
     for rel in (
@@ -542,7 +562,7 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
         return real_open(path, *args, **kwargs)
 
     monkeypatch.setattr("builtins.open", guarded_open)
-    root = Path("/tmp/p3-c3-applicability-authority")
+    root = _repo_root_from_test_file()
     payload = validate_multiproject_preflight(
         repo_root=root,
         controller_path=root / "src/p3_v3/prospective_multiproject.py",
@@ -554,7 +574,7 @@ def test_preflight_passes_frozen_identities_without_opening_successor_sites(monk
 
 
 def test_preflight_rejects_existing_official_namespace(tmp_path: Path):
-    real_root = Path("/tmp/p3-c3-applicability-authority")
+    real_root = _repo_root_from_test_file()
     _copy_frozen_identity_tree(real_root, tmp_path)
     payload = validate_multiproject_preflight(
         repo_root=tmp_path,
@@ -607,7 +627,7 @@ def test_main_rejects_every_selector_and_does_not_run_search(monkeypatch):
 def test_main_zero_args_is_preflight_only_and_does_not_write_official_terminal(
     monkeypatch, capsys
 ):
-    root = Path("/tmp/p3-c3-applicability-authority")
+    root = _repo_root_from_test_file()
     official = root / "data/p3_v3/phase3/prospective-multiproject-paired-slice-v1/cohort-terminal.json"
     monkeypatch.setattr(sys, "argv", ["run_prospective_multiproject_paired_slice.py"])
     code = main()

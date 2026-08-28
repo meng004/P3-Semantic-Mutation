@@ -840,16 +840,70 @@ def test_cli_unauthorized_does_not_open_successor_site(monkeypatch, capsys):
     assert opened == []
 
 
+import hashlib
+
+FROZEN_CONTROLLER_SHA256 = (
+    "5ab44c9840f44468c556a94b93a7a294858549688c11ca282e660adb5f71c341"
+)
+STAGE1_AUTH_RELPATH = Path(
+    "data/p3_v3/phase3/inputs/"
+    "user-auth-prospective-multiproject-applicability-stage1-v2.txt"
+)
+STAGE1_AUTH_BYTES = (
+    b"P3_C3_STAGE1_APPLICABILITY_CENSUS_AUTHORIZED=true\n"
+    b"implementation_commit=ee12a75b6dbd3905dcc6acc967beb638ddcc4410\n"
+    b"controller_source_sha256="
+    b"5ab44c9840f44468c556a94b93a7a294858549688c11ca282e660adb5f71c341\n"
+    b"design_file_sha256="
+    b"a8828022ee2095b4209261c26d0ecbab66141e59b2c9f18ce3df2045f6dd79c5\n"
+)
+STAGE1_AUTH_SHA256 = (
+    "cde781bbe0bd25514b117c55563ac2b88720574da274bf98d3f3f0a56308d60d"
+)
+
+
+def _cli_module():
+    from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
+
+    return cli
+
+
+def _unauthorized_payload() -> dict[str, object]:
+    return {
+        "status": "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED",
+        "slice_id": "p3-c3-prospective-multiproject-applicability-stage1-v2",
+        "design_commit": "270025608be7db631484b77ffda181438100d785",
+        "official_run_authorized": False,
+        "official_terminal_written": False,
+        "successor_count": 14,
+    }
+
+
+def _install_auth(cli, monkeypatch, tmp_path: Path, data: bytes, *, kind: str = "file") -> Path:
+    target = tmp_path / "stage1-auth.txt"
+    if kind == "dir":
+        target.mkdir()
+    elif kind == "symlink":
+        real = tmp_path / "real-auth.txt"
+        real.write_bytes(data)
+        target.symlink_to(real)
+    else:
+        target.write_bytes(data)
+    monkeypatch.setattr(cli, "STAGE1_AUTHORIZATION_PATH", target)
+    return target
+
+
 def test_cli_authorized_path_uses_synthetic_processor_only(tmp_path: Path, monkeypatch):
     from p3_v3.prospective_applicability_census_stage1 import run_stage1_census
     from scripts.p3_v3 import run_prospective_multiproject_applicability_stage1_v2 as cli
 
+    assert hasattr(cli, "require_stage1_authorization")
     processor, inventory, subjects, closures = _synthetic_processor_factory()
-    captured: dict[str, object] = {}
+    captured: list[object] = []
 
     def redirected_census(*, repo_root, output_root, staging_root, subject_processor):
         del repo_root, output_root, staging_root
-        captured["subject_processor"] = subject_processor
+        captured.append(subject_processor)
         if subject_processor is not processor:
             raise AssertionError("authorized CLI test must inject the synthetic processor")
         return run_stage1_census(
@@ -859,24 +913,23 @@ def test_cli_authorized_path_uses_synthetic_processor_only(tmp_path: Path, monke
             subject_processor=processor,
         )
 
-    monkeypatch.setattr(cli, "OFFICIAL_RUN_AUTHORIZED", True)
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES)
     monkeypatch.setattr(cli, "process_stage1_subject", processor)
     monkeypatch.setattr(cli, "run_stage1_census", redirected_census)
     monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
     assert main() == 0
-    assert captured["subject_processor"] is processor
+    assert captured == [processor]
     assert (tmp_path / "official" / "cohort-terminal.json").is_file()
     assert (
         _repo_root()
         / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
     ).exists() is False
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).exists() is False
 
 
 def test_cli_does_not_flip_authorization_for_real_processor():
+    from p3_v3.artifacts import file_sha256
     from p3_v3.prospective_applicability_census_stage1 import OFFICIAL_RUN_AUTHORIZED
-    from scripts.p3_v3.run_prospective_multiproject_applicability_stage1_v2 import (
-        OFFICIAL_RUN_AUTHORIZED as CLI_FLAG,
-    )
 
     source = (
         _repo_root() / "src/p3_v3/prospective_applicability_census_stage1.py"
@@ -886,11 +939,197 @@ def test_cli_does_not_flip_authorization_for_real_processor():
         / "scripts/p3_v3/run_prospective_multiproject_applicability_stage1_v2.py"
     ).read_text(encoding="utf-8")
     assert "OFFICIAL_RUN_AUTHORIZED = False" in source
-    assert "OFFICIAL_RUN_AUTHORIZED = False" in cli_source
     assert "OFFICIAL_RUN_AUTHORIZED = True" not in source
     assert "OFFICIAL_RUN_AUTHORIZED = True" not in cli_source
+    assert "OFFICIAL_RUN_AUTHORIZED = False" not in cli_source
     assert OFFICIAL_RUN_AUTHORIZED is False
-    assert CLI_FLAG is False
+    assert file_sha256(
+        _repo_root() / "src/p3_v3/prospective_applicability_census_stage1.py"
+    ) == FROZEN_CONTROLLER_SHA256
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).exists() is False
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).is_symlink() is False
+
+
+def test_stage1_authorization_constants_are_exact_bytes():
+    cli = _cli_module()
+    assert hasattr(cli, "STAGE1_AUTHORIZATION_PATH")
+    assert hasattr(cli, "STAGE1_AUTHORIZATION_BYTES")
+    assert hasattr(cli, "STAGE1_AUTHORIZATION_SHA256")
+    assert hasattr(cli, "require_stage1_authorization")
+    assert cli.STAGE1_AUTHORIZATION_PATH == _repo_root() / STAGE1_AUTH_RELPATH
+    assert cli.STAGE1_AUTHORIZATION_BYTES == STAGE1_AUTH_BYTES
+    assert len(cli.STAGE1_AUTHORIZATION_BYTES) == 287
+    assert hashlib.sha256(cli.STAGE1_AUTHORIZATION_BYTES).hexdigest() == STAGE1_AUTH_SHA256
+    assert cli.STAGE1_AUTHORIZATION_SHA256 == STAGE1_AUTH_SHA256
+    assert "read_authority_snapshot" in (
+        _repo_root()
+        / "scripts/p3_v3/run_prospective_multiproject_applicability_stage1_v2.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_cli_missing_authorization_file_is_stable_and_does_not_call_census(
+    monkeypatch, capsys
+):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out) == _unauthorized_payload()
+    assert called == []
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).exists() is False
+    assert (
+        _repo_root()
+        / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    ).exists() is False
+    assert (
+        _repo_root()
+        / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2.staging"
+    ).exists() is False
+
+
+def test_cli_wrong_authorization_bytes_do_not_call_controller(
+    tmp_path: Path, monkeypatch, capsys
+):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES[:-1] + b"X")
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out) == _unauthorized_payload()
+    assert called == []
+
+
+def test_cli_authorization_missing_final_newline_is_rejected(
+    tmp_path: Path, monkeypatch, capsys
+):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES[:-1])
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert called == []
+
+
+def test_cli_authorization_crlf_is_rejected(tmp_path: Path, monkeypatch, capsys):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES.replace(b"\n", b"\r\n"))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert called == []
+
+
+def test_cli_authorization_extra_space_or_line_is_rejected(
+    tmp_path: Path, monkeypatch, capsys
+):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    for data in (STAGE1_AUTH_BYTES + b" ", STAGE1_AUTH_BYTES + b"extra\n"):
+        _install_auth(cli, monkeypatch, tmp_path, data)
+        assert main() == 2
+        assert called == []
+    assert json.loads(capsys.readouterr().out.splitlines()[-1])["status"] == (
+        "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    )
+
+
+def test_cli_authorization_symlink_is_rejected(tmp_path: Path, monkeypatch, capsys):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES, kind="symlink")
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert called == []
+
+
+def test_cli_authorization_directory_is_rejected(tmp_path: Path, monkeypatch, capsys):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES, kind="dir")
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "STAGE1_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert called == []
+
+
+def test_cli_exact_authorization_digest_and_synthetic_census_once(
+    tmp_path: Path, monkeypatch
+):
+    cli = _cli_module()
+    assert len(STAGE1_AUTH_BYTES) == 287
+    assert hashlib.sha256(STAGE1_AUTH_BYTES).hexdigest() == STAGE1_AUTH_SHA256
+    assert cli.require_stage1_authorization.__name__ == "require_stage1_authorization"
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES)
+    assert cli.require_stage1_authorization() == STAGE1_AUTH_SHA256
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 0
+    assert len(called) == 1
+    assert called[0]["subject_processor"] is cli.process_stage1_subject
+    assert called[0]["output_root"] == _repo_root() / (
+        "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    )
+    assert called[0]["staging_root"] == _repo_root() / (
+        "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2.staging"
+    )
+    assert (
+        _repo_root()
+        / "data/p3_v3/phase3/prospective-multiproject-applicability-stage1-v2"
+    ).exists() is False
+
+
+def test_cli_extra_args_fail_even_with_exact_authorization(
+    tmp_path: Path, monkeypatch, capsys
+):
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    _install_auth(cli, monkeypatch, tmp_path, STAGE1_AUTH_BYTES)
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py", "--resume"])
+    assert main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "PREFLIGHT_FAIL"
+    assert payload["official_terminal_written"] is False
+    assert called == []
+
+
+def test_cli_env_and_stdin_cannot_bypass_missing_authorization(
+    monkeypatch, capsys
+):
+    import io
+
+    cli = _cli_module()
+    called = []
+    monkeypatch.setattr(cli, "run_stage1_census", lambda **kwargs: called.append(kwargs))
+    monkeypatch.setenv("OFFICIAL_RUN_AUTHORIZED", "true")
+    monkeypatch.setenv("STAGE1_AUTHORIZATION_SHA256", STAGE1_AUTH_SHA256)
+    monkeypatch.setattr(sys, "stdin", io.BytesIO(STAGE1_AUTH_BYTES))
+    monkeypatch.setattr(sys, "argv", ["run_stage1.py"])
+    assert main() == 2
+    assert json.loads(capsys.readouterr().out) == _unauthorized_payload()
+    assert called == []
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).exists() is False
+
+
+def test_controller_sha_and_official_authorization_file_remain_frozen():
+    from p3_v3.artifacts import file_sha256
+
+    assert file_sha256(
+        _repo_root() / "src/p3_v3/prospective_applicability_census_stage1.py"
+    ) == FROZEN_CONTROLLER_SHA256
+    assert (_repo_root() / STAGE1_AUTH_RELPATH).exists() is False
 
 
 def test_stage1_constants_match_frozen_design_identities():

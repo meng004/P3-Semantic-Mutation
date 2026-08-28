@@ -640,10 +640,15 @@ def test_main_zero_args_is_preflight_only_and_does_not_write_official_terminal(
 
 
 from p3_v3.prospective_multiproject import (
+    FAILURE_TERMINALS,
+    FUNNEL_TERMINALS,
+    PRODUCTION_PROCESSOR_STAGES,
     VERIFIED_BRIDGE_RELPATH,
     bind_production_project_identity,
     load_frozen_bridge_identity_records,
+    process_production_subject,
     production_project_binder,
+    production_subject_processor,
 )
 
 _FORBIDDEN_PROJECT_KEY_FIELDS = frozenset({
@@ -742,3 +747,74 @@ def test_production_binder_does_not_use_forbidden_identity_fields_as_project_key
     with pytest.raises(EvidenceError) as excinfo:
         bind_production_project_identity(successors[0], repo_root=root)
     assert inventory_repo not in str(excinfo.value) or excinfo.value.code != inventory_repo
+
+
+def test_production_processor_stages_and_selector_rejection():
+    assert PRODUCTION_PROCESSOR_STAGES == (
+        "frozen_subject_identity",
+        "source_identity_recovery",
+        "authority_bound_applicability_closure",
+        "source_authorized_contract_freeze",
+        "canonical_paired_constructions",
+        "controlled_paired_execution",
+        "exact_overlap",
+        "subject_terminal",
+        "project_stopping_rule_reduction",
+    )
+    root = _repo_root_from_test_file()
+    first = load_frozen_successors()[0]
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, skip=True)
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, retry=True)
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, resume=True)
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, order=(9, 10))
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, pair_count=4)
+    with pytest.raises(TypeError):
+        process_production_subject(first, repo_root=root, site="x")
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        process_production_subject(_ordinal8_successor(), repo_root=root)
+    assert MAX_PAIRS_PER_SUBJECT == 4
+    assert FUNNEL_TERMINALS.isdisjoint(FAILURE_TERMINALS)
+    assert SubjectTerminal.ALL_SLOTS_NOT_APPLICABLE in FUNNEL_TERMINALS
+    assert SubjectTerminal.SITE_ELIGIBLE_NO_AUTHORIZED_CONTRACT in FUNNEL_TERMINALS
+    assert SubjectTerminal.PAIR_CONSTRUCTION_UNAVAILABLE in FUNNEL_TERMINALS
+    assert SubjectTerminal.INFRASTRUCTURE_FAILURE in FAILURE_TERMINALS
+    assert SubjectTerminal.IDENTITY_CONFLICT in FAILURE_TERMINALS
+
+
+def test_production_processor_does_not_open_ordinal_9_or_call_forbidden_seams(monkeypatch):
+    root = _repo_root_from_test_file()
+    opened: list[str] = []
+    called: list[str] = []
+    real_open = open
+
+    def guarded_open(path, *args, **kwargs):
+        text = str(path)
+        if "public-behavior-frame-" in text or ".pbf" in text.lower():
+            opened.append(text)
+        return real_open(path, *args, **kwargs)
+
+    def forbidden(*args, **kwargs):
+        called.append("forbidden")
+        raise AssertionError("forbidden production seam was called")
+
+    monkeypatch.setattr("builtins.open", guarded_open)
+    monkeypatch.setattr(
+        "p3_v3.applicability_predicates.close_slot_with_authority", forbidden, raising=False
+    )
+    monkeypatch.setattr("p3_v3.pilot_source.run_restore_production_source", forbidden, raising=False)
+    monkeypatch.setattr("p3_v3.contract_authority.build_ordinal8_contracts", forbidden, raising=False)
+    monkeypatch.setattr("p3_v3.contract_authority.freeze_ordinal8_package", forbidden, raising=False)
+    processor = production_subject_processor(repo_root=root)
+    first = load_frozen_successors()[0]
+    assert first.successor_ordinal == 9
+    with pytest.raises(EvidenceError) as excinfo:
+        processor(first)
+    assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    assert opened == []
+    assert called == []
+    assert first.successor_ordinal == 9

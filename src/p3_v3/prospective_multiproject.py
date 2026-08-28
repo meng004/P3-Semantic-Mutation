@@ -279,6 +279,47 @@ def production_project_binder(repo_root: Path | None = None) -> ProjectIdentityB
     return bind
 
 
+PRODUCTION_PROCESSOR_STAGES = (
+    "frozen_subject_identity",
+    "source_identity_recovery",
+    "authority_bound_applicability_closure",
+    "source_authorized_contract_freeze",
+    "canonical_paired_constructions",
+    "controlled_paired_execution",
+    "exact_overlap",
+    "subject_terminal",
+    "project_stopping_rule_reduction",
+)
+
+
+def process_production_subject(
+    successor: SuccessorIdentity,
+    *,
+    repo_root: Path,
+) -> SubjectPipelineResult:
+    locked = _require_production_successor(successor)
+    records = load_frozen_bridge_identity_records(repo_root)
+    matches = [
+        row for row in records if row.get("neutral_snapshot_id") == locked.neutral_snapshot_id
+    ]
+    if len(matches) != 1:
+        raise EvidenceError("IDENTITY_CONFLICT", "frozen identity does not uniquely match successor")
+    bind_production_project_identity(locked, repo_root=repo_root)
+    raise EvidenceError(
+        "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED",
+        "later processor stages are not authorized without originating repository identity",
+    )
+
+
+def production_subject_processor(repo_root: Path | None = None) -> SubjectProcessor:
+    root = Path(__file__).resolve().parents[2] if repo_root is None else Path(repo_root)
+
+    def process(successor: SuccessorIdentity) -> SubjectPipelineResult:
+        return process_production_subject(successor, repo_root=root)
+
+    return process
+
+
 def _require_frozen_successors(
     successors: Sequence[SuccessorIdentity],
 ) -> tuple[SuccessorIdentity, ...]:

@@ -149,10 +149,12 @@ _BUILD_RECEIPT_SCHEMA = {
     "allow_noblas": bool,
     "build_dir": str,
     "command": list,
+    "meson_executable": str,
     "prefix": str,
     "returncode": int,
     "source_copy": str,
     "status": str,
+    "vendored_meson_present": bool,
     "venv_python": str,
 }
 _PROBE_SCHEMA = {
@@ -213,6 +215,20 @@ def sanitize_build_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
         env.pop(key, None)
     env["GIT_DIR"] = os.devnull
     return env
+
+
+def isolated_build_env(venv_dir: str | Path) -> dict[str, str]:
+    env = sanitize_build_env()
+    prefix = Path(venv_dir)
+    meson = prefix / "bin" / "meson"
+    ninja = prefix / "bin" / "ninja"
+    env["MESON"] = str(meson)
+    env["NINJA"] = str(ninja)
+    return env
+
+
+def vendored_meson_path(source_root: str | Path) -> Path:
+    return Path(source_root) / "vendored-meson" / "meson" / "meson.py"
 
 
 def _verify_preserved_commit(repo_root: Path) -> str:
@@ -394,14 +410,33 @@ def build_isolated_runtime(
     source_copy = runtime / "source"
     build_dir = runtime / "meson-build"
     venv_dir = runtime / "venv"
+    meson_exe = venv_dir / "bin" / "meson"
+    vendored = vendored_meson_path(source_src).is_file()
     if source_copy.exists():
         raise EvidenceError("E_RUNTIME_BUILD", "source copy already exists")
     shutil.copytree(source_src, source_copy, symlinks=False)
     copied_linalg = source_copy / SOURCE_RELATIVE
     if file_sha256(copied_linalg) != SOURCE_FILE_SHA256:
         raise EvidenceError("E_SOURCE_IDENTITY", "copied linalg.py SHA-256 differs")
+    if file_sha256(source_src / SOURCE_RELATIVE) != SOURCE_FILE_SHA256:
+        raise EvidenceError("E_SOURCE_IDENTITY", "extracted linalg.py SHA-256 differs")
     env = sanitize_build_env()
     venv_python = venv_dir / "bin" / "python"
+
+    def _receipt(command: list[str], returncode: int, status: str) -> dict[str, Any]:
+        return {
+            "allow_noblas": True,
+            "build_dir": str(build_dir),
+            "command": command,
+            "meson_executable": str(meson_exe),
+            "prefix": str(venv_dir),
+            "returncode": int(returncode),
+            "source_copy": str(source_copy),
+            "status": status,
+            "vendored_meson_present": vendored,
+            "venv_python": str(venv_python),
+        }
+
     create = _run_checked(
         [sys.executable, "-m", "venv", str(venv_dir)],
         cwd=runtime,
@@ -410,16 +445,11 @@ def build_isolated_runtime(
         log_path=runtime / "venv-create.log",
     )
     if create.returncode != 0 or not venv_python.is_file():
-        return {
-            "allow_noblas": True,
-            "build_dir": str(build_dir),
-            "command": [sys.executable, "-m", "venv", str(venv_dir)],
-            "prefix": str(venv_dir),
-            "returncode": int(create.returncode),
-            "source_copy": str(source_copy),
-            "status": "FAIL_INFRASTRUCTURE",
-            "venv_python": str(venv_python),
-        }
+        return _receipt(
+            [sys.executable, "-m", "venv", str(venv_dir)],
+            create.returncode,
+            "FAIL_INFRASTRUCTURE",
+        )
     bootstrap = [
         str(venv_python),
         "-m",
@@ -440,16 +470,12 @@ def build_isolated_runtime(
         log_path=runtime / "pip-build-deps.log",
     )
     if deps.returncode != 0:
-        return {
-            "allow_noblas": True,
-            "build_dir": str(build_dir),
-            "command": bootstrap,
-            "prefix": str(venv_dir),
-            "returncode": int(deps.returncode),
-            "source_copy": str(source_copy),
-            "status": "FAIL_INFRASTRUCTURE",
-            "venv_python": str(venv_python),
-        }
+        return _receipt(bootstrap, deps.returncode, "FAIL_INFRASTRUCTURE")
+    if not meson_exe.is_file():
+        return _receipt(bootstrap, 1, "FAIL_INFRASTRUCTURE")
+    install_env = isolated_build_env(venv_dir)
+    if vendored_meson_path(source_copy).is_file():
+        install_env.pop("MESON", None)
     install = [
         str(venv_python),
         "-m",
@@ -464,20 +490,15 @@ def build_isolated_runtime(
     built = _run_checked(
         install,
         cwd=runtime,
-        env=env,
+        env=install_env,
         timeout=BUILD_TIMEOUT_SEC,
         log_path=runtime / "pip-install-numpy.log",
     )
-    return {
-        "allow_noblas": True,
-        "build_dir": str(build_dir),
-        "command": install,
-        "prefix": str(venv_dir),
-        "returncode": int(built.returncode),
-        "source_copy": str(source_copy),
-        "status": "PASS" if built.returncode == 0 else "FAIL_INFRASTRUCTURE",
-        "venv_python": str(venv_python),
-    }
+    return _receipt(
+        install,
+        built.returncode,
+        "PASS" if built.returncode == 0 else "FAIL_INFRASTRUCTURE",
+    )
 
 
 def probe_interpreter(

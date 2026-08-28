@@ -45,6 +45,7 @@ from p3_v3.ordinal8_controlled_numpy_runtime import (
     bind_frozen_identities,
     descriptor_path,
     extracted_source_root,
+    isolated_build_env,
     interpret_qualification,
     main,
     prepare_qualification_roots,
@@ -52,6 +53,7 @@ from p3_v3.ordinal8_controlled_numpy_runtime import (
     run_qualification_once,
     sanitize_build_env,
     unchanged_selection,
+    vendored_meson_path,
 )
 
 
@@ -232,10 +234,12 @@ def test_interpret_accepts_controlled_array_api(tmp_path):
             "allow_noblas": True,
             "build_dir": str(runtime / "meson-build"),
             "command": ["pip"],
+            "meson_executable": str(runtime / "venv/bin/meson"),
             "prefix": str(runtime / "venv"),
             "returncode": 0,
             "source_copy": str(runtime / "source"),
             "status": "PASS",
+            "vendored_meson_present": False,
             "venv_python": str(runtime / "venv/bin/python"),
         },
         controlled=_probe(
@@ -267,10 +271,12 @@ def test_interpret_rejects_ambient_path_or_version(tmp_path):
             "allow_noblas": True,
             "build_dir": "x",
             "command": ["pip"],
+            "meson_executable": "x/bin/meson",
             "prefix": "x",
             "returncode": 0,
             "source_copy": "x",
             "status": "PASS",
+            "vendored_meson_present": False,
             "venv_python": "x",
         },
         controlled=_probe(
@@ -308,10 +314,12 @@ def test_stubbed_qualification_is_not_paired_evidence(tmp_path):
             "allow_noblas": True,
             "build_dir": str(root / "meson-build"),
             "command": ["stub-build"],
+            "meson_executable": str(root / "venv/bin/meson"),
             "prefix": str(root / "venv"),
             "returncode": 0,
             "source_copy": str(root / "source"),
             "status": "PASS",
+            "vendored_meson_present": False,
             "venv_python": str(root / "venv/bin/python"),
         }
 
@@ -380,3 +388,12 @@ def test_sanitize_build_env_drops_git_identity():
     assert env["PATH"] == "/bin"
     assert env["GIT_DIR"] == os.devnull
     assert "GIT_WORK_TREE" not in env
+
+
+def test_isolated_meson_overrides_missing_vendored_meson():
+    source = extracted_source_root(REPO_ROOT)
+    assert not vendored_meson_path(source).is_file()
+    env = isolated_build_env(Path("/tmp/isolated-prefix"))
+    assert env["MESON"] == "/tmp/isolated-prefix/bin/meson"
+    assert env["NINJA"] == "/tmp/isolated-prefix/bin/ninja"
+    assert env["GIT_DIR"] == os.devnull

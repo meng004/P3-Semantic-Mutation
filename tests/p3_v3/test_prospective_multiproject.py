@@ -637,3 +637,108 @@ def test_main_zero_args_is_preflight_only_and_does_not_write_official_terminal(
     assert payload["status"] == "MULTIPROJECT_OFFICIAL_RUN_NOT_AUTHORIZED"
     assert payload["official_terminal_written"] is False
     assert official.exists() is False
+
+
+from p3_v3.prospective_multiproject import (
+    VERIFIED_BRIDGE_RELPATH,
+    bind_production_project_identity,
+    load_frozen_bridge_identity_records,
+    production_project_binder,
+)
+
+_FORBIDDEN_PROJECT_KEY_FIELDS = frozenset({
+    "neutral_snapshot_id",
+    "controlled_subject_id",
+    "source_archive_sha256",
+    "build_descriptor_sha256",
+    "ecosystem",
+    "language_family",
+    "p12_repository_identity",
+})
+
+
+def _ordinal8_successor() -> SuccessorIdentity:
+    return SuccessorIdentity(
+        successor_ordinal=8,
+        neutral_snapshot_id="4e7e9556b3d621681c88c82f26cd95f5604d7a8b85cc56bf7e6d4db5a274f38b",
+        controlled_subject_source_id="667f66bbdb3b392af99b044181dcfa861040546fc5550906e30fca2f9aabb5d0",
+        controlled_subject_id="0fefefc546f7c4519d036849a85279cc7d3aa00fe88d6ed5e259209769b5bb48",
+    )
+
+
+def test_frozen_35_subject_identity_uniquely_matches_successors_9_to_22():
+    root = _repo_root_from_test_file()
+    records = load_frozen_bridge_identity_records(root)
+    assert len(records) == 35
+    neutrals = [row["neutral_snapshot_id"] for row in records]
+    assert len(set(neutrals)) == 35
+    successors = load_frozen_successors()
+    assert [row.successor_ordinal for row in successors] == list(range(9, 23))
+    for successor in successors:
+        matches = [
+            row for row in records if row["neutral_snapshot_id"] == successor.neutral_snapshot_id
+        ]
+        assert len(matches) == 1
+        assert _FORBIDDEN_PROJECT_KEY_FIELDS.isdisjoint(
+            {
+                key
+                for key in matches[0]
+                if key in {
+                    "originating_repository_identity",
+                    "originating_p12_repository_identity",
+                    "originating_repository",
+                }
+            }
+        )
+        assert "originating_repository_identity" not in matches[0]
+        assert "originating_repository" not in matches[0]
+
+
+def test_production_binder_rejects_user_map_ordinal_8_and_does_not_invent_project_key():
+    root = _repo_root_from_test_file()
+    successors = load_frozen_successors()
+    first = successors[0]
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        bind_production_project_identity(
+            first,
+            repo_root=root,
+            project_map={first.successor_ordinal: "github.com/example/user-map"},
+        )
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        bind_production_project_identity(_ordinal8_successor(), repo_root=root)
+    binder = production_project_binder(repo_root=root)
+    seen = []
+    for successor in successors:
+        with pytest.raises(EvidenceError) as excinfo:
+            binder(successor)
+        seen.append(successor.successor_ordinal)
+        assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+        assert "originating" in str(excinfo.value).lower()
+    assert seen == list(range(9, 23))
+    assert 8 not in seen
+
+
+def test_production_binder_does_not_use_forbidden_identity_fields_as_project_key():
+    root = _repo_root_from_test_file()
+    records = load_frozen_bridge_identity_records(root)
+    successors = load_frozen_successors()
+    shared = {}
+    for successor in successors:
+        record = next(
+            row for row in records if row["neutral_snapshot_id"] == successor.neutral_snapshot_id
+        )
+        shared.setdefault(record["build_descriptor_sha256"], []).append(successor.successor_ordinal)
+    assert any(len(ordinals) > 1 for ordinals in shared.values())
+    binder = production_project_binder(repo_root=root)
+    keys = []
+    for successor in successors:
+        with pytest.raises(EvidenceError) as excinfo:
+            keys.append(binder(successor))
+        assert excinfo.value.code == "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED"
+    assert keys == []
+    bridge = json.loads((root / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
+    inventory_repo = bridge["p12_repository_identity"]
+    assert inventory_repo == "github.com/meng004/P12-Defect4MR"
+    with pytest.raises(EvidenceError) as excinfo:
+        bind_production_project_identity(successors[0], repo_root=root)
+    assert inventory_repo not in str(excinfo.value) or excinfo.value.code != inventory_repo

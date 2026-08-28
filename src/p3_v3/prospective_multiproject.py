@@ -44,6 +44,23 @@ HANDOFF_RELPATH = Path("data/p3_v3/phase3/ordinal8-paired-evidence-rq2-handoff.j
 OVERLAP_RELPATH = Path("data/p3_v3/phase3/ordinal8-exact-overlap-v1/exact-overlap.json")
 CONTROLLER_RELPATH = Path("src/p3_v3/prospective_multiproject.py")
 CLI_RELPATH = Path("scripts/p3_v3/run_prospective_multiproject_paired_slice.py")
+VERIFIED_BRIDGE_RELPATH = Path("data/p3_v3/p12_intake/verified_bridge.json")
+_ORIGINATING_REPOSITORY_FIELDS = (
+    "originating_repository_identity",
+    "originating_p12_repository_identity",
+    "originating_repository",
+    "p12_originating_repository_identity",
+)
+_FORBIDDEN_PROJECT_KEY_FIELDS = frozenset({
+    "neutral_snapshot_id",
+    "controlled_subject_id",
+    "controlled_subject_source_id",
+    "source_archive_sha256",
+    "build_descriptor_sha256",
+    "ecosystem",
+    "language_family",
+    "p12_repository_identity",
+})
 
 
 class SubjectTerminal(str, Enum):
@@ -184,6 +201,82 @@ def load_frozen_successors(
     if tuple(dict(row) for row in rows) != tuple(dict(row) for row in canonical):
         raise EvidenceError("IDENTITY_CONFLICT", "v2 successor rows were reordered or replaced")
     return _frozen_successor_identities(canonical)
+
+
+def load_frozen_bridge_identity_records(
+    repo_root: Path,
+) -> tuple[dict[str, object], ...]:
+    payload = json.loads((Path(repo_root) / VERIFIED_BRIDGE_RELPATH).read_text(encoding="utf-8"))
+    records = payload.get("records")
+    if not isinstance(records, list) or len(records) != 35:
+        raise EvidenceError("IDENTITY_CONFLICT", "verified bridge must contain 35 records")
+    seen: set[str] = set()
+    narrowed: list[dict[str, object]] = []
+    for index, raw in enumerate(records):
+        if not isinstance(raw, Mapping):
+            raise EvidenceError("IDENTITY_CONFLICT", f"bridge.records[{index}] must be an object")
+        neutral = validate_sha256(
+            raw.get("neutral_snapshot_id"),
+            f"records[{index}].neutral_snapshot_id",
+        )
+        if neutral in seen:
+            raise EvidenceError("IDENTITY_CONFLICT", "duplicate neutral_snapshot_id")
+        seen.add(neutral)
+        narrowed.append(dict(raw))
+    return tuple(narrowed)
+
+
+def _require_production_successor(successor: SuccessorIdentity) -> SuccessorIdentity:
+    if successor.successor_ordinal == 8:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal 8 must not enter the production binder")
+    for item in load_frozen_successors():
+        if item == successor:
+            return successor
+    raise EvidenceError("IDENTITY_CONFLICT", "successor is outside frozen ordinals 9-22")
+
+
+def bind_production_project_identity(
+    successor: SuccessorIdentity,
+    *,
+    repo_root: Path,
+    project_map: Mapping[object, object] | None = None,
+) -> str:
+    if project_map is not None:
+        raise EvidenceError("IDENTITY_CONFLICT", "user project map is forbidden")
+    locked = _require_production_successor(successor)
+    matches = [
+        row
+        for row in load_frozen_bridge_identity_records(repo_root)
+        if row.get("neutral_snapshot_id") == locked.neutral_snapshot_id
+    ]
+    if len(matches) != 1:
+        raise EvidenceError("IDENTITY_CONFLICT", "frozen identity does not uniquely match successor")
+    record = matches[0]
+    found: list[str] = []
+    for field in _ORIGINATING_REPOSITORY_FIELDS:
+        if field in _FORBIDDEN_PROJECT_KEY_FIELDS:
+            continue
+        value = record.get(field)
+        if isinstance(value, str) and value.strip():
+            found.append(value.strip())
+    unique = tuple(dict.fromkeys(found))
+    if len(unique) == 1:
+        return unique[0]
+    if len(unique) > 1:
+        raise EvidenceError("IDENTITY_CONFLICT", "originating repository fields conflict")
+    raise EvidenceError(
+        "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED",
+        "frozen 35-subject identity has no originating P12 repository identity",
+    )
+
+
+def production_project_binder(repo_root: Path | None = None) -> ProjectIdentityBinder:
+    root = Path(__file__).resolve().parents[2] if repo_root is None else Path(repo_root)
+
+    def bind(successor: SuccessorIdentity) -> str:
+        return bind_production_project_identity(successor, repo_root=root)
+
+    return bind
 
 
 def _require_frozen_successors(

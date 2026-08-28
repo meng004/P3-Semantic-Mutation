@@ -969,12 +969,12 @@ def test_atomic_existing_official_path_is_not_overwritten(tmp_path, monkeypatch)
 def test_main_rejects_help_and_extra_arguments():
     env = {
         **os.environ,
-        "PYTHONPATH": "/tmp/p3-c3-applicability-authority/src",
+        "PYTHONPATH": str(REPO_ROOT / "src"),
     }
     for extra in (["--help"], ["--output-root", "x"]):
         completed = subprocess.run(
             [sys.executable, str(CONTROLLER_PATH), *extra],
-            cwd="/tmp/p3-c3-applicability-authority",
+            cwd=str(REPO_ROOT),
             env=env,
             capture_output=True,
             check=False,

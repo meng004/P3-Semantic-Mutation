@@ -42,6 +42,8 @@ from p3_v3.ordinal8_controlled_numpy_runtime import (
     SYNTACTIC_OPERATOR_ID,
     SYNTACTIC_PATCH_SHA256,
     TASK_ID,
+    VENDORED_MESON_COMMIT,
+    VENDORED_MESON_URL,
     bind_frozen_identities,
     descriptor_path,
     extracted_source_root,
@@ -50,6 +52,7 @@ from p3_v3.ordinal8_controlled_numpy_runtime import (
     main,
     prepare_qualification_roots,
     preserved_output_path,
+    recover_vendored_meson,
     run_qualification_once,
     sanitize_build_env,
     unchanged_selection,
@@ -239,7 +242,9 @@ def test_interpret_accepts_controlled_array_api(tmp_path):
             "returncode": 0,
             "source_copy": str(runtime / "source"),
             "status": "PASS",
+            "vendored_meson_commit": None,
             "vendored_meson_present": False,
+            "vendored_meson_recovered": False,
             "venv_python": str(runtime / "venv/bin/python"),
         },
         controlled=_probe(
@@ -276,7 +281,9 @@ def test_interpret_rejects_ambient_path_or_version(tmp_path):
             "returncode": 0,
             "source_copy": "x",
             "status": "PASS",
+            "vendored_meson_commit": None,
             "vendored_meson_present": False,
+            "vendored_meson_recovered": False,
             "venv_python": "x",
         },
         controlled=_probe(
@@ -319,7 +326,9 @@ def test_stubbed_qualification_is_not_paired_evidence(tmp_path):
             "returncode": 0,
             "source_copy": str(root / "source"),
             "status": "PASS",
-            "vendored_meson_present": False,
+            "vendored_meson_commit": VENDORED_MESON_COMMIT,
+            "vendored_meson_present": True,
+            "vendored_meson_recovered": True,
             "venv_python": str(root / "venv/bin/python"),
         }
 
@@ -393,9 +402,37 @@ def test_sanitize_build_env_drops_git_identity():
 def test_isolated_meson_overrides_missing_vendored_meson():
     source = extracted_source_root(REPO_ROOT)
     assert not vendored_meson_path(source).is_file()
+    gitmodules = (source / ".gitmodules").read_text(encoding="utf-8")
+    assert VENDORED_MESON_URL in gitmodules
     env = isolated_build_env(Path("/tmp/isolated-prefix"))
     assert env["MESON"] == "/tmp/isolated-prefix/bin/meson"
     assert env["NINJA"] == "/tmp/isolated-prefix/bin/ninja"
     assert env["CYTHON"] == "/tmp/isolated-prefix/bin/cython"
     assert env["PATH"].startswith("/tmp/isolated-prefix/bin" + os.pathsep)
     assert env["GIT_DIR"] == os.devnull
+
+
+def test_recover_vendored_meson_checkouts_frozen_pin(tmp_path):
+    source_copy = tmp_path / "source"
+    source_copy.mkdir()
+    calls: list[list[str]] = []
+
+    def runner(command, **_kwargs):
+        calls.append(list(command))
+        dest = source_copy / "vendored-meson" / "meson"
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "meson.py").write_text("print('meson')\n", encoding="utf-8")
+        features = dest / "mesonbuild" / "modules" / "features"
+        features.mkdir(parents=True, exist_ok=True)
+        (features / "__init__.py").write_text("", encoding="utf-8")
+        completed = type("R", (), {})()
+        completed.returncode = 0
+        completed.stdout = ""
+        completed.stderr = ""
+        return completed
+
+    recovered = recover_vendored_meson(source_copy, runner=runner)
+    assert recovered["recovered"] is True
+    assert recovered["commit"] == VENDORED_MESON_COMMIT
+    assert any(VENDORED_MESON_COMMIT in command for command in calls)
+    assert vendored_meson_path(source_copy).is_file()

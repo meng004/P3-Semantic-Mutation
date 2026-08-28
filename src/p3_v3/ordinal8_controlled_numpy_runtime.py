@@ -67,6 +67,9 @@ NORMALIZED_SOURCE_TREE_SHA256 = (
 )
 ADAPTER_ID = "MESON_TEST_V1"
 EXPECTED_NUMPY_VERSION = "2.0.0.dev0"
+VENDORED_MESON_URL = "https://github.com/numpy/meson.git"
+VENDORED_MESON_COMMIT = "4e370ca8ab73c07f7b84abe8a4b937caace050a4"
+NUMPY_IDENTITY_COMMIT = "61f97f07b73f64c0dce92cb8158739d6d92ceb82"
 CONTRACT_ID = "449bc0e7eba8f2947047d72817b36ebd966aa4759bc0ae25a570907414c035ae"
 SEMANTIC_PATCH_SHA256 = (
     "9f0bfbb4d14bb944bf13cfdb97e135590f71208b62eabeb8b3d78937f6cfcda6"
@@ -154,7 +157,9 @@ _BUILD_RECEIPT_SCHEMA = {
     "returncode": int,
     "source_copy": str,
     "status": str,
+    "vendored_meson_commit": (str, type(None)),
     "vendored_meson_present": bool,
+    "vendored_meson_recovered": bool,
     "venv_python": str,
 }
 _PROBE_SCHEMA = {
@@ -235,6 +240,93 @@ def vendored_meson_path(source_root: str | Path) -> Path:
     return Path(source_root) / "vendored-meson" / "meson" / "meson.py"
 
 
+def recover_vendored_meson(
+    source_copy: str | Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+) -> dict[str, Any]:
+    dest = Path(source_copy) / "vendored-meson" / "meson"
+    meson_py = dest / "meson.py"
+    if meson_py.is_file():
+        return {
+            "commit": None,
+            "destination": str(dest),
+            "present": True,
+            "recovered": False,
+        }
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        raise EvidenceError("E_VENDORED_MESON", "incomplete vendored-meson directory")
+    run = runner if runner is not None else subprocess.run
+    clone = run(
+        [
+            "git",
+            "clone",
+            "--filter=blob:none",
+            "--no-checkout",
+            VENDORED_MESON_URL,
+            str(dest),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if clone.returncode != 0:
+        raise EvidenceError(
+            "E_VENDORED_MESON",
+            f"git clone of vendored meson failed: {clone.stderr or clone.stdout}",
+        )
+    fetch = run(
+        [
+            "git",
+            "-C",
+            str(dest),
+            "fetch",
+            "--depth",
+            "1",
+            "origin",
+            VENDORED_MESON_COMMIT,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if fetch.returncode != 0:
+        raise EvidenceError(
+            "E_VENDORED_MESON",
+            f"git fetch of vendored meson failed: {fetch.stderr or fetch.stdout}",
+        )
+    checkout = run(
+        [
+            "git",
+            "-C",
+            str(dest),
+            "checkout",
+            "--detach",
+            VENDORED_MESON_COMMIT,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if checkout.returncode != 0 or not meson_py.is_file():
+        raise EvidenceError(
+            "E_VENDORED_MESON",
+            "vendored meson checkout did not produce meson.py",
+        )
+    if not (dest / "mesonbuild" / "modules" / "features" / "__init__.py").is_file():
+        raise EvidenceError("E_VENDORED_MESON", "features module is absent")
+    return {
+        "commit": VENDORED_MESON_COMMIT,
+        "destination": str(dest),
+        "present": True,
+        "recovered": True,
+    }
+
+
 def _verify_preserved_commit(repo_root: Path) -> str:
     result = subprocess.run(
         [
@@ -287,6 +379,9 @@ def bind_frozen_identities(repo_root: str | Path) -> dict[str, Any]:
         raise EvidenceError("E_SOURCE_IDENTITY", "pyproject identity differs")
     if "mesonpy" not in pyproject:
         raise EvidenceError("E_BUILD_DESCRIPTOR", "mesonpy backend is absent")
+    gitmodules = (source_root / ".gitmodules").read_text(encoding="utf-8")
+    if VENDORED_MESON_URL not in gitmodules:
+        raise EvidenceError("E_VENDORED_MESON", "frozen .gitmodules URL differs")
     preserved = preserved_output_path(root)
     if not preserved.is_file():
         raise EvidenceError("E_PRESERVED_OUTPUT", "preserved paired-evidence.json is absent")
@@ -415,7 +510,7 @@ def build_isolated_runtime(
     build_dir = runtime / "meson-build"
     venv_dir = runtime / "venv"
     meson_exe = venv_dir / "bin" / "meson"
-    vendored = vendored_meson_path(source_src).is_file()
+    vendored_in_snapshot = vendored_meson_path(source_src).is_file()
     if source_copy.exists():
         raise EvidenceError("E_RUNTIME_BUILD", "source copy already exists")
     shutil.copytree(source_src, source_copy, symlinks=False)
@@ -424,6 +519,22 @@ def build_isolated_runtime(
         raise EvidenceError("E_SOURCE_IDENTITY", "copied linalg.py SHA-256 differs")
     if file_sha256(source_src / SOURCE_RELATIVE) != SOURCE_FILE_SHA256:
         raise EvidenceError("E_SOURCE_IDENTITY", "extracted linalg.py SHA-256 differs")
+    try:
+        recovered = recover_vendored_meson(source_copy)
+    except EvidenceError as exc:
+        recovered = {
+            "commit": None,
+            "destination": str(source_copy / "vendored-meson" / "meson"),
+            "error": str(exc),
+            "present": False,
+            "recovered": False,
+        }
+    vendored = bool(recovered["present"])
+    meson_for_build = (
+        str(vendored_meson_path(source_copy))
+        if vendored
+        else str(meson_exe)
+    )
     env = sanitize_build_env()
     venv_python = venv_dir / "bin" / "python"
 
@@ -432,14 +543,23 @@ def build_isolated_runtime(
             "allow_noblas": True,
             "build_dir": str(build_dir),
             "command": command,
-            "meson_executable": str(meson_exe),
+            "meson_executable": meson_for_build,
             "prefix": str(venv_dir),
             "returncode": int(returncode),
             "source_copy": str(source_copy),
             "status": status,
-            "vendored_meson_present": vendored,
+            "vendored_meson_commit": recovered.get("commit"),
+            "vendored_meson_present": vendored or vendored_in_snapshot,
+            "vendored_meson_recovered": bool(recovered.get("recovered")),
             "venv_python": str(venv_python),
         }
+
+    if not recovered.get("present"):
+        return _receipt(
+            ["git", "clone", VENDORED_MESON_URL],
+            1,
+            "FAIL_INFRASTRUCTURE",
+        )
 
     create = _run_checked(
         [sys.executable, "-m", "venv", str(venv_dir)],

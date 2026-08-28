@@ -66,7 +66,7 @@ This recovery does not re-select, rewrite, or execute the frozen slice. The foll
 
 The isolated build must consume that descriptor and the extracted snapshot. It must not install NumPy from PyPI as a substitute for the frozen tree. Build work happens on a copy under the new runtime root so the extracted snapshot stays bit-identical. Git environment variables from this repository must not leak into `gitversion.py`.
 
-The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`, but that path is absent from the admitted extracted tree. The recovery therefore installs `meson>=1.2.99` into the isolated prefix and, when the vendored file is absent, sets `MESON` so meson-python uses that isolated executable. This does not rewrite the extracted snapshot.
+The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`, but that path is absent from the admitted extracted tree. The recovery therefore installs `meson>=1.2.99` and Cython into the isolated prefix and, when the vendored file is absent, sets `MESON`, `NINJA`, `CYTHON`, and prefix `PATH` so meson-python and Meson see those isolated executables. This does not rewrite the extracted snapshot.
 
 `allow-noblas=true` is the frozen Meson default in this snapshot. The recovery may pass that option explicitly. It may not change other Meson options to chase a faster or more convenient binary.
 

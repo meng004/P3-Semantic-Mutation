@@ -396,4 +396,6 @@ def test_isolated_meson_overrides_missing_vendored_meson():
     env = isolated_build_env(Path("/tmp/isolated-prefix"))
     assert env["MESON"] == "/tmp/isolated-prefix/bin/meson"
     assert env["NINJA"] == "/tmp/isolated-prefix/bin/ninja"
+    assert env["CYTHON"] == "/tmp/isolated-prefix/bin/cython"
+    assert env["PATH"].startswith("/tmp/isolated-prefix/bin" + os.pathsep)
     assert env["GIT_DIR"] == os.devnull

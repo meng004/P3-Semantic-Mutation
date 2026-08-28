@@ -220,10 +220,14 @@ def sanitize_build_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
 def isolated_build_env(venv_dir: str | Path) -> dict[str, str]:
     env = sanitize_build_env()
     prefix = Path(venv_dir)
-    meson = prefix / "bin" / "meson"
-    ninja = prefix / "bin" / "ninja"
+    bindir = prefix / "bin"
+    meson = bindir / "meson"
+    ninja = bindir / "ninja"
+    cython = bindir / "cython"
     env["MESON"] = str(meson)
     env["NINJA"] = str(ninja)
+    env["CYTHON"] = str(cython)
+    env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
     return env
 
 

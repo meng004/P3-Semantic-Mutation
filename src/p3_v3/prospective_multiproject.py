@@ -376,18 +376,16 @@ def process_production_subject(
     successor: SuccessorIdentity,
     *,
     repo_root: Path,
+    _seams=None,
+    _stage_trace=None,
 ) -> SubjectPipelineResult:
-    locked = _require_production_successor(successor)
-    records = load_frozen_bridge_identity_records(repo_root)
-    matches = [
-        row for row in records if row.get("neutral_snapshot_id") == locked.neutral_snapshot_id
-    ]
-    if len(matches) != 1:
-        raise EvidenceError("IDENTITY_CONFLICT", "frozen identity does not uniquely match successor")
-    bind_production_project_identity(locked, repo_root=repo_root)
-    raise EvidenceError(
-        "SLICE_B_PROCESSOR_AUTHORITY_REQUIRED",
-        "later processor stages are not authorized without originating repository identity",
+    from p3_v3.multiproject_production_processor import run_production_subject_pipeline
+
+    return run_production_subject_pipeline(
+        successor,
+        repo_root=repo_root,
+        seams=_seams,
+        stage_trace=_stage_trace,
     )
 
 

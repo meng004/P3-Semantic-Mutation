@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import subprocess
 from collections.abc import Mapping
 
 import pytest
@@ -637,6 +639,67 @@ def test_main_zero_args_is_preflight_only_and_does_not_write_official_terminal(
     assert payload["status"] == "MULTIPROJECT_OFFICIAL_RUN_NOT_AUTHORIZED"
     assert payload["official_terminal_written"] is False
     assert official.exists() is False
+
+
+def test_cli_constructs_unique_production_seams_without_opening_ordinal_9(monkeypatch, capsys):
+    import scripts.p3_v3.run_prospective_multiproject_paired_slice as cli
+
+    constructed: list[str] = []
+    opened_ordinals: list[object] = []
+
+    def fake_binder(repo_root=None):
+        constructed.append("binder")
+
+        def bind(successor):
+            opened_ordinals.append(successor.successor_ordinal)
+            raise AssertionError("production binder invoked")
+
+        return bind
+
+    def fake_processor(repo_root=None):
+        constructed.append("processor")
+
+        def process(successor):
+            opened_ordinals.append(successor.successor_ordinal)
+            raise AssertionError("production processor invoked")
+
+        return process
+
+    monkeypatch.setattr(cli, "production_project_binder", fake_binder)
+    monkeypatch.setattr(cli, "production_subject_processor", fake_processor)
+    monkeypatch.setattr(
+        cli,
+        "run_multiproject_search",
+        lambda **kwargs: opened_ordinals.append("search"),
+    )
+    monkeypatch.setattr(sys, "argv", ["run_prospective_multiproject_paired_slice.py"])
+    assert main() == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "MULTIPROJECT_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert payload["official_terminal_written"] is False
+    assert constructed == ["binder", "processor"]
+    assert opened_ordinals == []
+    assert OFFICIAL_RUN_AUTHORIZED is False
+    assert not (_repo_root_from_test_file() / OFFICIAL_RELDIR).exists()
+    assert not (_repo_root_from_test_file() / STAGING_RELDIR).exists()
+
+
+def test_direct_cli_process_returns_unauthorized_before_ordinal_9():
+    root = _repo_root_from_test_file()
+    completed = subprocess.run(
+        [sys.executable, str(root / "scripts/p3_v3/run_prospective_multiproject_paired_slice.py")],
+        cwd=str(root),
+        env={**os.environ, "PYTHONPATH": str(root / "src")},
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 2
+    payload = json.loads(completed.stdout.decode("utf-8"))
+    assert payload["status"] == "MULTIPROJECT_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert payload["official_terminal_written"] is False
+    combined = (completed.stdout + completed.stderr).decode("utf-8")
+    assert "ModuleNotFoundError" not in combined
+    assert "public-behavior-frame-" not in combined
 
 
 from p3_v3.prospective_multiproject import (

@@ -515,14 +515,60 @@ def validate_cohort_terminal(
             raise EvidenceError("IDENTITY_CONFLICT", "attempted subject order or identity mismatch")
     if payload["controller_source_sha256"] != controller_source_sha256:
         raise EvidenceError("IDENTITY_CONFLICT", "controller SHA mismatch")
+    if payload["schema_version"] != TERMINAL_SCHEMA_VERSION:
+        raise EvidenceError("IDENTITY_CONFLICT", "schema_version mismatch")
+    if payload["slice_id"] != SLICE_ID:
+        raise EvidenceError("IDENTITY_CONFLICT", "slice_id mismatch")
     if payload["design_commit"] != DESIGN_COMMIT:
         raise EvidenceError("IDENTITY_CONFLICT", "DESIGN_COMMIT mismatch")
+    if payload["design_file_sha256"] != DESIGN_FILE_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "design file SHA mismatch")
+    if payload["authority_artifact_sha256"] != AUTHORITY_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "authority artifact SHA mismatch")
+    if payload["ordinal8_handoff_artifact_sha256"] != ORDINAL8_HANDOFF_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 handoff artifact SHA mismatch")
+    if payload["ordinal8_overlap_artifact_sha256"] != ORDINAL8_OVERLAP_ARTIFACT_SHA256:
+        raise EvidenceError("IDENTITY_CONFLICT", "ordinal-8 overlap artifact SHA mismatch")
     if payload["ordinal8_retained"] != _ordinal8_retained_object(ordinal8):
         raise EvidenceError("IDENTITY_CONFLICT", "ordinal8 retained observation mismatch")
+    implied_status, implied_keys = _implied_scientific_status(attempted, ordinal8)
+    if payload["terminal_status"] != implied_status:
+        raise EvidenceError("IDENTITY_CONFLICT", "terminal_status does not match stop rule")
+    if payload["completed_new_project_keys"] != implied_keys:
+        raise EvidenceError("IDENTITY_CONFLICT", "completed_new_project_keys do not match stop rule")
     body = {key: value for key, value in payload.items() if key != "artifact_sha256"}
     if payload["artifact_sha256"] != canonical_sha256(body):
         raise EvidenceError("IDENTITY_CONFLICT", "terminal self-hash mismatch")
     return payload
+
+
+def _implied_scientific_status(
+    attempted: Sequence[Mapping[str, object]],
+    ordinal8: Ordinal8RetainedObservation,
+) -> tuple[str, list[str]]:
+    completed: list[str] = []
+    for index, row in enumerate(attempted):
+        terminal = row["subject_terminal"]
+        if terminal in {item.value for item in FAILURE_TERMINALS}:
+            raise EvidenceError("IDENTITY_CONFLICT", "scientific terminal contains a failure subject")
+        if terminal == SubjectTerminal.PAIRED_EVIDENCE_COMPLETE.value:
+            pair_count = int(row["pair_count"])
+            if pair_count < 1 or pair_count > MAX_PAIRS_PER_SUBJECT:
+                raise EvidenceError("IDENTITY_CONFLICT", "complete pair budget mismatch")
+            key = str(row["project_cluster_key"])
+            if key != ordinal8.project_cluster_key and key not in completed:
+                completed.append(key)
+            if len(completed) >= 2:
+                if index != len(attempted) - 1:
+                    raise EvidenceError("IDENTITY_CONFLICT", "subjects continue after two-project stop")
+                return CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND.value, completed
+        elif terminal not in {item.value for item in FUNNEL_TERMINALS}:
+            raise EvidenceError("IDENTITY_CONFLICT", f"unknown subject terminal {terminal}")
+    if [row["successor_ordinal"] for row in attempted] != list(
+        range(FIRST_SUCCESSOR_ORDINAL, LAST_SUCCESSOR_ORDINAL + 1)
+    ):
+        raise EvidenceError("IDENTITY_CONFLICT", "exhausted terminal must cover ordinals 9-22")
+    return CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED.value, completed
 
 
 def _place_exclusive(staging: Path, official: Path, record: Mapping[str, object]) -> None:

@@ -356,6 +356,64 @@ def test_validate_rejects_failure_status_and_hash_or_order_tamper():
         )
 
 
+def test_validate_rejects_frozen_identity_and_stop_rule_tamper():
+    controller = "f" * 64
+    state, successors, ordinal8 = _complete_state(
+        CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND
+    )
+    terminal = build_cohort_terminal(state=state, controller_source_sha256=controller)
+    for field, value in (
+        ("schema_version", "tampered-schema"),
+        ("slice_id", "tampered-slice"),
+        ("design_file_sha256", "0" * 64),
+        ("authority_artifact_sha256", "1" * 64),
+        ("ordinal8_handoff_artifact_sha256", "2" * 64),
+        ("ordinal8_overlap_artifact_sha256", "3" * 64),
+    ):
+        tampered = dict(terminal)
+        tampered[field] = value
+        body = {key: item for key, item in tampered.items() if key != "artifact_sha256"}
+        tampered["artifact_sha256"] = canonical_sha256(body)
+        with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+            validate_cohort_terminal(
+                tampered,
+                controller_source_sha256=controller,
+                successors=successors,
+                ordinal8=ordinal8,
+            )
+
+    relabeled = dict(terminal)
+    relabeled["terminal_status"] = CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED.value
+    body = {key: item for key, item in relabeled.items() if key != "artifact_sha256"}
+    relabeled["artifact_sha256"] = canonical_sha256(body)
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        validate_cohort_terminal(
+            relabeled,
+            controller_source_sha256=controller,
+            successors=successors,
+            ordinal8=ordinal8,
+        )
+
+    exhausted_state, exhausted_successors, exhausted_ordinal8 = _complete_state(
+        CohortStatus.MULTIPROJECT_COHORT_EXHAUSTED
+    )
+    exhausted = build_cohort_terminal(
+        state=exhausted_state, controller_source_sha256=controller
+    )
+    fake_found = dict(exhausted)
+    fake_found["terminal_status"] = CohortStatus.MULTIPROJECT_TWO_NEW_PROJECTS_FOUND.value
+    fake_found["completed_new_project_keys"] = ["proj-a", "proj-b"]
+    body = {key: item for key, item in fake_found.items() if key != "artifact_sha256"}
+    fake_found["artifact_sha256"] = canonical_sha256(body)
+    with pytest.raises(EvidenceError, match="IDENTITY_CONFLICT"):
+        validate_cohort_terminal(
+            fake_found,
+            controller_source_sha256=controller,
+            successors=exhausted_successors,
+            ordinal8=exhausted_ordinal8,
+        )
+
+
 def test_atomic_write_and_fail_closed_existing_output(tmp_path: Path):
     controller = "d" * 64
     state, successors, ordinal8 = _complete_state(

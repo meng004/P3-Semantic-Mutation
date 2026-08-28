@@ -28,6 +28,7 @@ from p3_v3.ordinal8_controlled_numpy_runtime import (
     FORMAL_PAIRED_EVIDENCE_RETRY_FORBIDDEN,
     FORMAL_RUNTIME_ROOT,
     FROZEN_INPUT_IDS,
+    FROZEN_SUBMODULES,
     PRESERVED_ARTIFACT_SHA256,
     PRESERVED_FILE_SHA256,
     PRESERVED_OUTPUT_ROOT_RELATIVE,
@@ -242,6 +243,7 @@ def test_interpret_accepts_controlled_array_api(tmp_path):
             "returncode": 0,
             "source_copy": str(runtime / "source"),
             "status": "PASS",
+            "recovered_submodules": [],
             "vendored_meson_commit": None,
             "vendored_meson_present": False,
             "vendored_meson_recovered": False,
@@ -281,6 +283,7 @@ def test_interpret_rejects_ambient_path_or_version(tmp_path):
             "returncode": 0,
             "source_copy": "x",
             "status": "PASS",
+            "recovered_submodules": [],
             "vendored_meson_commit": None,
             "vendored_meson_present": False,
             "vendored_meson_recovered": False,
@@ -326,6 +329,7 @@ def test_stubbed_qualification_is_not_paired_evidence(tmp_path):
             "returncode": 0,
             "source_copy": str(root / "source"),
             "status": "PASS",
+            "recovered_submodules": [],
             "vendored_meson_commit": VENDORED_MESON_COMMIT,
             "vendored_meson_present": True,
             "vendored_meson_recovered": True,
@@ -436,3 +440,6 @@ def test_recover_vendored_meson_checkouts_frozen_pin(tmp_path):
     assert recovered["commit"] == VENDORED_MESON_COMMIT
     assert any(VENDORED_MESON_COMMIT in command for command in calls)
     assert vendored_meson_path(source_copy).is_file()
+    assert {row["path"] for row in recovered["submodules"]} == {
+        spec["path"] for spec in FROZEN_SUBMODULES
+    }

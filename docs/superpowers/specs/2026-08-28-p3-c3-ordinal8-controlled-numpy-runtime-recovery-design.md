@@ -66,7 +66,14 @@ This recovery does not re-select, rewrite, or execute the frozen slice. The foll
 
 The isolated build must consume that descriptor and the extracted snapshot. It must not install NumPy from PyPI as a substitute for the frozen tree. Build work happens on a copy under the new runtime root so the extracted snapshot stays bit-identical. Git environment variables from this repository must not leak into `gitversion.py`.
 
-The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`. That path is a git submodule (`https://github.com/numpy/meson.git`) recorded in the frozen `.gitmodules`, but the admitted tarball did not unpack the gitlink. File-identity search against NumPy history maps `pyproject.toml`, `meson.build`, `.gitmodules`, and `numpy/array_api/linalg.py` onto commit `61f97f07b73f64c0dce92cb8158739d6d92ceb82`, whose `vendored-meson/meson` gitlink is `4e370ca8ab73c07f7b84abe8a4b937caace050a4` (Meson 1.2.99 plus the `features` module). The recovery clones that pin into the source copy only. It does not rewrite the extracted snapshot. Isolated `PATH` still exposes Cython and Ninja from the prefix.
+The snapshot `pyproject.toml` names `vendored-meson/meson/meson.py`. The admitted tarball omitted every gitlink. File-identity search against NumPy history maps `pyproject.toml`, `meson.build`, `.gitmodules`, and `numpy/array_api/linalg.py` onto commit `61f97f07b73f64c0dce92cb8158739d6d92ceb82`. The recovery clones that commit's build submodules into the source copy only:
+
+- `vendored-meson/meson` @ `4e370ca8…` (Meson 1.2.99 plus `features`)
+- `numpy/_core/src/umath/svml` @ `1b21e453…`
+- `numpy/_core/src/npysort/x86-simd-sort` @ `7060e3c7…`
+- `numpy/_core/src/highway` @ `ba0900a4…`
+
+It does not rewrite the extracted snapshot and does not disable those components through extra Meson options. Isolated `PATH` still exposes Cython and Ninja from the prefix.
 
 `allow-noblas=true` is the frozen Meson default in this snapshot. The recovery may pass that option explicitly. It may not change other Meson options to chase a faster or more convenient binary.
 

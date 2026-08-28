@@ -70,6 +70,28 @@ EXPECTED_NUMPY_VERSION = "2.0.0.dev0"
 VENDORED_MESON_URL = "https://github.com/numpy/meson.git"
 VENDORED_MESON_COMMIT = "4e370ca8ab73c07f7b84abe8a4b937caace050a4"
 NUMPY_IDENTITY_COMMIT = "61f97f07b73f64c0dce92cb8158739d6d92ceb82"
+FROZEN_SUBMODULES = (
+    {
+        "commit": VENDORED_MESON_COMMIT,
+        "path": "vendored-meson/meson",
+        "url": VENDORED_MESON_URL,
+    },
+    {
+        "commit": "1b21e453f6b1ba6a6aca392b1d810d9d41576123",
+        "path": "numpy/_core/src/umath/svml",
+        "url": "https://github.com/numpy/SVML.git",
+    },
+    {
+        "commit": "7060e3c768992441aa6454a6f9320a9fe1f870da",
+        "path": "numpy/_core/src/npysort/x86-simd-sort",
+        "url": "https://github.com/intel/x86-simd-sort",
+    },
+    {
+        "commit": "ba0900a4957b929390ab73827235557959234fea",
+        "path": "numpy/_core/src/highway",
+        "url": "https://github.com/google/highway.git",
+    },
+)
 CONTRACT_ID = "449bc0e7eba8f2947047d72817b36ebd966aa4759bc0ae25a570907414c035ae"
 SEMANTIC_PATCH_SHA256 = (
     "9f0bfbb4d14bb944bf13cfdb97e135590f71208b62eabeb8b3d78937f6cfcda6"
@@ -157,6 +179,7 @@ _BUILD_RECEIPT_SCHEMA = {
     "returncode": int,
     "source_copy": str,
     "status": str,
+    "recovered_submodules": list,
     "vendored_meson_commit": (str, type(None)),
     "vendored_meson_present": bool,
     "vendored_meson_recovered": bool,
@@ -240,23 +263,32 @@ def vendored_meson_path(source_root: str | Path) -> Path:
     return Path(source_root) / "vendored-meson" / "meson" / "meson.py"
 
 
-def recover_vendored_meson(
+def recover_frozen_submodule(
     source_copy: str | Path,
+    spec: Mapping[str, str],
     *,
     runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+    marker: str | None = None,
 ) -> dict[str, Any]:
-    dest = Path(source_copy) / "vendored-meson" / "meson"
-    meson_py = dest / "meson.py"
-    if meson_py.is_file():
+    dest = Path(source_copy) / spec["path"]
+    marker_path = dest / (marker or ".")
+    if dest.is_dir() and any(dest.iterdir()) and (
+        marker is None or marker_path.is_file()
+    ):
         return {
-            "commit": None,
+            "commit": spec["commit"],
             "destination": str(dest),
+            "path": spec["path"],
             "present": True,
             "recovered": False,
+            "url": spec["url"],
         }
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists():
-        raise EvidenceError("E_VENDORED_MESON", "incomplete vendored-meson directory")
+        raise EvidenceError(
+            "E_FROZEN_SUBMODULE",
+            f"incomplete submodule directory: {spec['path']}",
+        )
     run = runner if runner is not None else subprocess.run
     clone = run(
         [
@@ -264,7 +296,7 @@ def recover_vendored_meson(
             "clone",
             "--filter=blob:none",
             "--no-checkout",
-            VENDORED_MESON_URL,
+            spec["url"],
             str(dest),
         ],
         check=False,
@@ -274,8 +306,8 @@ def recover_vendored_meson(
     )
     if clone.returncode != 0:
         raise EvidenceError(
-            "E_VENDORED_MESON",
-            f"git clone of vendored meson failed: {clone.stderr or clone.stdout}",
+            "E_FROZEN_SUBMODULE",
+            f"git clone failed for {spec['path']}: {clone.stderr or clone.stdout}",
         )
     fetch = run(
         [
@@ -286,7 +318,7 @@ def recover_vendored_meson(
             "--depth",
             "1",
             "origin",
-            VENDORED_MESON_COMMIT,
+            spec["commit"],
         ],
         check=False,
         capture_output=True,
@@ -295,8 +327,8 @@ def recover_vendored_meson(
     )
     if fetch.returncode != 0:
         raise EvidenceError(
-            "E_VENDORED_MESON",
-            f"git fetch of vendored meson failed: {fetch.stderr or fetch.stdout}",
+            "E_FROZEN_SUBMODULE",
+            f"git fetch failed for {spec['path']}: {fetch.stderr or fetch.stdout}",
         )
     checkout = run(
         [
@@ -305,25 +337,72 @@ def recover_vendored_meson(
             str(dest),
             "checkout",
             "--detach",
-            VENDORED_MESON_COMMIT,
+            spec["commit"],
         ],
         check=False,
         capture_output=True,
         text=True,
         timeout=120,
     )
-    if checkout.returncode != 0 or not meson_py.is_file():
+    if checkout.returncode != 0:
         raise EvidenceError(
-            "E_VENDORED_MESON",
-            "vendored meson checkout did not produce meson.py",
+            "E_FROZEN_SUBMODULE",
+            f"git checkout failed for {spec['path']}",
         )
-    if not (dest / "mesonbuild" / "modules" / "features" / "__init__.py").is_file():
-        raise EvidenceError("E_VENDORED_MESON", "features module is absent")
+    if marker is not None and not (dest / marker).is_file():
+        raise EvidenceError(
+            "E_FROZEN_SUBMODULE",
+            f"submodule marker missing for {spec['path']}: {marker}",
+        )
     return {
-        "commit": VENDORED_MESON_COMMIT,
+        "commit": spec["commit"],
         "destination": str(dest),
+        "path": spec["path"],
         "present": True,
         "recovered": True,
+        "url": spec["url"],
+    }
+
+
+def recover_frozen_submodules(
+    source_copy: str | Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+) -> list[dict[str, Any]]:
+    recovered = []
+    for spec in FROZEN_SUBMODULES:
+        marker = "meson.py" if spec["path"] == "vendored-meson/meson" else None
+        row = recover_frozen_submodule(
+            source_copy, spec, runner=runner, marker=marker
+        )
+        if spec["path"] == "vendored-meson/meson":
+            features = (
+                Path(source_copy)
+                / spec["path"]
+                / "mesonbuild"
+                / "modules"
+                / "features"
+                / "__init__.py"
+            )
+            if not features.is_file():
+                raise EvidenceError("E_VENDORED_MESON", "features module is absent")
+        recovered.append(row)
+    return recovered
+
+
+def recover_vendored_meson(
+    source_copy: str | Path,
+    *,
+    runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+) -> dict[str, Any]:
+    rows = recover_frozen_submodules(source_copy, runner=runner)
+    meson = next(row for row in rows if row["path"] == "vendored-meson/meson")
+    return {
+        "commit": meson["commit"],
+        "destination": meson["destination"],
+        "present": meson["present"],
+        "recovered": meson["recovered"],
+        "submodules": rows,
     }
 
 
@@ -380,8 +459,12 @@ def bind_frozen_identities(repo_root: str | Path) -> dict[str, Any]:
     if "mesonpy" not in pyproject:
         raise EvidenceError("E_BUILD_DESCRIPTOR", "mesonpy backend is absent")
     gitmodules = (source_root / ".gitmodules").read_text(encoding="utf-8")
-    if VENDORED_MESON_URL not in gitmodules:
-        raise EvidenceError("E_VENDORED_MESON", "frozen .gitmodules URL differs")
+    for spec in FROZEN_SUBMODULES:
+        if spec["url"] not in gitmodules or spec["path"] not in gitmodules:
+            raise EvidenceError(
+                "E_FROZEN_SUBMODULE",
+                f"frozen .gitmodules is missing {spec['path']}",
+            )
     preserved = preserved_output_path(root)
     if not preserved.is_file():
         raise EvidenceError("E_PRESERVED_OUTPUT", "preserved paired-evidence.json is absent")
@@ -528,6 +611,7 @@ def build_isolated_runtime(
             "error": str(exc),
             "present": False,
             "recovered": False,
+            "submodules": [],
         }
     vendored = bool(recovered["present"])
     meson_for_build = (
@@ -548,6 +632,7 @@ def build_isolated_runtime(
             "returncode": int(returncode),
             "source_copy": str(source_copy),
             "status": status,
+            "recovered_submodules": list(recovered.get("submodules") or []),
             "vendored_meson_commit": recovered.get("commit"),
             "vendored_meson_present": vendored or vendored_in_snapshot,
             "vendored_meson_recovered": bool(recovered.get("recovered")),

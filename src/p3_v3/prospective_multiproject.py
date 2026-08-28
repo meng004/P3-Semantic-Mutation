@@ -10,6 +10,7 @@ from pathlib import Path
 from p3_v3.artifacts import (
     EvidenceError,
     canonical_sha256,
+    file_sha256,
     validate_exact_object,
     validate_sha256,
     write_canonical_json,
@@ -566,3 +567,40 @@ def write_official_cohort_terminal(
         ordinal8=ordinal8,
     )
     _place_exclusive(Path(staging_terminal), Path(official_terminal), validated)
+
+
+def validate_multiproject_preflight(
+    *,
+    repo_root: Path,
+    controller_path: Path,
+) -> dict[str, object]:
+    root = Path(repo_root)
+    expected_controller = (root / CONTROLLER_RELPATH).resolve()
+    if Path(controller_path).resolve() != expected_controller:
+        raise EvidenceError("PREFLIGHT_FAIL", "controller path is not the unique controller")
+    if OFFICIAL_RUN_AUTHORIZED is not False:
+        raise EvidenceError("PREFLIGHT_FAIL", "official run is not authorized")
+    if file_sha256(root / DESIGN_RELPATH) != DESIGN_FILE_SHA256:
+        raise EvidenceError("PREFLIGHT_FAIL", "design file SHA mismatch")
+    authority = json.loads((root / AUTHORITY_RELPATH).read_text(encoding="utf-8"))
+    if authority.get("artifact_sha256") != AUTHORITY_ARTIFACT_SHA256:
+        raise EvidenceError("PREFLIGHT_FAIL", "authority artifact SHA mismatch")
+    handoff = json.loads((root / HANDOFF_RELPATH).read_text(encoding="utf-8"))
+    overlap = json.loads((root / OVERLAP_RELPATH).read_text(encoding="utf-8"))
+    if handoff.get("artifact_sha256") != ORDINAL8_HANDOFF_ARTIFACT_SHA256:
+        raise EvidenceError("PREFLIGHT_FAIL", "handoff artifact SHA mismatch")
+    if overlap.get("artifact_sha256") != ORDINAL8_OVERLAP_ARTIFACT_SHA256:
+        raise EvidenceError("PREFLIGHT_FAIL", "overlap artifact SHA mismatch")
+    successors = load_frozen_successors()
+    if [row.successor_ordinal for row in successors] != list(
+        range(FIRST_SUCCESSOR_ORDINAL, LAST_SUCCESSOR_ORDINAL + 1)
+    ):
+        raise EvidenceError("PREFLIGHT_FAIL", "frozen successors are not ordinals 9-22")
+    if (root / OFFICIAL_RELDIR).exists() or (root / STAGING_RELDIR).exists():
+        raise EvidenceError("PREFLIGHT_FAIL", "official or staging namespace already exists")
+    return {
+        "status": "MULTIPROJECT_PREFLIGHT_PASS",
+        "slice_id": SLICE_ID,
+        "successor_count": len(successors),
+        "official_run_authorized": OFFICIAL_RUN_AUTHORIZED,
+    }

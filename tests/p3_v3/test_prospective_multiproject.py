@@ -441,3 +441,121 @@ def test_load_ordinal8_is_readonly_and_matches_frozen_artifacts():
     assert file_sha256(root / "data/p3_v3/phase3/ordinal8-exact-overlap-v1/exact-overlap.json") == (
         "d64872250399ac0230d55d2e7fa2883fed783110061188d3fe6597272f571074"
     )
+
+
+import sys
+
+from p3_v3.artifacts import canonical_json_bytes
+from p3_v3.prospective_multiproject import (
+    AUTHORITY_RELPATH,
+    CONTROLLER_RELPATH,
+    DESIGN_RELPATH,
+    HANDOFF_RELPATH,
+    OFFICIAL_RELDIR,
+    OFFICIAL_RUN_AUTHORIZED,
+    OVERLAP_RELPATH,
+    STAGING_RELDIR,
+    validate_multiproject_preflight,
+)
+from scripts.p3_v3.run_prospective_multiproject_paired_slice import main
+
+
+def _copy_frozen_identity_tree(real_root: Path, dest_root: Path) -> None:
+    for rel in (
+        DESIGN_RELPATH,
+        AUTHORITY_RELPATH,
+        HANDOFF_RELPATH,
+        OVERLAP_RELPATH,
+        CONTROLLER_RELPATH,
+    ):
+        dest = dest_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes((real_root / rel).read_bytes())
+
+
+def test_preflight_passes_frozen_identities_without_opening_successor_sites(monkeypatch):
+    opened: list[str] = []
+    real_open = open
+
+    def guarded_open(path, *args, **kwargs):
+        text = str(path)
+        if "public-behavior-frame-" in text and "4e7e9556" not in text:
+            opened.append(text)
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", guarded_open)
+    root = Path("/tmp/p3-c3-applicability-authority")
+    payload = validate_multiproject_preflight(
+        repo_root=root,
+        controller_path=root / "src/p3_v3/prospective_multiproject.py",
+    )
+    assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
+    assert payload["successor_count"] == 14
+    assert opened == []
+    assert OFFICIAL_RUN_AUTHORIZED is False
+
+
+def test_preflight_rejects_existing_official_namespace(tmp_path: Path):
+    real_root = Path("/tmp/p3-c3-applicability-authority")
+    _copy_frozen_identity_tree(real_root, tmp_path)
+    payload = validate_multiproject_preflight(
+        repo_root=tmp_path,
+        controller_path=tmp_path / CONTROLLER_RELPATH,
+    )
+    assert payload["status"] == "MULTIPROJECT_PREFLIGHT_PASS"
+
+    official = tmp_path / OFFICIAL_RELDIR
+    official.mkdir(parents=True)
+    with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
+        validate_multiproject_preflight(
+            repo_root=tmp_path,
+            controller_path=tmp_path / CONTROLLER_RELPATH,
+        )
+
+    official.rmdir()
+    staging = tmp_path / STAGING_RELDIR
+    staging.mkdir(parents=True)
+    with pytest.raises(EvidenceError, match="PREFLIGHT_FAIL"):
+        validate_multiproject_preflight(
+            repo_root=tmp_path,
+            controller_path=tmp_path / CONTROLLER_RELPATH,
+        )
+
+
+def test_main_rejects_every_selector_and_does_not_run_search(monkeypatch):
+    called = []
+    monkeypatch.setattr(
+        "scripts.p3_v3.run_prospective_multiproject_paired_slice.run_multiproject_search",
+        lambda **kwargs: called.append(kwargs) or {},
+    )
+    for argv in (
+        ["--help"],
+        ["--max-attempts", "14"],
+        ["--order", "9"],
+        ["--subject", "x"],
+        ["--project", "y"],
+        ["--skip"],
+        ["--retry"],
+        ["--resume"],
+        ["--pair-count", "4"],
+        ["--output", "/tmp"],
+        ["--runtime", "/tmp"],
+    ):
+        monkeypatch.setattr(sys, "argv", ["run_prospective_multiproject_paired_slice.py", *argv])
+        assert main() == 2
+    assert called == []
+
+
+def test_main_zero_args_is_preflight_only_and_does_not_write_official_terminal(
+    monkeypatch, capsys
+):
+    root = Path("/tmp/p3-c3-applicability-authority")
+    official = root / "data/p3_v3/phase3/prospective-multiproject-paired-slice-v1/cohort-terminal.json"
+    monkeypatch.setattr(sys, "argv", ["run_prospective_multiproject_paired_slice.py"])
+    code = main()
+    assert code == 2
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert payload["status"] == "MULTIPROJECT_OFFICIAL_RUN_NOT_AUTHORIZED"
+    assert payload["official_terminal_written"] is False
+    assert official.exists() is False

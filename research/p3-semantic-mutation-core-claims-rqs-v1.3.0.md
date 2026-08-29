@@ -83,3 +83,63 @@ claims stay blocked and may themselves support a boundary or limitation result.
 For the infrastructure-only P3-V3 evidence path, every enumerated claim is
 conservatively recorded as `blocked`; this execution ceiling does not alter the
 governing table's source status or upgrade condition.
+
+## Current-paper RQ2/C3 scope
+
+On one NumPy subject and four frozen pairs, semantic mutants are
+4/4 KILL, syntactic mutants are 3/4 KILL and 1/4 SURVIVE, and both
+exact-overlap measures are 0/4. That result is a single-project
+paired-evidence pilot, not a multi-project comparison. A later
+140-slot applicability census on 14 preregistered successors, under
+the frozen Public Behavior Frame, slot inventory, and predicate
+bounds, produced 0 SITE_FROZEN. This version therefore has no
+Stage II candidate. Multi-project construct-distinctness and
+project-clustered uncertainty remain unidentifiable.
+
+### Observed
+
+- NumPy ordinal 8 is a single-project paired-evidence pilot.
+- There are 4 frozen pairs.
+- Semantic mutants: 4/4 KILL.
+- Syntactic mutants: 3/4 KILL, 1/4 SURVIVE.
+- Normalized-patch exact overlap: 0/4.
+- Mutant-tree exact overlap: 0/4.
+- Stage I: 14 subjects, 140 closures, ordinals 9-22.
+- 0 SITE_FROZEN, 140 APPLICABILITY_CLOSED_NOT_APPLICABLE.
+- Stage II candidate universe = 0.
+
+### Qualified
+
+- The 0/140 count holds only for the frozen Public Behavior Frame,
+  slot inventory, applicability predicates, first-applicable
+  selection boundary, and the ordinal 9-22 successor universe.
+- The current prospective version cannot produce another paired
+  project.
+- The current Stage II path is lawfully closed.
+
+### Blocked
+
+- C3 remains `blocked`.
+- `n_projects = 1`.
+- Multi-project construct-distinctness is unidentifiable.
+- Project-clustered uncertainty is unidentifiable.
+- `RQ2 paired evidence and uncertainty accounting complete` remains
+  unmet.
+
+### Current-paper scope
+
+- RQ2 is kept. The current paper answers only single-project paired
+  kill/survival on the four frozen NumPy pairs, exact
+  normalized-patch and mutant-tree overlap on those pairs, and why
+  multi-project construct-distinctness and project-clustered
+  uncertainty remain unidentifiable.
+- Ordinal 8 is only a single-project paired-evidence pilot.
+- Stage I is only a prospective applicability census under a frozen
+  authority.
+- The original multi-project confirmatory sentence is not a
+  current-paper main contribution.
+- The current paper does not seek a second or third paired-evidence
+  project on this C3 route.
+- This amendment does not assemble another subject table, another
+  predicate set, or another paired runner, and does not start
+  Stage I or Stage II again on this version.

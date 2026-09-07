@@ -1,0 +1,17 @@
+[
+ {"mode":"doi","q":"10.1109/QRS-C63300.2024.00072","sleep":1},
+ {"mode":"doi","q":"10.1109/IAECST57965.2022.10062094","sleep":1},
+ {"tool":"search_crossref","q":"test adequacy criteria metamorphic testing","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation adequacy criterion coverage","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relation prioritization fault detection","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relation selection strategy effectiveness","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"how many metamorphic relations are enough cost effectiveness","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"diversity of metamorphic relations fault detection capability","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"redundancy among metamorphic relations empirical comparison","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"cost effectiveness of metamorphic testing number of metamorphic relations","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"good metamorphic relations characteristics guidelines selecting","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation coverage criterion test suite adequacy","n":10,"sleep":1},
+ {"tool":"search_semantic","q":"metamorphic relation prioritization statement coverage source test cases","n":10,"sleep":12},
+ {"tool":"search_semantic","q":"adequacy criteria metamorphic relations set completeness","n":10,"sleep":12},
+ {"tool":"search_semantic","q":"empirical study effectiveness metamorphic relations comparison fault detection","n":10,"sleep":12}
+]

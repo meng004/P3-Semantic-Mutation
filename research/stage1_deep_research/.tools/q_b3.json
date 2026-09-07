@@ -1,0 +1,15 @@
+[
+ {"tag":"B2-just-fse2014","tool":"search_crossref","args":{"query":"Are mutants a valid substitute for real faults in software testing Just Jalali Inozemtseva","max_results":3}},
+ {"tag":"B1-advances-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1016/bs.adcom.2018.03.015"}},
+ {"tag":"B3-smt-scp-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1016/j.scico.2011.03.011"}},
+ {"tag":"B3-smt-icstw2010-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/icstw.2010.8"}},
+ {"tag":"B3-smtc-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/icst.2012.155"}},
+ {"tag":"B3-fp-compare-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/icst.2012.109"}},
+ {"tag":"B3-clark-dan-hierons-more","tool":"search_crossref","args":{"query":"Clark Dan Hierons semantic mutation testing language semantics description","max_results":8}},
+ {"tag":"B3-dan-hierons-more","tool":"search_crossref","args":{"query":"Haitao Dan Hierons semantic mutation","max_results":10}},
+ {"tag":"B3-uml-statechart-semantic-variation","tool":"search_crossref","args":{"query":"semantic variation points UML state machine semantics mutation testing","max_results":8}},
+ {"tag":"B3-openalex-smt","tool":"search_openalex","args":{"query":"semantic mutation testing","max_results":12}},
+ {"tag":"B3-semantic-scholar-smt","tool":"search_semantic","args":{"query":"semantic mutation testing language semantics","max_results":10}},
+ {"tag":"B3-ontology-owl","tool":"get_crossref_paper_by_doi","args":{"doi":"10.5220/0005844600430053"}},
+ {"tag":"B3-arxiv-smt","tool":"search_arxiv","args":{"query":"semantic mutation testing","max_results":10}}
+]

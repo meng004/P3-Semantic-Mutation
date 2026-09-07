@@ -1,0 +1,358 @@
+[
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1016/j.infsof.2025.107975",
+  "elapsed": 1.05,
+  "status": "ok",
+  "results": [
+   {
+    "title": "CPMT: A collaborative metamorphic relations and test cases prioritization approach for Metamorphic Testing",
+    "authors": "Chang-ai Sun; Shifan Liu; An Fu; Jiaming Zhang",
+    "year": "2026",
+    "venue": "Information and Software Technology",
+    "vol": "190",
+    "issue": "",
+    "page": "107975",
+    "type": "j",
+    "doi": "10.1016/j.infsof.2025.107975",
+    "url": "https://doi.org/10.1016/j.infsof.2025.107975",
+    "citations": 1,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/2896971.2896974",
+  "elapsed": 0.27,
+  "status": "ok",
+  "results": [
+   {
+    "title": "μMT",
+    "authors": "Chang-ai Sun; Yiqiang Liu; Zuoyi Wang; W. K. Chan",
+    "year": "2016",
+    "venue": "Proceedings of the 1st International Workshop on Metamorphic Testing",
+    "vol": "",
+    "issue": "",
+    "page": "12-18",
+    "type": "p",
+    "doi": "10.1145/2896971.2896974",
+    "url": "https://doi.org/10.1145/2896971.2896974",
+    "citations": 15,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.5220/0011101700003176",
+  "elapsed": 0.26,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Application of Property-based Testing Tools for Metamorphic Testing",
+    "authors": "Nasser Alzahrani; Maria Spichkova; James Harland",
+    "year": "2022",
+    "venue": "Proceedings of the 17th International Conference on Evaluation of Novel Approaches to Software Engineering",
+    "vol": "",
+    "issue": "",
+    "page": "553-560",
+    "type": "p",
+    "doi": "10.5220/0011101700003176",
+    "url": "https://doi.org/10.5220/0011101700003176",
+    "citations": 1,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/MET.2019.00011",
+  "elapsed": 0.27,
+  "status": "ok",
+  "results": [
+   {
+    "title": "The Impact of a Dot: Case Studies of a Noise Metamorphic Relation Pattern",
+    "authors": "Chaohua Wu; Liqun Sun; Zhi Quan Zhou",
+    "year": "2019",
+    "venue": "2019 IEEE/ACM 4th International Workshop on Metamorphic Testing (MET)",
+    "vol": "",
+    "issue": "",
+    "page": "17-23",
+    "type": "p",
+    "doi": "10.1109/met.2019.00011",
+    "url": "https://doi.org/10.1109/met.2019.00011",
+    "citations": 14,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/MET.2017.5",
+  "elapsed": 0.26,
+  "status": "ok",
+  "results": [
+   {
+    "title": "A Revisit of the Integration of Metamorphic Testing and Test Suite Based Automated Program Repair",
+    "authors": "Mingyue Jiang; Tsong Yueh Chen; Fei-Ching Kuo; Zuohua Ding; Eun-Hye Choi; Osamu Mizuno",
+    "year": "2017",
+    "venue": "2017 IEEE/ACM 2nd International Workshop on Metamorphic Testing (MET)",
+    "vol": "",
+    "issue": "",
+    "page": "14-20",
+    "type": "p",
+    "doi": "10.1109/met.2017.5",
+    "url": "https://doi.org/10.1109/met.2017.5",
+    "citations": 5,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/ICST69053.2026.00016",
+  "elapsed": 0.26,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Automated Inference of Expressive Metamorphic Relations for Effective Metamorphic Testing",
+    "authors": "Agustín Nolasco",
+    "year": "2026",
+    "venue": "2026 IEEE International Conference on Software Testing, Verification and Validation (ICST)",
+    "vol": "",
+    "issue": "",
+    "page": "22-24",
+    "type": "p",
+    "doi": "10.1109/icst69053.2026.00016",
+    "url": "https://doi.org/10.1109/icst69053.2026.00016",
+    "citations": "",
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/SANER56733.2023.00109",
+  "elapsed": 0.26,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Bug or not Bug? Analysing the Reasons Behind Metamorphic Relation Violations",
+    "authors": "Alejandra Duque-Torres; Dietmar Pfahl; Claus Klammer; Stefan Fischer",
+    "year": "2023",
+    "venue": "2023 IEEE International Conference on Software Analysis, Evolution and Reengineering (SANER)",
+    "vol": "",
+    "issue": "",
+    "page": "905-912",
+    "type": "p",
+    "doi": "10.1109/saner56733.2023.00109",
+    "url": "https://doi.org/10.1109/saner56733.2023.00109",
+    "citations": 16,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/TSE.2023.3256322",
+  "elapsed": 0.26,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic Testing for Web System Security",
+    "authors": "Nazanin Bayati Chaleshtari; Fabrizio Pastore; Arda Goknil; Lionel C. Briand",
+    "year": "2023",
+    "venue": "IEEE Transactions on Software Engineering",
+    "vol": "",
+    "issue": "",
+    "page": "1-43",
+    "type": "j",
+    "doi": "10.1109/tse.2023.3256322",
+    "url": "https://doi.org/10.1109/tse.2023.3256322",
+    "citations": 24,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3679006.3685070",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic Testing of Image Processing Applications: A General Framework and Optimization Strategies",
+    "authors": "Chang-Ai Sun; Jiayu Xing; Xiaobei Li; Xiaoyi Zhang; An Fu",
+    "year": "2024",
+    "venue": "Proceedings of the 9th ACM International Workshop on Metamorphic Testing",
+    "vol": "",
+    "issue": "",
+    "page": "26-33",
+    "type": "p",
+    "doi": "10.1145/3679006.3685070",
+    "url": "https://doi.org/10.1145/3679006.3685070",
+    "citations": 8,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "search_openalex",
+  "query": "NOETHER Constructive Framework Metamorphic Pattern Discovery Operator Algebras",
+  "elapsed": 1.39,
+  "status": "ok",
+  "n": 5,
+  "results": [
+   {
+    "title": "NOETHER: A Constructive Framework for Metamorphic Pattern Discovery from Operator Algebras",
+    "authors": "Meng Li; Xiaohua Yang; Liu, Jie, 1970-; Shiyu Yan",
+    "year": "2026",
+    "venue": "openalex",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "A",
+    "doi": "",
+    "url": "https://arxiv.org/abs/2605.17390",
+    "citations": "",
+    "abstract": "Context. Metamorphic Testing is recognised in IEEE/ISO software-testing standards and increasingly recommended for AI systems, but its progress is bottlenecked by metamorphic relation (MR) identification: existing approaches (structured frameworks, mining and evolutionary pipelines, LLM-assisted methods, MetaPattern catalogues) share an inductive grounding that leaves three foundational questions open: origin, closure, and transferability. Objective. We propose a framework whose downstream step from program-induced operator algebra to MetaPattern set is mechanical and provable, while the upstream curation of the algebra is a stated empirical hypothesis with explicit scope precondition. Method. NOETHER is a two-layer framework. The upstream layer is an eight-block decomposition over recurrent mathematical structures (symmetry, order, self-adjoint, time-reversal, limit, qualitative-dynamics, method-comparison, relational equivalence). The downstream CONSTRUCT-MP algorithm produces a MetaPattern set with algebraic-closure (Theorem 1) and polynomial-time decidability (Theorem 2) guarantees. We test the framework on three operator-algebraic domains. Results. On Boltzmann reactor physics NOETHER systematises a prior inductive catalogue; on equivariant ML it derives executable MRs for rotation invariance, adjoint duality, and training-trajectory reversibility; on relational query optimisers it exercises the relational-equivalence block. The central falsifiable prediction (L*-blindness on homogeneity-preserving mutators) holds on the in-scope substrate. The absolute-completeness conjecture (Theorem 1') is falsified on PWR core diffusion via two pairwise-independent counterexamples that identify five Translate-extension dimensions. Conclusion. Induction is relocated from per-program MR sampling to a per-domain algebraic layer; the downstream step is deductive and mechanical."
+   },
+   {
+    "title": "NOETHER: A Constructive Framework for Metamorphic Pattern Discovery from Operator Algebras",
+    "authors": "Li M; Xiaohua Yang; J T Liu; Shiyu Yan",
+    "year": "2026",
+    "venue": "openalex",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "A",
+    "doi": "10.48550/arxiv.2605.17390",
+    "url": "https://doi.org/10.48550/arxiv.2605.17390",
+    "citations": "",
+    "abstract": "Context. Metamorphic Testing is recognised in IEEE/ISO software-testing standards and increasingly recommended for AI systems, but its progress is bottlenecked by metamorphic relation (MR) identification: existing approaches (structured frameworks, mining and evolutionary pipelines, LLM-assisted methods, MetaPattern catalogues) share an inductive grounding that leaves three foundational questions open: origin, closure, and transferability. Objective. We propose a framework whose downstream step from program-induced operator algebra to MetaPattern set is mechanical and provable, while the upstream curation of the algebra is a stated empirical hypothesis with explicit scope precondition. Method. NOETHER is a two-layer framework. The upstream layer is an eight-block decomposition over recurrent mathematical structures (symmetry, order, self-adjoint, time-reversal, limit, qualitative-dynamics, method-comparison, relational equivalence). The downstream CONSTRUCT-MP algorithm produces a MetaPattern set with algebraic-closure (Theorem 1) and polynomial-time decidability (Theorem 2) guarantees. We test the framework on three operator-algebraic domains. Results. On Boltzmann reactor physics NOETHER systematises a prior inductive catalogue; on equivariant ML it derives executable MRs for rotation invariance, adjoint duality, and training-trajectory reversibility; on relational query optimisers it exercises the relational-equivalence block. The central falsifiable prediction (L*-blindness on homogeneity-preserving mutators) holds on the in-scope substrate. The absolute-completeness conjecture (Theorem 1') is falsified on PWR core diffusion via two pairwise-independent counterexamples that identify five Translate-extension dimensions. Conclusion. Induction is relocated from per-program MR sampling to a per-domain algebraic layer; the downstream step is deductive and mechanical."
+   },
+   {
+    "title": "NOETHER: A Constructive Framework for Metamorphic Pattern Discovery from Operator Algebras",
+    "authors": "Meng Li; Xiaohua Yang; Jie Liu; Shiyu Yan",
+    "year": "2026",
+    "venue": "openalex",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "D",
+    "doi": "10.5281/zenodo.20250635",
+    "url": "https://doi.org/10.5281/zenodo.20250635",
+    "citations": "",
+    "abstract": "NOETHER is a two-layer framework for metamorphic relation (MR) identification. The upstream layer is an eight-block decomposition over recurrent mathematical structures (symmetry, order, self-adjoint, time-reversal, limit, qualitative-dynamics, method-comparison, relational equivalence), stated as an empirical hypothesis. The downstream layer is the CONSTRUCT-MP algorithm with two formal guarantees: algebraic closure under the Translate operator (Theorem 1) and polynomial-time decidability under a finite generating set (Theorem 2). The framework is instantiated on three structurally distinct operator algebras (Boltzmann reactor physics, equivariant machine learning, relational query optimisers) and the absolute-completeness conjecture (Theorem 1') is falsified on a fourth program family (PWR core diffusion) via two pairwise-independent counterexamples."
+   },
+   {
+    "title": "Domain-Validity-Gated Metamorphic Testing of Scientific ML Surrogates",
+    "authors": "Meng Li; Xiaomin Yang; Jie Liu; Shiyu Yan",
+    "year": "2026",
+    "venue": "openalex",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "B",
+    "doi": "",
+    "url": "https://arxiv.org/abs/2606.17529",
+    "citations": "",
+    "abstract": "Scientific machine-learning (SciML) surrogates approximate expensive simulations, but exact expected outputs for arbitrary inputs are unavailable (the oracle problem). Metamorphic testing checks relations across executions, yet a candidate relation is not automatically valid: its preconditions, output mapping, and the numerical floor of the scoring operator determine whether a violation is meaningful. We study how candidate metamorphic relations (MRs) can be screened for domain validity and turned into executable, oracle-free test assets for SciML surrogates. We propose (i) a domain-validity rubric that admits a candidate only when its tolerance dominates the operator's numerical floor and its preconditions hold; (ii) an MR-card executable-asset format recording source cases, transformations, metrics, tolerances, and typed relation-level verdicts; and (iii) a case-study protocol on MeshGraphNets cylinder-flow surrogates, with a claim ledger binding every result to a tracked artifact. On a MeshGraphNets checkpoint, node permutation holds to machine precision, mirror-y is a bounded out-of-distribution stress finding rather than an exact symmetry, and absolute conservation stays deferred while a reference-relative guard passes. The same readings hold across held-out trajectories, a checkpoint roster, three further architectures, and PhysicsNeMo. On a second CFD task (compressible airfoil) the predicate instead rejects incompressible continuity on physical grounds, showing it reasons about domain validity rather than running a fixed checklist. On a second PDE family, FNO Burgers and heat surrogates run full admit/reject/execute verdicts. The evidence spans two CFD tasks and a second PDE family, supporting a validity-aware bridge from candidate MRs to auditable SciML test assets that separates model-level violations from out-of-domain applications."
+   },
+   {
+    "title": "The Classical Origin of Spin: Vectors Versus Bivectors",
+    "authors": "Bryan Sanctuary",
+    "year": "2025",
+    "venue": "openalex",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "S",
+    "doi": "10.3390/axioms14090668",
+    "url": "https://doi.org/10.3390/axioms14090668",
+    "citations": 1,
+    "abstract": "There are two ways of linearizing the Klein–Gordon equation: Dirac’s choice, which introduces a matter–antimatter pair, and a second approach using a bivector, which Dirac did not consider. In this paper, we show that a bivector provides the classical origin of quantum spin. At high precessional frequencies, a symmetry transformation occurs in which classical reflection becomes quantum parity. We identify a classical spin-1 boson and demonstrate how bosons deliver energy, matter, and torque to a surface. The correspondence between classical and quantum domains allows spin to be identified as a quantum bivector, iσ. Using geometric algebra, we show that a classical boson has two blades, corresponding to magnetic quantum number states m=±1. We conclude that fermions are the blades of bosons, thereby unifying both into a single particle theory. We compare and contrast the Standard Model, which uses chiral vectors as fundamental, with the Bivector Standard Model, which uses bivectors, with two hands, as fundamental."
+   }
+  ]
+ },
+ {
+  "tool": "search_crossref",
+  "query": "NOETHER constructive framework metamorphic pattern discovery operator algebras",
+  "elapsed": 1.35,
+  "status": "ok",
+  "n": 5,
+  "results": [
+   {
+    "title": "A Constructive Elementary Proof of the Skolem-Noether Theorem for Matrix Algebras",
+    "authors": "Jenő Szigeti; Leon vanWyk",
+    "year": "2017",
+    "venue": "The American Mathematical Monthly",
+    "vol": "124",
+    "issue": "10",
+    "page": "966",
+    "type": "j",
+    "doi": "10.4169/amer.math.monthly.124.10.966",
+    "url": "https://doi.org/10.4169/amer.math.monthly.124.10.966",
+    "citations": 2,
+    "abstract": ""
+   },
+   {
+    "title": "Notes on Treeability and Costs for Discrete Groupoids in Operator Algebra Framework",
+    "authors": "Yoshimichi Ueda",
+    "year": "2006",
+    "venue": "Operator Algebras",
+    "vol": "",
+    "issue": "",
+    "page": "259-279",
+    "type": "b",
+    "doi": "10.1007/978-3-540-34197-0_13",
+    "url": "https://doi.org/10.1007/978-3-540-34197-0_13",
+    "citations": 3,
+    "abstract": ""
+   },
+   {
+    "title": "The ε-Streamably-Learnable Class: A Constructive Framework for Operator-Based Optimization",
+    "authors": "Michael Rey",
+    "year": "2025",
+    "venue": "crossref",
+    "vol": "",
+    "issue": "",
+    "page": "",
+    "type": "p",
+    "doi": "10.20944/preprints202509.0046.v1",
+    "url": "https://doi.org/10.20944/preprints202509.0046.v1",
+    "citations": "",
+    "abstract": "<jats:p>We introduce the ε-Streamably-Learnable (ESL) class, a novel complexity class that bridges the theoretical gap between learnable and streamable optimization problems. ESL is defined as the closure of streamable problems under the uniform residual metric, capturing the empirical observation that even non-streamable problems can be approximated arbitrarily well by efficient low-rank operator surrogates. Building upon the established three-tier hierarchy of optimization problems, we prove that every learnable problem belongs to ESL, providing a constructive pathway from theoretical learnability to practical computational efficiency. Our main contributions include: (1) the formal definition and characterization of the ESL class with rigorous inclusion relationships and explicit mathematical foundations; (2) a constructive ESL-Convert algorithm that transforms any learnable problem into a streamable approximation with controllable error bounds and proven correctness guarantees; (3) detailed stability analysis for control applications with explicit contraction assumptions; (4) comprehensive case studies with complete reproducibility details for neural network training and federated learning scenarios. The ESL framework resolves the apparent contradiction between theoretical limitations of streamable optimization and the widespread practical success of low-rank methods. Numerical experiments across CNNs, transformers, and federated settings show up to 100× reductions in compute/communication with maintained convergence guarantees and explicit error bounds.</jats:p>"
+   },
+   {
+    "title": "A framework for rank identities - with a view towards operator algebras",
+    "authors": "Soumyashant Nayak",
+    "year": "2023",
+    "venue": "Journal of Operator Theory",
+    "vol": "89",
+    "issue": "2",
+    "page": "477-520",
+    "type": "j",
+    "doi": "10.7900/jot.2021aug22.2339",
+    "url": "https://doi.org/10.7900/jot.2021aug22.2339",
+    "citations": "",
+    "abstract": "<jats:p>In this article, we start a program to systematically characterize rank identities with a view towards applications to operator algebras. We initiate the study of so called ranked rings (unital rings with a ``rank system''), the main examples of interest being finite von Neumann algebras, Murray-von Neumann algebras, and von Neumann rank rings. As an illustrative application, using some abstract rank identities we show that the sum of finitely many idempotents e1,…,em in a finite von Neumann algebra is an idempotent if and only if they are mutually orthogonal, that is, eiej=δijei for 1⩽i,j⩽m.</jats:p>"
+   },
+   {
+    "title": "Abstract Operator Algebras",
+    "authors": [],
+    "year": "2003",
+    "venue": "Completely Bounded Maps and Operator Algebras",
+    "vol": "",
+    "issue": "",
+    "page": "225-238",
+    "type": "b",
+    "doi": "10.1017/cbo9780511546631.017",
+    "url": "https://doi.org/10.1017/cbo9780511546631.017",
+    "citations": "",
+    "abstract": ""
+   }
+  ]
+ }
+]

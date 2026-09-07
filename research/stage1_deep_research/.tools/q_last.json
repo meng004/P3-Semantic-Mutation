@@ -1,0 +1,7 @@
+[
+ {"tag":"PBMT-arxiv","tool":"search_arxiv","args":{"query":"Property-Based Mutation Testing Bartocci Mariani Nickovic Yadav","max_results":2}},
+ {"tag":"ADVANCES-openalex-raw","tool":"search_openalex","args":{"query":"Mutation Testing Advances An Analysis and Survey Papadakis","max_results":1}},
+ {"tag":"FARM-emse","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1007/s10664-019-09778-7"}},
+ {"tag":"JUST-fse2014-doi","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1145/2635868.2635929"}},
+ {"tag":"ICTSS-huang","tool":"search_crossref","args":{"query":"Testing Software and Systems ICTSS 2015 Lecture Notes in Computer Science 9447","max_results":4}}
+]

@@ -1,0 +1,12 @@
+[
+ {"tag":"DEF-base-smt","tool":"search_base","args":{"query":"semantic mutation testing Clark Dan Hierons","max_results":8}},
+ {"tag":"DEF-core-smt","tool":"search_core","args":{"query":"semantic mutation testing Clark Dan Hierons","max_results":8}},
+ {"tag":"DEF-openaire-smt","tool":"search_openaire","args":{"query":"semantic mutation testing Hierons","max_results":8}},
+ {"tag":"DEF-citeseerx-smt","tool":"search_citeseerx","args":{"query":"semantic mutation testing","max_results":8}},
+ {"tag":"DEF-semantic-retry","tool":"search_semantic","args":{"query":"Semantic mutation testing","max_results":8}},
+ {"tag":"BOOK-ammann-offutt","tool":"search_crossref","args":{"query":"Introduction to Software Testing Ammann Offutt Cambridge University Press","max_results":6}},
+ {"tag":"BOOK-openalex-ammann","tool":"search_openalex","args":{"query":"Introduction to Software Testing Ammann Offutt","max_results":5}},
+ {"tag":"B1-advances-vol","tool":"search_crossref","args":{"query":"Advances in Computers Mutation Testing Advances Papadakis Kintis Zhang","max_results":4}},
+ {"tag":"B6-mr-mutation-oracle","tool":"search_crossref","args":{"query":"metamorphic relations mutation score adequacy evaluate metamorphic testing effectiveness","max_results":10}},
+ {"tag":"B5-mutation-score-arbitrary-denominator","tool":"search_crossref","args":{"query":"mutation score denominator bias mutant distribution operator set disagreement construct validity","max_results":8}}
+]

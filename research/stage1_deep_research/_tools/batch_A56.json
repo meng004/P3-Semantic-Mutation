@@ -1,0 +1,12 @@
+[
+ {"tool":"search_arxiv","q":"2412.20692","n":3,"sleep":2},
+ {"tool":"search_crossref","q":"METRIC metamorphic relation identification category choice method Chen","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"datamorphic testing Hong Zhu software testing method","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"mutation analysis evaluate metamorphic relations mutants killed effectiveness","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"large language models generating metamorphic relations automatically","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relations conservation laws symmetry physical invariants scientific code testing","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"machine learning predicting metamorphic relations graph kernel classification","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation patterns describing template systematic identification","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation input output domain identification technique","n":8,"sleep":1},
+ {"tool":"search_openalex","q":"mutation testing assess metamorphic testing effectiveness numerical program","n":10,"sleep":1}
+]

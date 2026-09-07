@@ -1,0 +1,662 @@
+[
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1016/j.jss.2015.07.037",
+  "elapsed": 1.1,
+  "status": "ok",
+  "results": [
+   {
+    "title": "METRIC: METamorphic Relation Identification based on the Category-choice framework",
+    "authors": "Tsong Yueh Chen; Pak-Lok Poon; Xiaoyuan Xie",
+    "year": "2016",
+    "venue": "Journal of Systems and Software",
+    "vol": "116",
+    "issue": "",
+    "page": "177-190",
+    "type": "j",
+    "doi": "10.1016/j.jss.2015.07.037",
+    "url": "https://doi.org/10.1016/j.jss.2015.07.037",
+    "citations": 69,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/ISSRE.2013.6698899",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Using machine learning techniques to detect metamorphic relations for programs without test oracles",
+    "authors": "Upulee Kanewala; James M. Bieman",
+    "year": "2013",
+    "venue": "2013 IEEE 24th International Symposium on Software Reliability Engineering (ISSRE)",
+    "vol": "",
+    "issue": "",
+    "page": "1-10",
+    "type": "p",
+    "doi": "10.1109/issre.2013.6698899",
+    "url": "https://doi.org/10.1109/issre.2013.6698899",
+    "citations": 72,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1002/stvr.1594",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Predicting metamorphic relations for testing scientific software: a machine learning approach using graph kernels",
+    "authors": "Upulee Kanewala; James M. Bieman; Asa Ben‐Hur",
+    "year": "2015",
+    "venue": "Software Testing, Verification and Reliability",
+    "vol": "26",
+    "issue": "3",
+    "page": "245-269",
+    "type": "j",
+    "doi": "10.1002/stvr.1594",
+    "url": "https://doi.org/10.1002/stvr.1594",
+    "citations": 87,
+    "abstract": "<jats:title>Summary</jats:title><jats:p>Comprehensive, automated software testing requires an oracle to check whether the output produced by a test case matches the expected behaviour of the programme. But the challenges in creating suitable oracles limit the ability to perform automated testing in some programmes, and especially in scientific software. <jats:italic>Metamorphic testing</jats:italic> is a method for automating the testing process for programmes without test oracles. This technique operates by checking whether the programme behaves according to properties called <jats:italic>metamorphic relations</jats:italic>. A metamorphic relation describes the change in output when the input is changed in a prescribed way. Unfortunately, finding the metamorphic relations satisfied by a programme or function remains a labour‐intensive task, which is generally performed by a domain expert or a programmer. In this work, we propose a machine learning approach for predicting metamorphic relations that uses a graph‐based representation of a programme to represent control flow and data dependency information. In earlier work, we found that simple features derived from such graphs provide good performance. An analysis of the features used in this earlier work led us to explore the effectiveness of several representations of those graphs using the machine learning framework of graph kernels, which provide various ways of measuring similarity between graphs. Our results show that a graph kernel that evaluates the contribution of all paths in the graph has the best accuracy and that control flow information is more useful than data dependency information. The data used in this study are available for download at <jats:ext-link xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:href=\"http://www.cs.colostate.edu/saxs/MRpred/functions.tar.gz\">http://www.cs.colostate.edu/saxs/MRpred/functions.tar.gz</jats:ext-link> to help researchers in further development of metamorphic relation prediction methods. Copyright © 2015 John Wiley &amp; Sons, Ltd.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/TSE.2024.3407840",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "GenMorph: Automatically Generating Metamorphic Relations via Genetic Programming",
+    "authors": "Jon Ayerdi; Valerio Terragni; Gunel Jahangirova; Aitor Arrieta; Paolo Tonella",
+    "year": "2024",
+    "venue": "IEEE Transactions on Software Engineering",
+    "vol": "50",
+    "issue": "7",
+    "page": "1888-1900",
+    "type": "j",
+    "doi": "10.1109/tse.2024.3407840",
+    "url": "https://doi.org/10.1109/tse.2024.3407840",
+    "citations": 20,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3656340",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "MR-Scout: Automated Synthesis of Metamorphic Relations from Existing Test Cases",
+    "authors": "Congying Xu; Valerio Terragni; Hengcheng Zhu; Jiarong Wu; Shing-Chi Cheung",
+    "year": "2024",
+    "venue": "ACM Transactions on Software Engineering and Methodology",
+    "vol": "33",
+    "issue": "6",
+    "page": "1-28",
+    "type": "j",
+    "doi": "10.1145/3656340",
+    "url": "https://doi.org/10.1145/3656340",
+    "citations": 15,
+    "abstract": "<jats:p>Metamorphic Testing (MT) alleviates the oracle problem by defining oracles based on metamorphic relations (MRs) that govern multiple related inputs and their outputs. However, designing MRs is challenging, as it requires domain-specific knowledge. This hinders the widespread adoption of MT. We observe that developer-written test cases can embed domain knowledge that encodes MRs. Such encoded MRs could be synthesized for testing not only their original programs but also other programs that share similar functionalities.</jats:p>\n          <jats:p>\n            In this article, we propose\n            <jats:sc>MR-Scout</jats:sc>\n            to automatically synthesize MRs from test cases in open-source software (OSS) projects.\n            <jats:sc>MR-Scout</jats:sc>\n            first discovers MR-encoded test cases (MTCs), and then synthesizes the encoded MRs into parameterized methods (called\n            <jats:italic>codified MRs</jats:italic>\n            ), and filters out MRs that demonstrate poor quality for new test case generation.\n            <jats:sc>MR-Scout</jats:sc>\n            discovered over 11,000 MTCs from 701 OSS projects. Experimental results show that over 97% of codified MRs are of high quality for automated test case generation, demonstrating the practical applicability of\n            <jats:sc>MR-Scout</jats:sc>\n            . Furthermore, codified-MRs-based tests effectively enhance the test adequacy of programs with developer-written tests, leading to 13.52% and 9.42% increases in line coverage and mutation score, respectively. Our qualitative study shows that 55.76% to 76.92% of codified MRs are easily comprehensible for developers.\n          </jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/566172.566202",
+  "elapsed": 0.32,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Semi-proving",
+    "authors": "T. Y. Chen; T. H. Tse; Zhiquan Zhou",
+    "year": "2002",
+    "venue": "Proceedings of the 2002 ACM SIGSOFT international symposium on Software testing and analysis",
+    "vol": "",
+    "issue": "",
+    "page": "191-195",
+    "type": "p",
+    "doi": "10.1145/566172.566202",
+    "url": "https://doi.org/10.1145/566172.566202",
+    "citations": 47,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/AITest.2019.00018",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Datamorphic Testing: A Method for Testing Intelligent Applications",
+    "authors": "Hong Zhu; Dongmei Liu; Ian Bayley; Rachel Harrison; Fabio Cuzzolin",
+    "year": "2019",
+    "venue": "2019 IEEE International Conference On Artificial Intelligence Testing (AITest)",
+    "vol": "",
+    "issue": "",
+    "page": "149-156",
+    "type": "p",
+    "doi": "10.1109/aitest.2019.00018",
+    "url": "https://doi.org/10.1109/aitest.2019.00018",
+    "citations": 19,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1002/stvr.70003",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic Relation Patterns for Metamorphic Testing, Exploration and Robustness",
+    "authors": "Zhihao Ying; Dave Towey; Anthony Bellotti; Caslon Chua; Zhi Quan Zhou",
+    "year": "2025",
+    "venue": "Software Testing, Verification and Reliability",
+    "vol": "35",
+    "issue": "2",
+    "page": "",
+    "type": "j",
+    "doi": "10.1002/stvr.70003",
+    "url": "https://doi.org/10.1002/stvr.70003",
+    "citations": 7,
+    "abstract": "<jats:title>ABSTRACT</jats:title>\n                  <jats:p>Metamorphic testing (MT) is an effective software quality assurance method; it uses metamorphic relations (MRs) to examine the inputs and outputs of multiple test cases. Metamorphic exploration (ME) and metamorphic robustness testing (MRT) are advanced additions to the MT literature: ME can enable better understanding, and thus testing, of systems; MRT can test software robustness without an oracle. Metamorphic relation patterns (MRPs) are abstractions or templates for multiple concrete MRs. The performance of MT/ME/MRT relies on the quality of MRs, but the identification of MRs is often a manual task requiring some knowledge of MRPs, creative thinking and a good understanding of the system. In other words, the effective identification of MRs remains a challenge and requires further study. In this paper, we propose formal definitions to describe the relationship between multiple MRPs in order to classify them. We also identify a series of new MRPs and propose a new MT framework that can guide the identification and application of MRPs. Based on our definitions, we present the notion of MRP family trees and further propose two trees by classifying previously published MRPs and our proposed MRPs, in order to make it easier for users to find their target MRPs for reuse, reference or inference. Finally, we report on case studies using the MRPs and our framework to guide the identification of MRs for MT/ME/MRT and successfully detect multiple violations.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1007/978-3-031-70245-7_9",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Towards Generating Executable Metamorphic Relations Using Large Language Models",
+    "authors": "Seung Yeob Shin; Fabrizio Pastore; Domenico Bianculli; Alexandra Baicoianu",
+    "year": "2024",
+    "venue": "Communications in Computer and Information Science",
+    "vol": "",
+    "issue": "",
+    "page": "126-141",
+    "type": "b",
+    "doi": "10.1007/978-3-031-70245-7_9",
+    "url": "https://doi.org/10.1007/978-3-031-70245-7_9",
+    "citations": 9,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1007/s11219-017-9392-4",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "A mapping study on testing non-testable systems",
+    "authors": "Krishna Patel; Robert M. Hierons",
+    "year": "2017",
+    "venue": "Software Quality Journal",
+    "vol": "26",
+    "issue": "4",
+    "page": "1373-1413",
+    "type": "j",
+    "doi": "10.1007/s11219-017-9392-4",
+    "url": "https://doi.org/10.1007/s11219-017-9392-4",
+    "citations": 30,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1016/j.infsof.2010.11.002",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Automated metamorphic testing on the analyses of feature models",
+    "authors": "Sergio Segura; Robert M. Hierons; David Benavides; Antonio Ruiz-Cortés",
+    "year": "2011",
+    "venue": "Information and Software Technology",
+    "vol": "53",
+    "issue": "3",
+    "page": "245-258",
+    "type": "j",
+    "doi": "10.1016/j.infsof.2010.11.002",
+    "url": "https://doi.org/10.1016/j.infsof.2010.11.002",
+    "citations": 57,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/TSE.2021.3131548",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Enhance Combinatorial Testing with Metamorphic Relations",
+    "authors": "Xintao Niu; Yanjie Sun; Huayao Wu; Gang Li; Nie Changhai; Yu Lei; Xiaoyin Wang",
+    "year": "2021",
+    "venue": "IEEE Transactions on Software Engineering",
+    "vol": "",
+    "issue": "",
+    "page": "1-1",
+    "type": "j",
+    "doi": "10.1109/tse.2021.3131548",
+    "url": "https://doi.org/10.1109/tse.2021.3131548",
+    "citations": 7,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/AITest.2019.00019",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Fault Detection Effectiveness of Metamorphic Relations Developed for Testing Supervised Classifiers",
+    "authors": "Prashanta Saha; Upulee Kanewala",
+    "year": "2019",
+    "venue": "2019 IEEE International Conference On Artificial Intelligence Testing (AITest)",
+    "vol": "",
+    "issue": "",
+    "page": "157-164",
+    "type": "p",
+    "doi": "10.1109/aitest.2019.00019",
+    "url": "https://doi.org/10.1109/aitest.2019.00019",
+    "citations": 21,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3524846.3527335",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "On the cost-effectiveness of composite metamorphic relations for testing deep learning systems",
+    "authors": "Aitor Arrieta",
+    "year": "2022",
+    "venue": "Proceedings of the 7th International Workshop on Metamorphic Testing",
+    "vol": "",
+    "issue": "",
+    "page": "42-47",
+    "type": "p",
+    "doi": "10.1145/3524846.3527335",
+    "url": "https://doi.org/10.1145/3524846.3527335",
+    "citations": 3,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3241979",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic testing of driverless cars",
+    "authors": "Zhi Quan Zhou; Liqun Sun",
+    "year": "2019",
+    "venue": "Communications of the ACM",
+    "vol": "62",
+    "issue": "3",
+    "page": "61-67",
+    "type": "j",
+    "doi": "10.1145/3241979",
+    "url": "https://doi.org/10.1145/3241979",
+    "citations": 181,
+    "abstract": "<jats:p>Metamorphic testing can test untestable software, detecting fatal errors in autonomous vehicles' onboard computer systems.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3183440.3183468",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic testing 20 years later",
+    "authors": "Sergio Segura; Zhi Quan Zhou",
+    "year": "2018",
+    "venue": "Proceedings of the 40th International Conference on Software Engineering: Companion Proceeedings",
+    "vol": "",
+    "issue": "",
+    "page": "538-539",
+    "type": "p",
+    "doi": "10.1145/3183440.3183468",
+    "url": "https://doi.org/10.1145/3183440.3183468",
+    "citations": 20,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.3390/electronics13173380",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Improving Early Fault Detection in Machine Learning Systems Using Data Diversity-Driven Metamorphic Relation Prioritization",
+    "authors": "Madhusudan Srinivasan; Upulee Kanewala",
+    "year": "2024",
+    "venue": "Electronics",
+    "vol": "13",
+    "issue": "17",
+    "page": "3380",
+    "type": "j",
+    "doi": "10.3390/electronics13173380",
+    "url": "https://doi.org/10.3390/electronics13173380",
+    "citations": 7,
+    "abstract": "<jats:p>Metamorphic testing is a valuable approach to verifying machine learning programs where traditional oracles are unavailable or difficult to apply. This paper proposes a technique to prioritize metamorphic relations (MRs) in metamorphic testing for machine learning and deep learning systems, aiming to enhance early fault detection. We introduce five metrics based on diversity in source and follow-up test cases to prioritize MRs. The effectiveness of our proposed prioritization methods is evaluated on three machine learning and one deep learning algorithm implementation. We compare our approach against random-based, fault-based, and neuron activation coverage-based MR ordering. The results show that our data diversity-based prioritization performs comparably to fault-based prioritization, reducing fault detection time by up to 62% compared to random MR execution. Our proposed metrics outperformed neuron activation coverage-based prioritization, providing 5–550% higher fault detection effectiveness. Overall, our approach to prioritizing metamorphic relations leads to increased fault detection effectiveness and reduced average fault detection time. This improvement in efficiency can result in significant time and cost savings when applying metamorphic testing to machine learning and deep learning systems.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1002/stvr.1912",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic Testing on Scientific Programs for Solving Second‐Order Elliptic Differential Equations",
+    "authors": "Shiyu Yan; Hong Zhu",
+    "year": "2024",
+    "venue": "Software Testing, Verification and Reliability",
+    "vol": "35",
+    "issue": "1",
+    "page": "",
+    "type": "j",
+    "doi": "10.1002/stvr.1912",
+    "url": "https://doi.org/10.1002/stvr.1912",
+    "citations": "",
+    "abstract": "<jats:title>ABSTRACT</jats:title><jats:p>Practical problems in scientific computation that solve differential equations rarely have explicit exact solutions. Therefore, verifying the correctness of such programs has long been a challenge due to the difficulty of producing expected outputs on test cases. In this paper, the principles of metamorphic testing are applied to verify programs that solve second‐order elliptic differential equations. We present a testing process specifically tailored for the verification testing of scientific computation programs and integrate it to the process of developing scientific software. Unlike existing approaches, we formally derive metamorphic relations from the numerical models of differential equations built in development process of scientific computing programs. The experimental results clearly show that our approach is effective in detecting faults commonly found in scientific computing programs. It outperforms the fault detecting ability of the trend method, which is a traditional testing method for scientific software.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/MET.2017.3",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "A Template-Based Approach to Describing Metamorphic Relations",
+    "authors": "Sergio Segura; Amador Duran; Javier Troya; Antonio Ruiz Cortes",
+    "year": "2017",
+    "venue": "2017 IEEE/ACM 2nd International Workshop on Metamorphic Testing (MET)",
+    "vol": "",
+    "issue": "",
+    "page": "3-9",
+    "type": "p",
+    "doi": "10.1109/met.2017.3",
+    "url": "https://doi.org/10.1109/met.2017.3",
+    "citations": 19,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1007/s10664-020-09881-0",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Testing machine learning based systems: a systematic mapping",
+    "authors": "Vincenzo Riccio; Gunel Jahangirova; Andrea Stocco; Nargiz Humbatova; Michael Weiss; Paolo Tonella",
+    "year": "2020",
+    "venue": "Empirical Software Engineering",
+    "vol": "25",
+    "issue": "6",
+    "page": "5193-5254",
+    "type": "j",
+    "doi": "10.1007/s10664-020-09881-0",
+    "url": "https://doi.org/10.1007/s10664-020-09881-0",
+    "citations": 239,
+    "abstract": "<jats:title>Abstract</jats:title>\n                  <jats:sec>\n                    <jats:title>Context:</jats:title>\n                    <jats:p>A Machine Learning based System (MLS) is a software system including one or more components that learn how to perform a task from a given data set. The increasing adoption of MLSs in safety critical domains such as autonomous driving, healthcare, and finance has fostered much attention towards the quality assurance of such systems. Despite the advances in software testing, MLSs bring novel and unprecedented challenges, since their behaviour is defined jointly by the code that implements them and the data used for training them.</jats:p>\n                  </jats:sec>\n                  <jats:sec>\n                    <jats:title>Objective:</jats:title>\n                    <jats:p>To identify the existing solutions for functional testing of MLSs, and classify them from three different perspectives: (1) the context of the problem they address, (2) their features, and (3) their empirical evaluation. To report demographic information about the ongoing research. To identify open challenges for future research.</jats:p>\n                  </jats:sec>\n                  <jats:sec>\n                    <jats:title>Method:</jats:title>\n                    <jats:p>We conducted a systematic mapping study about testing techniques for MLSs driven by 33 research questions. We followed existing guidelines when defining our research protocol so as to increase the repeatability and reliability of our results.</jats:p>\n                  </jats:sec>\n                  <jats:sec>\n                    <jats:title>Results:</jats:title>\n                    <jats:p>We identified 70 relevant primary studies, mostly published in the last years. We identified 11 problems addressed in the literature. We investigated multiple aspects of the testing approaches, such as the used/proposed adequacy criteria, the algorithms for test input generation, and the test oracles.</jats:p>\n                  </jats:sec>\n                  <jats:sec>\n                    <jats:title>Conclusions:</jats:title>\n                    <jats:p>The most active research areas in MLS testing address automated scenario/input generation and test oracle creation. MLS testing is a rapidly growing and developing research area, with many open challenges, such as the generation of realistic inputs and the definition of reliable evaluation metrics and benchmarks.</jats:p>\n                  </jats:sec>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/ISSREW51248.2020.00055",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Using Metamorphic Testing to Evaluate DNN Coverage Criteria",
+    "authors": "Jinyi Zhou; Kun Qiu; Zheng Zheng; Tsong Yueh Chen; Pak-Lok Poon",
+    "year": "2020",
+    "venue": "2020 IEEE International Symposium on Software Reliability Engineering Workshops (ISSREW)",
+    "vol": "",
+    "issue": "",
+    "page": "147-148",
+    "type": "p",
+    "doi": "10.1109/issrew51248.2020.00055",
+    "url": "https://doi.org/10.1109/issrew51248.2020.00055",
+    "citations": 6,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/COMPSAC69091.2026.00027",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Toward Standardized Evaluation of Metamorphic Relations: A Structured Rubric and Human-LLM Comparison",
+    "authors": "Yifan Zhang; Dave Towey; Matthew Pike; Quang-Hung Luu; Huai Liu; Tsong Yueh Chen",
+    "year": "2026",
+    "venue": "2026 IEEE 50th Annual Computers, Software, and Applications Conference (COMPSAC)",
+    "vol": "",
+    "issue": "",
+    "page": "120-129",
+    "type": "p",
+    "doi": "10.1109/compsac69091.2026.00027",
+    "url": "https://doi.org/10.1109/compsac69091.2026.00027",
+    "citations": "",
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1002/stvr.1914",
+  "elapsed": 0.3,
+  "status": "ok",
+  "results": [
+   {
+    "title": "A Systematic Mapping Study of the Metrics, Uses and Subjects of Diversity‐Based Testing Techniques",
+    "authors": "Islam T. Elgendy; Robert M. Hierons; Phil McMinn",
+    "year": "2025",
+    "venue": "Software Testing, Verification and Reliability",
+    "vol": "35",
+    "issue": "2",
+    "page": "",
+    "type": "j",
+    "doi": "10.1002/stvr.1914",
+    "url": "https://doi.org/10.1002/stvr.1914",
+    "citations": 9,
+    "abstract": "<jats:title>ABSTRACT</jats:title><jats:p>There has been a significant amount of interest regarding the use of DBTtsfull in software testing over the past two decades. Diversity‐based testing (DBT) technique uses similarity metrics to leverage the dissimilarity between software artefacts—such as requirements, abstract models, programme structures or inputs—in order to address a software testing problem. DBT techniques have been used to assist in finding solutions to several different types of problems including generating test cases, prioritizing them and reducing very large test suites. This paper is a systematic mapping study of DBT techniques that summarizes the key aspects and trends of 167 papers that report the use of 79 different similarity metrics with 22 different types of software artefacts, which have been used by researchers to tackle 11 different types of software testing problems. We further present an analysis of the recent trends in DBT techniques and review the different application domains to which the techniques have been applied, giving an overview of the tools developed by researchers in order to do so. Finally, the paper identifies some DBT challenges that are potential topics for future work, such as exploring other diversity artefacts and measuring diversity for complex data input.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.5194/hess-28-2505-2024",
+  "elapsed": 0.31,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic testing of machine learning and conceptual hydrologic models",
+    "authors": "Peter Reichert; Kai Ma; Marvin Höge; Fabrizio Fenicia; Marco Baity-Jesi; Dapeng Feng; Chaopeng Shen",
+    "year": "2024",
+    "venue": "Hydrology and Earth System Sciences",
+    "vol": "28",
+    "issue": "11",
+    "page": "2505-2529",
+    "type": "j",
+    "doi": "10.5194/hess-28-2505-2024",
+    "url": "https://doi.org/10.5194/hess-28-2505-2024",
+    "citations": 14,
+    "abstract": "<jats:p>Abstract. Predicting the response of hydrologic systems to modified driving forces beyond patterns that have occurred in the past is of high importance for estimating climate change impacts or the effect of management measures. This kind of prediction requires a model, but the impossibility of testing such predictions against observed data makes it difficult to estimate their reliability. Metamorphic testing offers a methodology for assessing models beyond validation with real data. It consists of defining input changes for which the expected responses are assumed to be known, at least qualitatively, and testing model behavior for consistency with these expectations. To increase the gain of information and reduce the subjectivity of this approach, we extend this methodology to a multi-model approach and include a sensitivity analysis of the predictions to training or calibration options. This allows us to quantitatively analyze differences in predictions between different model structures and calibration options in addition to the qualitative test of the expectations. In our case study, we apply this approach to selected conceptual and machine learning hydrological models calibrated for basins from the CAMELS data set. Our results confirm the superiority of the machine learning models over the conceptual hydrologic models regarding the quality of fit during calibration and validation periods. However, we also find that the response of machine learning models to modified inputs can deviate from the expectations and the magnitude, and even the sign of the response can depend on the training data. In addition, even in cases in which all models passed the metamorphic test, there are cases in which the quantitative response is different for different model structures. This demonstrates the importance of this kind of testing beyond and in addition to the usual calibration–validation analysis to identify potential problems and stimulate the development of improved models.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/3524846.3527338",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Automated generation of metamorphic relations for query-based systems",
+    "authors": "Sergio Segura; Juan C. Alonso; Alberto Martin-Lopez; Amador Durán; Javier Troya; Antonio Ruiz-Cortés",
+    "year": "2022",
+    "venue": "Proceedings of the 7th International Workshop on Metamorphic Testing",
+    "vol": "",
+    "issue": "",
+    "page": "48-55",
+    "type": "p",
+    "doi": "10.1145/3524846.3527338",
+    "url": "https://doi.org/10.1145/3524846.3527338",
+    "citations": 13,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/MET.2019.00012",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Metamorphic Relation Patterns for Query-Based Systems",
+    "authors": "Sergio Segura; Amador Duran; Javier Troya; Antonio Ruiz-Cortes",
+    "year": "2019",
+    "venue": "2019 IEEE/ACM 4th International Workshop on Metamorphic Testing (MET)",
+    "vol": "",
+    "issue": "",
+    "page": "24-31",
+    "type": "p",
+    "doi": "10.1109/met.2019.00012",
+    "url": "https://doi.org/10.1109/met.2019.00012",
+    "citations": 22,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/ICSTW.2014.62",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Techniques for Automatic Detection of Metamorphic Relations",
+    "authors": "Upulee Kanewala",
+    "year": "2014",
+    "venue": "2014 IEEE Seventh International Conference on Software Testing, Verification and Validation Workshops",
+    "vol": "",
+    "issue": "",
+    "page": "237-238",
+    "type": "p",
+    "doi": "10.1109/icstw.2014.62",
+    "url": "https://doi.org/10.1109/icstw.2014.62",
+    "citations": 19,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1145/2896971.2896980",
+  "elapsed": 0.31,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Generating source inputs for metamorphic testing using dynamic symbolic execution",
+    "authors": "Eman Alatawi; Tim Miller; Harald Søndergaard",
+    "year": "2016",
+    "venue": "Proceedings of the 1st International Workshop on Metamorphic Testing",
+    "vol": "",
+    "issue": "",
+    "page": "19-25",
+    "type": "p",
+    "doi": "10.1145/2896971.2896980",
+    "url": "https://doi.org/10.1145/2896971.2896980",
+    "citations": 8,
+    "abstract": ""
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.3390/info10120392",
+  "elapsed": 0.29,
+  "status": "ok",
+  "results": [
+   {
+    "title": "A Genetic Algorithm-Based Approach for Composite Metamorphic Relations Construction",
+    "authors": "Zhenglong Xiang; Hongrun Wu; Fei Yu",
+    "year": "2019",
+    "venue": "Information",
+    "vol": "10",
+    "issue": "12",
+    "page": "392",
+    "type": "j",
+    "doi": "10.3390/info10120392",
+    "url": "https://doi.org/10.3390/info10120392",
+    "citations": 8,
+    "abstract": "<jats:p>The test oracle problem exists widely in modern complex software testing, and metamorphic testing (MT) has become a promising testing technique to alleviate this problem. The inference of efficient metamorphic relations (MRs) is the core problem of metamorphic testing. Studies have proven that the combination of simple metamorphic relations can construct more efficient metamorphic relations. In most previous studies, metamorphic relations have been mainly manually inferred by experts with professional knowledge, which is an inefficient technique and hinders the application. In this paper, a genetic algorithm-based approach is proposed to construct composite metamorphic relations automatically for the program to be tested. We use a set of relation sequences to represent a particular class of MRs and turn the problem of inferring composite MRs into a problem of searching for suitable sequences. We then dynamically implement multiple executions of the program and use a genetic algorithm to search for the optimal set of relation sequences. We conducted empirical studies to evaluate our approach using scientific functions in the GNU scientific library (abbreviated as GSL). From the empirical results, our approach can automatically infer high-quality composite MRs, on average, five times more than basic MRs. More importantly, the inferred composite MRs can increase the fault detection capabilities by at least     30 %     more than the original metamorphic relations.</jats:p>"
+   }
+  ]
+ },
+ {
+  "tool": "get_crossref_paper_by_doi",
+  "query": "10.1109/ICST.2010.20",
+  "elapsed": 0.28,
+  "status": "ok",
+  "results": [
+   {
+    "title": "Automated Test Data Generation on the Analyses of Feature Models: A Metamorphic Testing Approach",
+    "authors": "Sergio Segura; Robert M. Hierons; David Benavides; Antonio Ruiz-Cortés",
+    "year": "2010",
+    "venue": "2010 Third International Conference on Software Testing, Verification and Validation",
+    "vol": "",
+    "issue": "",
+    "page": "35-44",
+    "type": "p",
+    "doi": "10.1109/icst.2010.20",
+    "url": "https://doi.org/10.1109/icst.2010.20",
+    "citations": 25,
+    "abstract": ""
+   }
+  ]
+ }
+]

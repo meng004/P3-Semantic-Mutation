@@ -1,0 +1,14 @@
+[
+ {"tool":"search_semantic","q":"metamorphic testing new approach generating next test cases Chen Cheung Yiu","n":8},
+ {"tool":"search_crossref","q":"Metamorphic Testing: A Review of Challenges and Opportunities","n":6},
+ {"tool":"search_crossref","q":"A Survey on Metamorphic Testing Segura","n":6},
+ {"tool":"search_semantic","q":"metamorphic testing 20 years later reflections","n":6},
+ {"tool":"search_semantic","q":"metamorphic testing systematic mapping study literature review","n":10},
+ {"tool":"search_crossref","q":"The Oracle Problem in Software Testing: A Survey","n":6},
+ {"tool":"search_crossref","q":"On Testing Non-Testable Programs Weyuker","n":6},
+ {"tool":"search_semantic","q":"metamorphic testing scientific software numerical programs oracle problem","n":10},
+ {"tool":"search_semantic","q":"testing scientific software systematic literature review","n":8},
+ {"tool":"search_semantic","q":"metamorphic testing bioinformatics programs","n":6},
+ {"tool":"search_semantic","q":"metamorphic testing simulation software validation computational science","n":8},
+ {"tool":"search_semantic","q":"metamorphic testing machine learning classifiers deep learning","n":8}
+]

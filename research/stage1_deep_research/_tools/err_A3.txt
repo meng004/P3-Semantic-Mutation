@@ -1,0 +1,13 @@
+No SEMANTIC_SCHOLAR_API_KEY set or it's empty. Using unauthenticated access with lower rate limits.
+Rate limited (429). Waiting 5 seconds before retry 1/3
+Rate limited (429). Waiting 10 seconds before retry 2/3
+Rate limited (429) after 3 attempts. Please wait before making more requests.
+Rate limited by Semantic Scholar API: Too many requests. Please wait before retrying.
+No SEMANTIC_SCHOLAR_API_KEY set or it's empty. Using unauthenticated access with lower rate limits.
+Rate limited (429). Waiting 5 seconds before retry 1/3
+Rate limited (429). Waiting 10 seconds before retry 2/3
+No SEMANTIC_SCHOLAR_API_KEY set or it's empty. Using unauthenticated access with lower rate limits.
+Rate limited (429). Waiting 5 seconds before retry 1/3
+Rate limited (429). Waiting 10 seconds before retry 2/3
+Rate limited (429) after 3 attempts. Please wait before making more requests.
+Rate limited by Semantic Scholar API: Too many requests. Please wait before retrying.

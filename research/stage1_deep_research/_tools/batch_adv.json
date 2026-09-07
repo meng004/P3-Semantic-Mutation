@@ -1,0 +1,8 @@
+[
+ {"tool":"search_crossref","q":"Test Adequacy for Metamorphic Testing Criteria Measurement and Implication Fu Sun Zhang Liu","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"necessary property coverage criterion metamorphic relation testing requirement","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation coverage measure adequacy of metamorphic test suite","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"adequacy of a set of metamorphic relations completeness sufficiency theory","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"minimal set of metamorphic relations sufficient testing theory","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic testing property based testing adequacy specification coverage","n":10,"sleep":1}
+]

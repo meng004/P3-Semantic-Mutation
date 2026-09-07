@@ -1,0 +1,13 @@
+[
+ {"mode":"doi","q":"10.1016/j.infsof.2025.107975","sleep":1},
+ {"mode":"doi","q":"10.1145/2896971.2896974","sleep":1},
+ {"mode":"doi","q":"10.5220/0011101700003176","sleep":1},
+ {"mode":"doi","q":"10.1109/MET.2019.00011","sleep":1},
+ {"mode":"doi","q":"10.1109/MET.2017.5","sleep":1},
+ {"mode":"doi","q":"10.1109/ICST69053.2026.00016","sleep":1},
+ {"mode":"doi","q":"10.1109/SANER56733.2023.00109","sleep":1},
+ {"mode":"doi","q":"10.1109/TSE.2023.3256322","sleep":1},
+ {"mode":"doi","q":"10.1145/3679006.3685070","sleep":1},
+ {"tool":"search_openalex","q":"NOETHER Constructive Framework Metamorphic Pattern Discovery Operator Algebras","n":5,"sleep":1},
+ {"tool":"search_crossref","q":"NOETHER constructive framework metamorphic pattern discovery operator algebras","n":5,"sleep":1}
+]

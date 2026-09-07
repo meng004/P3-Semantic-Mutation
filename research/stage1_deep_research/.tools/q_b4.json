@@ -1,0 +1,19 @@
+[
+ {"tag":"B1-advances-authors","tool":"search_openalex","args":{"query":"Mutation Testing Advances: An Analysis and Survey","max_results":3}},
+ {"tag":"B4-jia-harman-hom-ist","tool":"search_crossref","args":{"query":"Higher Order Mutation Testing Jia Harman Information and Software Technology","max_results":5}},
+ {"tag":"B4-jia-harman-subtle","tool":"search_crossref","args":{"query":"Constructing Subtle Faults Using Higher Order Mutation Testing Jia Harman","max_results":4}},
+ {"tag":"B4-harman-strong-hom","tool":"search_crossref","args":{"query":"Strong higher order mutation-based test data generation Harman Jia Langdon","max_results":4}},
+ {"tag":"B4-deepcrime","tool":"search_crossref","args":{"query":"DeepCrime mutation testing of deep learning systems based on real faults Humbatova Jahangirova Tonella","max_results":4}},
+ {"tag":"B4-mubert","tool":"search_crossref","args":{"query":"muBERT mutation testing using pre-trained language models Degiovanni Papadakis","max_results":5}},
+ {"tag":"B4-llmorpheus","tool":"search_arxiv","args":{"query":"LLMorpheus mutation testing large language models","max_results":5}},
+ {"tag":"B4-llm-mutation","tool":"search_crossref","args":{"query":"large language models mutation testing generated mutants empirical","max_results":8}},
+ {"tag":"B4-property-based-mutation","tool":"search_crossref","args":{"query":"Property-Based Mutation Testing Bartocci Mariani Nickovic Yadav","max_results":5}},
+ {"tag":"B4-scientific-mutation-hook-kelly","tool":"search_crossref","args":{"query":"Mutation sensitivity testing Hook Kelly scientific software","max_results":6}},
+ {"tag":"B4-kelly-mutants-scientific","tool":"search_crossref","args":{"query":"Examining random and designed tests to detect code mutants in scientific software Kelly","max_results":6}},
+ {"tag":"B4-mutation-scientific-computing","tool":"search_crossref","args":{"query":"mutation testing scientific computing numerical software oracle problem","max_results":10}},
+ {"tag":"B4-mutation-floating-point","tool":"search_crossref","args":{"query":"mutation operators floating point numerical accuracy testing","max_results":8}},
+ {"tag":"B4-domain-specific-operators","tool":"search_crossref","args":{"query":"domain specific mutation operators Simulink models","max_results":8}},
+ {"tag":"B4-mujava","tool":"search_crossref","args":{"query":"MuJava an automated class mutation system Ma Offutt Kwon","max_results":4}},
+ {"tag":"B4-deepmutation","tool":"search_crossref","args":{"query":"DeepMutation mutation testing of deep learning systems Ma Zhang","max_results":5}},
+ {"tag":"B4-semantic-preserving-transform","tool":"search_arxiv","args":{"query":"Semantic-Preserving Transformations as Mutation Operators Defect Detection Hort","max_results":4}}
+]

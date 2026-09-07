@@ -1,0 +1,22 @@
+[
+ {"tool":"search_arxiv","q":"Test Adequacy for Metamorphic Testing Criteria Measurement and Implication","n":6,"sleep":2},
+ {"tool":"search_arxiv","q":"Metamorphic Testing: A New Approach for Generating Next Test Cases","n":6,"sleep":2},
+ {"mode":"doi","q":"10.1109/TSE.2016.2532875","sleep":1},
+ {"mode":"doi","q":"10.1145/3143561","sleep":1},
+ {"mode":"doi","q":"10.1109/MS.2018.2875968","sleep":1},
+ {"mode":"doi","q":"10.1007/s11219-016-9337-3","sleep":1},
+ {"mode":"doi","q":"10.1002/stvr.1807","sleep":1},
+ {"mode":"doi","q":"10.3390/jimaging10040087","sleep":1},
+ {"mode":"doi","q":"10.1002/spe.3280","sleep":1},
+ {"mode":"doi","q":"10.1109/COMPSAC.2006.24","sleep":1},
+ {"mode":"doi","q":"10.1109/TSE.2019.2934848","sleep":1},
+ {"mode":"doi","q":"10.1145/3194747.3194750","sleep":1},
+ {"tool":"search_crossref","q":"METRIC metamorphic relation identification category choice method","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"datamorphic testing Hong Zhu","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"mutation analysis to evaluate metamorphic relations mutants killed","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"large language models generating metamorphic relations automatically","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relations derived from conservation laws symmetry physical invariants testing","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"symmetry invariance testing numerical simulation physics code verification","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"machine learning predicting metamorphic relations graph kernel","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic relation patterns identification systematic approach","n":8,"sleep":1}
+]

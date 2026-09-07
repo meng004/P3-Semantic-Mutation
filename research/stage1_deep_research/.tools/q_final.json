@@ -1,0 +1,17 @@
+[
+ {"tag":"B2-ojdanic-tse2023","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/TSE.2023.3277564"}},
+ {"tag":"B1-gopinath-stvr-1831","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1002/stvr.1831"}},
+ {"tag":"B1-gopinath-stvr-1830","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1002/stvr.1830"}},
+ {"tag":"BOOK-ammann-2ed","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1017/9781316771273"}},
+ {"tag":"B6-jafari-nadeem","tool":"get_crossref_paper_by_doi","args":{"doi":"10.3390/jimaging10040087"}},
+ {"tag":"B4-hook-kelly-print","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/mcse.2009.200"}},
+ {"tag":"B4-hook-kelly-other","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/mcse.2009.157"}},
+ {"tag":"B4-hook-secse","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1109/secse.2009.5069163"}},
+ {"tag":"B4-gray-kelly","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1016/j.procs.2010.04.165"}},
+ {"tag":"B4-kelly-jocs","tool":"get_crossref_paper_by_doi","args":{"doi":"10.1016/j.jocs.2010.12.002"}},
+ {"tag":"B4-mutation-fortran-hpc","tool":"search_crossref","args":{"query":"mutation testing Fortran high performance computing simulation code test adequacy","max_results":8}},
+ {"tag":"B4-mubert-tosem","tool":"search_crossref","args":{"query":"Khanfir Degiovanni Papadakis Le Traon Efficient mutation testing via pre-trained language models","max_results":6}},
+ {"tag":"B4-llmorpheus-crossref","tool":"search_crossref","args":{"query":"LLMorpheus mutation testing using large language models Tip Bell Schaefer","max_results":5}},
+ {"tag":"B5-mutant-count-normalisation","tool":"search_crossref","args":{"query":"How the choice of mutation operators affects mutation score comparability tools","max_results":8}},
+ {"tag":"B2-shin-bae-diversity","tool":"search_crossref","args":{"query":"Shin Bae diversity aware mutation adequacy criterion mutation score","max_results":6}}
+]

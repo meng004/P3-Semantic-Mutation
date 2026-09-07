@@ -1,0 +1,22 @@
+[
+ {"tag":"B1-jia-harman-survey","tool":"search_crossref","args":{"query":"An Analysis and Survey of the Development of Mutation Testing","max_results":4}},
+ {"tag":"B1-papadakis-advances","tool":"search_crossref","args":{"query":"Mutation Testing Advances: An Analysis and Survey","max_results":4}},
+ {"tag":"B1-demillo-hints","tool":"search_crossref","args":{"query":"Hints on Test Data Selection: Help for the Practicing Programmer DeMillo","max_results":4}},
+ {"tag":"B1-hamlet-compiler","tool":"search_crossref","args":{"query":"Testing Programs with the Aid of a Compiler Hamlet","max_results":4}},
+ {"tag":"B1-offutt-sufficient","tool":"search_crossref","args":{"query":"An experimental determination of sufficient mutant operators Offutt","max_results":4}},
+ {"tag":"B1-offutt-untch-mutation2000","tool":"search_crossref","args":{"query":"Mutation 2000: Uniting the Orthogonal Offutt Untch","max_results":4}},
+ {"tag":"B1-offutt-carol","tool":"search_crossref","args":{"query":"A mutation carol: past, present and future Offutt","max_results":4}},
+ {"tag":"B1-offutt-coupling","tool":"search_crossref","args":{"query":"Investigations of the software testing coupling effect Offutt","max_results":4}},
+ {"tag":"B1-wah-fault-coupling","tool":"search_crossref","args":{"query":"A theoretical study of fault coupling Wah","max_results":4}},
+ {"tag":"B2-andrews-icse2005","tool":"search_crossref","args":{"query":"Is mutation an appropriate tool for testing experiments? Andrews Briand Labiche","max_results":4}},
+ {"tag":"B2-andrews-tse2006","tool":"search_crossref","args":{"query":"Using Mutation Analysis for Assessing and Comparing Testing Coverage Criteria Andrews","max_results":4}},
+ {"tag":"B2-just-fse2014","tool":"search_crossref","args":{"query":"Are mutants a valid substitute for real faults in software testing?","max_results":4}},
+ {"tag":"B2-papadakis-icse2018","tool":"search_crossref","args":{"query":"Are mutation scores correlated with real fault detection? A large scale empirical study on the relationship between mutants and real faults","max_results":4}},
+ {"tag":"B2-chekam-icse2017","tool":"search_crossref","args":{"query":"An empirical study on mutation, statement and branch coverage fault revelation that avoids the unreliable clean program assumption","max_results":4}},
+ {"tag":"B2-inozemtseva","tool":"search_crossref","args":{"query":"Coverage is not strongly correlated with test suite effectiveness Inozemtseva Holmes","max_results":4}},
+ {"tag":"B2-daran-thevenod","tool":"search_crossref","args":{"query":"Software error analysis: a real case study involving real faults and mutations Daran Thevenod-Fosse","max_results":4}},
+ {"tag":"B2-namin-andrews-size","tool":"search_crossref","args":{"query":"The influence of size and coverage on test suite effectiveness Namin Andrews","max_results":4}},
+ {"tag":"B2-kaufman-judge-cover","tool":"search_crossref","args":{"query":"Do judge a test by its cover: combining combinatorial and property-based testing","max_results":4}},
+ {"tag":"B2-ojdanic-commit-relevant","tool":"search_crossref","args":{"query":"On the use of commit-relevant mutants Ojdanic Papadakis","max_results":5}},
+ {"tag":"B2-papadakis-threats-issta2016","tool":"search_crossref","args":{"query":"Threats to the validity of mutation-based test assessment Papadakis Henard Harman","max_results":4}}
+]

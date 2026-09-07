@@ -28,6 +28,80 @@
 
 线 A 的投稿包（`main.pdf` / `supplementary.pdf` / `main.tex`）此前一直是未跟踪文件，2026-09-07 已入库保存，仅作历史 lineage 凭证。
 
+### 1.1 v4 与已公开预印本的关系（2026-09-07 决策：supersede）
+
+Phase 2 主题 C 的先例裁决为 **`DIRECT_PRIOR_ART`**：v4 计划的 SPTM 与 SLRMA 已被本组自己公开的 **arXiv:2605.17437 (SMS)** 占据——Conservation Erosion 与 Structural Injection 两个算子即保结构性质违反，SMS 本身即被定位为 domain-semantic MR 集合的充分性度量，12-PUT × 5-MP 设计已跑完，且「保结构变异在默认一阶语法配置下不可达」这一结论已发表。**arXiv:2606.08269 (Min-MR-Complete)** 另占据完备性/最小化理论层。
+
+**决策：v4 定位为 arXiv:2605.17437 的后继版本（arXiv supersede），不作为独立新论文。** 因线 A 从未投出且该预印本已在 `declarations.md` 中声明，此路径不构成切香肠。
+
+由此产生四条硬约束，进入写作前必须逐条落实：
+
+1. **SPTM / SLRMA 不得作为 first-of-kind 构念引入**，须写成 SMS 的理论化重述并引用 arXiv:2605.17437。
+2. ~~**新颖性只押在 ESPR 五元组 r = (φ, D, κ, B, O) 的 O 分量与 verdict-independence 上**~~ —— **本条已作废，见下方「约束 2 的撤回」。**
+3. **必须守住与 arXiv:2606.08269 的边界。** 该篇是**独立**的公开论文；SLRMA 若重复其 layer-relative 完备性判据、Set-Cover 等价、贪心近似或 ILP，即构成真正的切香肠。v4 只能**引用**该理论层，不能重述。
+4. **arXiv supersede 的操作时点**：v4 定稿后以新版本替换 2605.17437，而非另开新 arXiv 条目。注意 `submission/arxiv_metadata.md` 已记录该文 Comments 字段的历史遗留问题（曾误称投往 IST），supersede 时一并修正。
+
+FINER 的 Novel 项据此从 4/5 二次下调至 **2/5**（容忍下限），综合 4.0/5。详细证据链见 `research/stage1_deep_research/phase1_rq_brief_provisional.md` §1.2。
+
+### 1.2 约束 2 的撤回（2026-09-07，Phase 3 synthesis 指出的逻辑矛盾）
+
+Phase 3 synthesis（`research/stage1_deep_research/phase3_gap_synthesis.md`）判定原约束 2 与约束 4 **互相矛盾**，该判定成立：
+
+> 若 v4 **supersede** arXiv:2605.17437，则记录中只有**一篇**论文，不存在「对自己的增量」需要辩护，只存在**对外部文献的增量**。约束 2 把本组自己的预印本当成了针对自己的先例，因而放弃了 supersede 框架本来就赋予的 SMS 级贡献，并把全部新颖性负担转嫁给框架中最弱的分量。
+
+补充事实支持这一撤回：arXiv 预印本**不是 archival publication**，`declarations.md` 已声明「The submission is not an extension of any prior archival publication」，TOSEM journal-first 的新颖性门槛本就是对已发表文献而非对自己预印本设定的。
+
+按项目规则 §10.1 的判别速查表，原约束 2 属于「**主张收缩**」而非「效度修复」——它在没有证据要求的情况下预先放弃了理论敢做的主张，辩护不过，**予以回调**。
+
+**修订后的约束 2：** v4 的新颖性对**外部文献**衡量。SPTM/SLRMA/SMS 层的内容属于本论文自身内容，可正常主张，无需引用自己的预印本作为先例（但 supersede 关系须在 arXiv 版本历史与投稿信中如实交代）。真正需要防守的外部先例是 Fu et al. (2024)、Liu et al. (2024)、Bartocci et al. (2023)、Yan & Zhu (2025)。
+
+**约束 1、3、4 不受影响**，其中约束 3（与 arXiv:2606.08269 的边界）**仍然完全成立**——那是一篇未被 supersede 的独立公开论文。
+
+### 1.3 Phase 3 判定的两个设计硬伤（进入实现前必须处理）
+
+1. **O 分量的五个候选认证器中有两个本身就是 MR。** Round-trip residual 即可逆性 MR；grid-refinement order 即 Chen, Feng & Tse (2002) 推导的 refinement MR 族、也是 Roache GCI 所报告的量。两者都是「跨多次执行及其输出的关系」，正是 MR 的标准定义。更严重的是 v4 方案把**可逆性同时列为 ESPR 性质与其认证器**，构成循环。
+2. **两个结构上干净的认证器（离散算子对易子、伴随点积检验）在现有程序总体上无法演示。** 前者需要暴露 div/grad/curl 算子，后者需要暴露伴随；而 arXiv:2605.17437 的总体是「four single-output float-to-float classes」，两者都不暴露。要演示 O 必须新建求解器总体。
+
+### 1.4 新求解器总体不存在（2026-09-07，可行性普查结论）
+
+对上条的直接回应：`research/stage1_deep_research/phase3b_put_population_feasibility.md` 的裁决是**满足全部五项硬要求的程序总体在研究所需规模上不存在**。
+
+**约束的绑定点是 R1 ∩ R2**：暴露可检视离散算子（或真实伴随）的代码把这些算子放在 C++/Fortran/生成的 C 里；而 Python 可变异的代码几乎从不把这些算子作为可单独调用的对象暴露。R4（真实缺陷史）在该交点上构成次级绑定——只有 SimPEG 有可用的带标注缺陷语料。
+
+| 候选 | 接近之处 | 硬性失败项 |
+|---|---|---|
+| `discretize` + SimPEG | 稀疏 `nodal_gradient` / `face_divergence` / `edge_curl`；文档已演示 `CURL@GRAD=0`；体积平衡；SimPEG 有 106 个 `bug` 标注 | **只是一个项目族，不是总体**；14% Cython |
+| `findiff` | 纯 Python `Gradient`/`Divergence`/`Curl` + `.matrix()` | R4（仅 1 个标注缺陷） |
+| `py-pde` | `grid.make_operator("divergence"\|"gradient"\|…)` | R4（4 个缺陷）；无 curl |
+| `jax-cfd` | `finite_differences.{divergence,curl_2d,curl_3d}` + JAX VJP | R4（0 个标注缺陷） |
+| Dedalus | 符号 `div`/`grad`/`curl` + PNAS 2026 自动伴随 | 运行时在 C kernel 内；生产级 IVP 不满足 R5 |
+
+**关键警告**：把 `discretize` 内部的示例 PDE 当作「总体」来计数，会恢复 n 但重演已记录的 `n_projects=1` 聚类失败。Julia（`Oceananigans`）在 R1 下不值得考虑；若放宽 R1，Mull / Dextool / Gremlins.jl 存在，但那是更换测试框架而非廉价获得总体。
+
+**后果**：去循环后仅存的两个干净认证器**没有可演示的载体**。第三个幸存者（全局平衡诊断）受 Haworth (1993) 限制——对格式按构造精确守恒的量，不平衡量恒为零，因此恰恰对主守恒 ESPR 失明，而 Conservation Erosion 正是 SMS 五算子之一。**O 分量在当前证据下不可作为承重贡献。**
+
+### 1.5 放宽 R1 的路线（2026-09-07 用户选择，成本评估进行中）
+
+用户选择**放宽 R1**：放弃 Python 变异框架，改用 C++ 变异工具（Mull / Dextool）对成熟 C++ 求解器（MFEM / DOLFINx / deal.II / PETSc）施加变异，以换取真实暴露的离散算子与伴随。
+
+**必须先处理的冲突**：这条路线与 §4 记录的第一次成本失败**是同一条路线**——Boost.Math C++ 尝试终态 `TECH_UNCERTAIN`、8/12 funnel、`FORMAL_PROFILING_RETRY_FORBIDDEN=true`，Attempt-2 停在约 70% 且 `attempt_2_authorized=false`，两周投入**从未离开 build-preflight**。且新目标严格更重：Boost.Math 是 header-only、无外部依赖、无 MPI；MFEM / DOLFINx / PETSc 需要 MPI + BLAS/LAPACK + hypre/METIS。
+
+**唯一可能使其不重演的技术差异**（待核实）：Mull 在 LLVM IR 层变异，将多个变异嵌入单个插桩二进制并在运行时切换，原理上绕开「每变异体重建原生构建链」——正是杀死 Boost.Math 的成本项。Dextool 为源码级变异，不具此性质。另需核实 FFC/TSFC 运行时生成 C 代码的求解器（FEniCS / Firedrake）中 Mull 能否看见算子代码。
+
+成本评估交付物：`research/stage1_deep_research/phase3c_cxx_route_cost_assessment.md`。
+
+#### 1.5.1 评估裁决（2026-09-07）：`PARTIALLY DIFFERENT`
+
+**Mull 的技术假设成立，但它不是 Boost.Math 的死因。** Mull 0.34.0（2026-05-12）是 LLVM IR 层的 Clang plugin：编译一次生成单个插桩二进制，`mull-runner` 在运行时切换变异体；JIT 架构已于 2021-01 移除，2018 年的工具论文在架构描述上已过时。**确实绕开了每变异体重建**，但成本只是转移到一次 Clang/LLVM 版本锁定的首次编译上，而杀死 Boost.Math 的是「合同、证据、gate 的投入超过可执行链本身」这一流程失败，不是编译成本。Dextool 为源码级，但同样有 schemata 模式（带 rebuild 回退）。
+
+**最佳候选：串行 MFEM**（`DiscreteLinearOperator` / `GradientInterpolator` / `CurlInterpolator` / `DivergenceInterpolator`），**不要碰 MPI**。Firedrake / FEniCS 是 Python 路线陷阱的镜像——TSFC / FFCx 运行时生成 C 代码，Mull 无法稳定看见。PETSc / 完整 FEniCSx / deal.II-candi 需 20+ 工程周，应直接拒绝。
+
+**成本：到首次真实 profiling 需 8–15 工程周**（若可执行链是唯一工作则 5–8 周）。Boost.Math 已烧掉 2 周且完全未到达 profiling，本路线是其 4–8 倍。
+
+**决定性事实（评估之外的推论）**：即便全额投入 8–15 周并成功，结果仍是 `n_projects=1`——这恰是 §5 claim ledger 中 C3 已被记录的阻塞原因（「`n_projects=1`，项目聚类不确定性不可识别」）。**这条路线用 4–8 倍于第一次失败的成本，落回同一个已记录的阻塞点。**
+
+**在新的战略判断作出前，不启动任何 C++ 工程工作。**
+
 ## 2. v4 方案要点
 
 三个核心构念：

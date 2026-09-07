@@ -1,0 +1,12 @@
+[
+ {"tool":"search_arxiv","q":"2002.12543","n":3,"sleep":2},
+ {"tool":"search_semantic","q":"Test Adequacy for Metamorphic Testing Criteria Measurement Implication Fu Sun","n":4,"sleep":15},
+ {"tool":"search_semantic","q":"Test Adequacy Criteria for Metamorphic Testing Liu Zheng QRS","n":4,"sleep":15},
+ {"tool":"search_semantic","q":"metamorphic relations from physical conservation laws energy mass invariance simulation testing","n":10,"sleep":15},
+ {"tool":"search_semantic","q":"predicting metamorphic relations machine learning Kanewala Bieman","n":8,"sleep":15},
+ {"tool":"search_crossref","q":"metamorphic testing 20 years later hands-on introduction","n":6,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic testing driverless cars self-driving Zhou Sun","n":6,"sleep":1},
+ {"tool":"search_crossref","q":"symmetry based test oracle invariance partial differential equation solver verification","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"code verification method manufactured solutions scientific computing order of accuracy","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic testing composition of metamorphic relations effectiveness","n":8,"sleep":1}
+]

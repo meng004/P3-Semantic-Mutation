@@ -1,0 +1,12 @@
+[
+ {"tool":"search_openalex","q":"Test Adequacy for Metamorphic Testing Criteria Measurement and Implication","n":5,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relation set sufficiency stopping criterion when to stop metamorphic testing","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"predicting metamorphic relations using machine learning Kanewala Bieman graph","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"Kanewala Bieman using machine learning techniques to detect metamorphic relations","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic testing nuclear reactor thermal hydraulics computational fluid dynamics","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"metamorphic slice semi-proving symbolic evaluation metamorphic relation","n":8,"sleep":1},
+ {"tool":"search_crossref","q":"testing scientific software survey challenges practices","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic relation quality assessment rubric evaluation framework","n":10,"sleep":1},
+ {"tool":"search_crossref","q":"empirical study mutation score metamorphic relations scientific computing evaluate","n":10,"sleep":1},
+ {"tool":"search_openalex","q":"metamorphic testing systematic literature review mapping study 2024","n":10,"sleep":1}
+]

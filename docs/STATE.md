@@ -1,144 +1,107 @@
-# P2 项目状态（单一会话入口）
+# P3 项目状态（单一会话入口）
 
 > 每次会话开始**只读这一个文件**即可定位。任何重大 commit 后请同步本文件 + 末尾 `last_synced` 日期。
+>
+> P2 时代的状态文件已归档至 `archive/process_summaries/P2_STATE_2026-05-03.md`，不再作为入口。
 
-**Last synced:** 2026-05-03（Round-9 submission-ready；GitHub release-prep 整理通过）
-**Stage:** **Submission-ready (round-9)**；5/5 reviewers Minor Revision conditional Accept；论文等待投稿启动 + Zenodo DOI minting
-**Repo:** `<P2_ROOT>`
-**Paper file (中文权威版)：** `论文初稿P2.md`（1853 行；historical authoritative draft）
-**Paper file (英文长稿)：** `论文初稿P2_EN.md`（1844 行；pre-IST compaction）
-**Paper file (IST 投稿版)：** `论文初稿P2_IST.md`（main, 8.5k 词）+ `论文初稿P2_IST_appendix.md`（A-G, 4.2k 词）
-**Final LaTeX bundle:** `submission/p2_ist_final.{tex,pdf,docx}` + `submission/cover_letter_final.{md,pdf}`
-
-**2026-05-02 Round-2 minor revision pass（commit a0fb8ed）：**
-- **Group A（已 commit a20e795,Round-2 ESCALATED 修复）**：§3.5.1 + §5.9.2/3 翻译、Abstract H2 wording、§3.2.6.1 OS 表格单元、LLM 源数字校对、Line 1185 dangling "IST 2024"
-- **Group B（R1 method）**：§5.7.3 stipulated-alternative power simulation（power point=0.491 / CI-lower=0.868）、§5.8.4 per-class Friedman + Bonferroni × 4 + Kendall's W、§7.1.2 K_eq sweep 下调 limitation
-- **Group C（R2 lit）**：§1.3.2 CPH grounding + 4 经典（DeMillo 1978/Andrews 2005/Just FSE 2014/Papadakis 2019）+ Ammann & Offutt 2008 + Vargha & Delaney 2000；§1.6.2 toy-scope；§9.5 Corollary 9.1 generic statement
-- **Group D（R3 §6.5）**：§6.5.3 阈值删除 + retitle "long-term aspiration"、§6.5.2 YAML 删除 + quarterly batch audit reframe、§6.5.1 air-gap incompatibility declaration、§1.1 scope 收紧、§8.6 ASME V&V 20-2009 reference
-
-**Round-2 reviewer 合议（docs/review_2026-05-02/editorial_decision.md）**：
-- R0 EIC: Major → **Minor**（6.7→7.4）
-- R1 Method: Major → **Minor**（6 items, 已修复）
-- R2 Domain: Major → **Minor**（6.71→7.43, 已修复）
-- R3 Persp: Major round-2 §6.5（D-6 3/10）→ **Minor**（Round-3 verification 后,D-6 升至 6/10,dissent 已撤回；docs/review_2026-05-02/r3_perspective_round3_verification.md）
-- R4 DA: NOT Accept → **Minor**（5 conditional fixes 已修复）
-
-**5/5 一致 verdict: Minor Revision conditional Accept**。Round-3 残余 nits 仅 2 项 non-blocking:
-- (i) §6.5 W6 ISO 26262-8 §11 TCL 2/3 verbatim language 未调用（实质内容已正确披露,non-blocking）
-- (ii) §6.5.2 line 1499 "scientific computing domains" 改为 "single-output scientific computing kernels of the type covered by §3.1.1"（已 fix pending commit）
+**Last synced:** 2026-09-07
+**Stage:** **理论重构期（v4 立项）** — 无可投稿件；旧稿件线全部冻结
+**当前论文身份:** v4 = ESPR / SPTM / SLRMA，目标 ACM TOSEM
+**方案文档:** `research/p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md`
+**Claim 权威:** `research/evidence/p3_claim_ledger_v1.3.0.yml`（冻结于 2026-08-12，C1–C8 **全部 `blocked`**）
 
 ---
 
-## 1. Reviewer 28 项进度
+## 0. 一句话现状
 
-**Pre-2026-05-01 review (24)：** P0: R-2/3/4/5/6/24 | P1: R-7/8/9/10/11 | P2: R-12/13/14/15/16(protocol)/17/18/19/20/21/22/23/25(基础设施)
+三份 2026-08-29 的独立评估一致认定现有稿件存在 claim–evidence 缺口：实证证据只到「单项目 4 配对 pilot」，而论文主张需要跨项目构念效度。2026-09-07 决策：**放弃在旧证据上重写主张，改走 v4 理论重构路线**，旧 60-cell 数据降级为 development/pilot set。
 
-**2026-05-01 reviewer-consensus revision round (9 ≥3/5 items, plan: docs/superpowers/plans/2026-05-01-p2-reviewer-consensus-revision.md):**
-- **P0:** P0-1 (title scope, 5/5) | P0-2 (17.6:1 删) | P0-3 (sign test 4/4 降级) | P0-4 (permutation null + Bonferroni) | P0-5 (chained conditioning) | P0-6 (IST 2024 撤掉, fabricated literature)
-- **P1:** P1-3 (§9 strict-vs-asymptotic + L1-L6 dependency, 4/5) | P1-5 (zero-mass to §5.7.2) | P1-7 (protocol asymmetry §7.1 R13)
+---
 
-**2026-05-01 R2 methodology framework restructure (plan: docs/superpowers/plans/2026-05-01-p2-r2-methodology-framework.md):** 3-layer methodology backbone surfaced as paper main contribution; H1/H2/H4/H5 60-cell audit demoted to auxiliary demonstration:
-- **T1** §3.2.0 — necessary conditions (a)(b)(c) for semantic mutation (Layer 1 — Definitional)
-- **T2** §3.2.6.0 — systematic vs incidental distinction (positive complement to §3.2.6.1 negative argument)
-- **T3** §3.2 / §3.3 — 5 classes lifted to meta-mutation operators + specialization framing
-- **T4** §2.3 / §4.4 — E1 ∧ E2 equivalence judgment as Layer 2 instantiation; 3-candidate trade-off
-- **T5** §3.2.6.3 — mutant traceability empirical (Layer 3 — Applied; **NEW-MAJOR-1 generalization closed 2026-05-02**: 12-PUT cosmic-ray full empirical, |P2|=292 / |CR|=1276 / overall AST overlap = **5.14%**; HP/SI/TF=0/0/0 categorically unreachable, CE=7.81% (boundary), OS=11.67% (88.33% disjoint + 11.67% incidental, §3.2.6.1 OS row downgraded honestly), CF=33.33% (b2 only n=9))
-- **T6** §1.2 / §6 / Abstract Conclusion — narrative reorganization around 3-layer backbone
+## 1. 三条稿件线的处置
 
-**Pending：**
-- ~~**P0 blocker:** R-1（全文英文翻译）~~ ✓ **CLOSED 2026-05-02 commit 37fa9bb** — 论文初稿P2_EN.md 1,700 行,通过 BLTCY proxy + Anthropic Opus 4.7 streaming
-- **P0 from 2026-05-01 review:** P0-7（pre-registration claim 证据，单 reviewer，未入此 plan）
-- **P1 from 2026-05-01 review:** P1-1/2/4/6/8/9/10/11（单 reviewer items，已 deferred）
-- **P2 misc:** R-26/R-27/R-28（需 reviewer 原文核对）
+| 线 | 位置 | 核心内容 | 2026-09-07 处置 |
+|---|---|---|---|
+| **A. SMS / 12-PUT / 60-cell** | `source/main.tex`（2978 行，7-29）+ `submission/TOSEM_regular_20260729_m1m8/` | 5.14% AST 重叠、δ=0.314、bootstrap CI [0.045, 0.594] | **冻结**。数据可复用为 development set，稿件不再推进 |
+| **B. Evidence-aligned v0.1** | 分支 `codex/p3-evidence-aligned-manuscript-v0.1`，316 行 md | 1 NumPy subject / 4 pair / semantic 4-4 kill / syntactic 3-4 / exact overlap 0-4 | **已由其自身审阅关闭**（`P3_C3_CLAIM_SCOPE_PATH_CLOSED=true`） |
+| **C. v4 ESPR/SPTM/SLRMA** | `research/p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md` | 评价对象改为「MR 集合对方程保结构要求谱系的覆盖能力」 | **当前唯一活跃路线** |
 
-**2026-05-02 strict 5-reviewer parallel re-review（进行中）:**
-- 输入: 论文初稿P2_EN.md(post-revision)
-- 5 reviewer subagent 已在后台启动（agentId: a9a9278f6a87a5d6c R0 EIC, a1b29cf2169f4679d R1 Methodology, adc2441a0abe19804 R2 Domain, a83c7ee32fe13a053 R3 Perspective, a069925dd6784db02 R4 Devil's Advocate）
-- 输出目录: docs/review_2026-05-02/
-- 后续: 5 份完成后做 editorial synthesis,确定是否解除 Major Revision
+线 A 的投稿包（`main.pdf` / `supplementary.pdf` / `main.tex`）此前一直是未跟踪文件，2026-09-07 已入库保存，仅作历史 lineage 凭证。
 
-## 2. 论文章节状态（13 个 H1/H2）
+## 2. v4 方案要点
 
-| 章节 | 状态 |
-|------|------|
-| English Title / Abstract / Keywords | ✓ 已英文化（commit 64d580d） |
-| §1 论文身份与命题 | ✓ 完整，H3 已撤回 |
-| §2 语义变异符号系统 | ✓ 完整 |
-| §3 实验对象与 60 单元格矩阵 | ✓ 完整（含 §3.1.1 PUT、§3.2.6 preventive defense） |
-| §4 实验流程 | ✓ 完整（含 §4.2.5 cross-source v4 协议） |
-| §5 统计分析方法 | ✓ 完整（§5.6/5.7/5.7.2/5.8/5.9 全部已落数字） |
-| §6 讨论 | ✓ 完整（含 §6.1 v4 cross-source 叙事 + Petrović 重构） |
-| §7 风险与缓解 + Limitations | ✓ 完整（含 R8-R10） |
-| §8 参考文献 / References | ✓ NEW（R-7 close）；APA-7，11 学术引用 + 3 软件工具 + 2 P-series companions |
-| §9 SMS-MS 退化定理 | ✓ NEW（R-8 close）；6 退化条件 L1-L6 + 3 引理 + 主定理 + LRCA 平凡化推论 |
-| 全文英文版 | ✓ 已提交（commit 37fa9bb，论文初稿P2_EN.md 1700 行 / 150 KB） |
+三个核心构念：
 
-## 3. 关键 artifacts（v4 = primary）
+- **ESPR**（Equation-Derived Structure-Preservation Requirement）：\(r=(\phi,D,\kappa,B,O)\)，方程蕴含的守恒/对称/单调/伴随/可逆/收敛性质 + 适用域 + 保持方式 + 误差预算 + 独立观测方法。
+- **SPTM**（Structure-Preservation-Targeted Mutation）：以 ESPR 为目标的语义变异 \(\mu_{r,\theta}\)；认证**不得**使用 MR 判定器或 kill 结果。
+- **SLRMA**（Structure-Lineage-Relative MR Adequacy）：\(A_G(R)=\frac{1}{|G|}\sum_{g\in G}\frac{|K_R\cap M_g^{neq}|}{|M_g^{neq}|}\)，谱系宏平均。
 
-**最新数字源：** `data/results/paper_numbers_v4.json`
-- RQ1: mean SMS = 0.104, n_zero=45/60, mean C1_share = 0.209
-- RQ2: Cliff's δ = **0.439**（CI [0.109, 0.748]，未达 0.474 阈值，H2 rejected）
-- RQ3: Friedman χ² = 15.30, **p = 0.0041**（b 类内 p=0.029）；mixed-effects singular
-- RQ4: Spearman ρ = 0.163, p = 0.613（H6 几乎独立 ✓）
+三个 RQ：RQ1 构念效度（ESPR 能否操作化为可认证 SPTM，且比预算匹配的 FOM/HOM 更集中产生预声明结构偏离）；RQ2 判别效度（SLRMA 能否恢复完整/删族/弱化/冗余/错配 MR 集合的预注册质量偏序）；RQ3 准则效度（能否解释独立真实缺陷的 MR 检出，并提供超出句法分数、MR 数量与执行成本的增量信息）。
 
-**v4 cross-source LRCA：** `data/results/lrca_60cell_v4.json`
-**v4 SMS：** `data/results/sms_track2_v4.json`
+**RQ2 是决定性实验。**
 
-## 4. 代码主线
+方案谱系（均为 2026-08-29 产出，按时间序）：
+`p3-vnext-background-rqs-hypotheses-method-zh.md` → `p3-vnext-structured-theory-research-plan-v2-zh.md` → `p3-structure-survival-mr-adequacy-plan-v3-zh.md` → `p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md` → `p3-tosem-editorial-assessment-v4-zh.md`（编辑视角评估）。
 
-- PUTs: `src/p2/puts/{a1-d3}.py`（12 个）
-- MRs: `src/p2/mrs/{a1-d3}.py`（12 个）
-- AVP / LRCA / equiv / stats: `src/p2/{avp,lrca,equiv,stats}/`
-- LLM 三家客户端: `src/p2/mutators/llm_client.py`（Claude Opus G / GPT-5.4 R1 / DeepSeek R2）
-- Campaign 脚本: `scripts/{cross_source_campaign,sms_campaign,run_lrca,build_paper_numbers,compute_rq{2,3,4}}.py`
+## 3. v4 的四个开口问题（进入实现前必须先关闭）
 
-## 5. 已弃数据（避免误用）
+编辑评估（`research/p3-tosem-editorial-assessment-v4-zh.md`）列出的阻塞：
 
-- `paper_numbers.json` / `_v3.json` / `_v3b.json` → 已被 v4 supersede
-- 早期 manual pilot（`a2_MP1_mut1`, `b2_MP2_mut1`）→ 仅为 pipeline 验证，**不入论文**
-- LLM-only 单源 v2（`*_pool/`）→ 已被 cross-source v4（`*_pool_v4/`）supersede
+1. **结构谱系尚未真正建立** — 节点是什么、派生关系是什么、多标签如何计分、NA/合法离散破缺/等价未决如何影响分母、为何宏平均。若只是把五类算子改名，审稿人仍会判定为经验分类。
+2. **独立认证必须可执行** — 至少需要守恒（源—汇—边界平衡）、对称（离散算子交换子）、伴随（双线性恒等式）、可逆（往返残差）、收敛（独立网格序列与误差阶）等正交认证器。现有 E1/E2 只检查运行一致性与采样等价，不足以认证结构偏离。
+3. **必须新增确认性实验** — 旧对象为开发集，新方程 + 独立求解器为冻结确认集；统计单位是程序/求解器，不是变异体或输入。
+4. **现稿需显著删减** — LLM 来源效应、Pattern Coverage 相关性、部署/标准/air-gap 讨论、次级 Friedman 分析、退化定理作为主创新的叙述，全部移出主线。
 
-## 5.1 ✅ 复现陷阱（已定位，2026-05-01）
+## 4. 已终态的实验事实（不得重跑或改写）
 
-正确复现论文 v4 数字需要**两个**环境变量同时设置：
-```
-SMS_VERSION=v4 P2_PRIMARY_VERSION=v3b
-```
-- `SMS_VERSION=v4`：选 v4 跨源数据文件
-- `P2_PRIMARY_VERSION=v3b`：选 c-class 数据驱动 primary MP（c1/c2/c3 → MP1，§3.5.1）
+- **Boost.Math formal profiling**：终态 `TECH_UNCERTAIN`，8/12 funnel，`FORMAL_PROFILING_RETRY_FORBIDDEN=true`。
+- **Boost.Math Attempt-2 recovery**：停在约 70%，`attempt_2_authorized=false`。v4 路线下**不再推进**；交接说明见 `docs/superpowers/notes/2026-08-25-p3-attempt2-next-session-initialization.md`。
+- **Ordinal-8 NumPy pilot**：1 项目 / 2 site / 4 pair / 每 pair 5 冻结输入 / 60 正式 cell 全 PASS；semantic 4/4 KILL，syntactic 3/4 KILL + 1/4 SURVIVE；规范化补丁与变异树精确重叠均 0/4。exact binomial 区间为 `UNMEASURED_INTERVAL_AUTHORITY_INCOMPLETE`（冻结分析规范未固定置信水平与方法，事后不得补算）。
+- **Stage I 适用性普查**：14 个后继 subject、140 个 closure，0 个 `SITE_FROZEN`，140 个 `APPLICABILITY_CLOSED_NOT_APPLICABLE`，Stage II 候选为 0。这是冻结权威下的资格结论，**不是**「这些程序不存在目标构造」。
+- **RQ4 / P12**：冻结 release 只有 35 个 formal item，低于预注册的 60 个 `P12_PAIRED` 门槛，机械上不可满足。**注意：正式的 ineligibility 终态文档从未落地**（`docs/superpowers/plans/2026-08-27-p3-shortest-scientific-evidence-path.md` 的 Task 1 未执行），RQ4 目前仍挂在「待核实」而非「已判定不合格」。若 v4 需要引用 RQ4 状态，须先补这份一页决策。
 
-**漏设 `P2_PRIMARY_VERSION=v3b`** → c-class 仍按默认 v3（→ MP5）分组 → `mean_aligned ≈ 0.213` ≠ 论文的 0.275（`cliffs_delta=0.439` 与 `friedman_chi2=15.30` 不受影响，只 aligned/cross 分组变）。
+## 5. Claim ledger 状态
 
-`paper_numbers_v4.json` 与论文一致；上游 `sms_track2_v4.json` / `lrca_60cell_v4.json` 也未被改动。已在 REPRODUCIBILITY.md §4 显式记录这一双环境变量约定。
+`research/evidence/p3_claim_ledger_v1.3.0.yml`，冻结于 2026-08-12，`status: frozen-execution-ceiling`：
 
-## 5.2 R-1 翻译基础设施（2026-05-01 就绪）
+| Claim | 主张 | 状态 |
+|---|---|---|
+| C1 | artifact-first 语义变异协议 | `blocked`（尽管 `governing_initial_status: supported`）|
+| C2 | 跨规模跨技术的已认证变异体 | `blocked` |
+| C3 | 语义变异与句法基线构念可区分 | `blocked`（`n_projects=1`，项目聚类不确定性不可识别）|
+| C4 | family-aware SMS 解释 MR 集合残差 | `blocked` |
+| C5 | 语义充分性在 P12 上有增量价值 | `blocked` |
+| C6 / C7 / C8 | 普遍优越性 / 语言无关自动生成 / profiling 代表性 | **永久 `blocked`** |
 
-- 术语表：`docs/terminology_zh_en.md`（authoritative glossary）
-- 翻译脚本：`scripts/translate_paper.py`（Anthropic SDK + prompt caching，分章节、可断点续跑）
-- 输出目标：`论文初稿P2_EN.md`（待生成）
-- 章节切分：8 段（s0_prelude + §1–§7），总 57k Chinese chars
+v4 会引入新的构念（ESPR/SPTM/SLRMA），需要一份新的 claim ledger（v2.0.0），而不是在 v1.3.0 上改状态。
 
-**运行命令：**
-```bash
-PYTHONPATH=src .venv/bin/python scripts/translate_paper.py --dry-run         # 验证切分
-PYTHONPATH=src .venv/bin/python scripts/translate_paper.py                   # 全文翻译（~$7, ~10 min）
-PYTHONPATH=src .venv/bin/python scripts/translate_paper.py --section 1       # 单节 calibration sample（~$0.5）
-PYTHONPATH=src .venv/bin/python scripts/translate_paper.py --assemble-only   # 拼接 partials → 论文初稿P2_EN.md
-```
+## 6. 期刊定位
 
-partials 缓存于 `.translate_cache/`（已 gitignore）。失败重试只重跑该节。
+`docs/review_20260829/P3_journal_fit_and_acceptance_assessment_zh.md` 的主观接收概率估计（非期刊公布数据）：
 
-## 6. 下一步候选（按 ROI）
+| 期刊 | 现稿直投 | 完成跨项目效度验证后 |
+|---|---|---|
+| ACM TOSEM | < 5% | 15%–25% |
+| IEEE TSE | < 3% | 10%–20% |
+| EMSE | 3%–8% | 15%–30% |
+| IST / JSS | 5%–12% | 25%–40% |
 
-**Round-9 submission-ready (2026-05-03) 之后的发布路径：**
+目标：TOSEM。分区口径存在版本差异（2025 中科院升级版为大类 1 区；2026 新锐分区为大类 2 区），投稿前须确认单位采用哪一版。
 
-1. **GitHub release-prep（已完成 2026-05-03）**：仓库整理 + README/CONTRIBUTING/CHANGELOG/PROJECT_STRUCTURE/RELEASE_CHECKLIST 补齐 + .github 模板 + archive/ 历史归档
-2. **GitHub 发布**：tag `v1.0.0-submission`，push 公开仓库，等待社区检查
-3. **IST 投稿**：使用 `submission/p2_ist_final.{tex,pdf,docx}` + `cover_letter_final.pdf` 走 EVISE
-4. **Zenodo 上传**：`replication/build_zip.sh` → 上传 → 拿到 DOI → 替换 README/ZENODO/DATASET/Paper §8 中的 PLACEHOLDER
-5. **接收期间**：监控 Issues / PR；任何复现失败 ≤ 24h 响应
+## 7. 下一步
 
-**Post-acceptance（待启动 P3）：**
-- 工业 Java/C++ port + LRCA 二评者 κ
-- n ≥ 30 PUTs（应对 H2 underpowered limitation）
-- 形式理论：minimal MR-subset 存在 + 三柱耦合（targeted TOSEM）
+按依赖顺序：
+
+1. **建立结构谱系 \(G\)** — 关闭 §3 问题 1。这是 SLRMA 分母的定义，先于任何实现。
+2. **设计正交认证器** — 关闭 §3 问题 2。至少 3 个可执行认证器（建议先做守恒、对称、可逆）。
+3. **选定确认集** — 新方程 + 独立求解器，outcome-blind 选择规则须在任何运行前写死。
+4. **预注册 RQ2 的 MR 质量梯度** — 完整/删族/弱化/冗余/错配五档，偏序在数据收集前固定。
+5. **新建 claim ledger v2.0.0** — 承载 ESPR/SPTM/SLRMA 的主张与上限。
+
+步骤 1–2 属理论工作，无需实验授权。步骤 3 起须走 `superpowers:writing-plans` 出阶段化计划。
+
+## 8. 仓库卫生
+
+- 本地 `main` 落后 `origin/main` 2 个 commit（`.cursor/install.sh` 自包含环境），**尚未同步**。下次会话可 `git merge --ff-only origin/main`。
+- 2026-09-07 已将 52 个未跟踪文件入库：v4 方案谱系（research/ 5 份）、8 月评审文档（docs/review_2026080{6,7,8}、docs/review_20260829 共 8 份）、19 份 superpowers 计划与规格、TOSEM 投稿包（14 项）、P12 staging zip（2 项）。`.codegraph/` 已加入 `.gitignore`。工作区当前 0 个未跟踪文件。
+- `artifacts/*.zip`（P12 staging，合计 1.5 MB）与 `submission/TOSEM_regular_20260729_m1m8_clean.zip`（1.8 MB）体积在 §9.4 的 commit 阈值内。

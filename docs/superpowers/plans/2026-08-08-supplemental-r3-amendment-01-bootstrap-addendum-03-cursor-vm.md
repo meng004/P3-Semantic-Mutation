@@ -1,0 +1,497 @@
+# Supplemental R3 Amendment 01 Bootstrap Addendum 03 Cursor VM Execution Plan
+
+## Status and authorization gate
+
+This is an evidence-only execution plan. It does not authorize Local Desktop
+execution and it must not be run in an existing Cursor VM or conversation.
+
+Run it only after the user creates one brand-new Cursor cloud Agent/VM for
+`meng004/P3-Semantic-Mutation`, selects exactly **Grok 4.5 High Fast**, and
+supplies the audited launch packet. The packet's **first two physical lines**
+must be unquoted top-level control lines: line 1 is the exact Addendum 03
+authorization sentence binding authority `31a4a8249f4ba6de12ba92291ab0cd55a65043b4`
+and platform HEAD `3c518b8467f74c9a6efd11f2db267f9f30e1c822`; line 2 is
+`LOCKED_BOOTSTRAP_ADDENDUM_03_PLAN_SHA256` followed by the actual 64-character
+lowercase SHA-256 of the byte-identical embedded plan. A quotation, code block,
+template occurrence, paraphrase, or occurrence inside the embedded plan does
+not satisfy either control line. The launch packet must contain no placeholder
+in either top-level line.
+
+For mechanical comparison, the required line-1 byte string is quoted here:
+
+```text
+AUTHORIZE SUPPLEMENTAL_R3_EVIDENCE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03 FROM 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 VIA PLATFORM_HEAD 3c518b8467f74c9a6efd11f2db267f9f30e1c822
+```
+
+This quoted copy is a non-authorizing template. Only an identical, unquoted
+instance on the launch packet's first physical line is authorization.
+
+The plan cannot contain its own actual SHA-256 without a hash cycle. The
+audited launch packet supplies that value and embeds this plan byte-for-byte.
+Before the first shell action, substitute that exact value and the new Cursor
+session ID into the in-memory controller below. Neither substitution is an
+authorization to start another run.
+
+## Goal
+
+Verify one locally built and doubly audited execution bundle, seal the new VM
+environment, and immediately perform the single Supplemental R3 object
+collection and screening pass. Seek exactly the frozen shortfall vector:
+
+- GPyTorch: 2;
+- chaospy: 3; and
+- SALib: 3.
+
+On success, publish only an environment commit, a complete candidate-evidence
+payload commit, and its direct-child handoff commit; push once and stop with:
+
+```text
+SUPPLEMENTAL_R3_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03_EVIDENCE_HANDOFF_PENDING_LOCAL_AUDIT
+```
+
+This is evidence infrastructure, not paper-claim admission. A later separately
+authorized Local Desktop audit is required before any paper claim changes.
+
+## Immutable identities
+
+| Binding | Exact value |
+| --- | --- |
+| Protocol | `SUPPLEMENTAL_R3_EVIDENCE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03` |
+| Amendment ID | `AMENDMENT_01_REF_ISOLATION` |
+| Addendum ID | `BOOTSTRAP_EXECUTION_ADDENDUM_03` |
+| Platform initial HEAD | `3c518b8467f74c9a6efd11f2db267f9f30e1c822` |
+| Scientific authority | `31a4a8249f4ba6de12ba92291ab0cd55a65043b4` |
+| Authority tree | `a993c5537680358870e1dfaf9614a3c31b9f42d6` |
+| RED commit | `161401559bb47dd765296147e2b0063dbd055c13` |
+| RED tree | `eb6fa4e5dfa27fa45b306471f640527075166937` |
+| GREEN commit | `94bfdd7df68bf3db09e9539cecdb4842cf444817` |
+| GREEN tree | `fb644c1030a0247fa418e24b8d8819d5cfaa417a` |
+| Bundle seal commit | `36e949e434c9431597da0dc2a0c83ceff263507b` |
+| Bundle tree | `09493c3d5b2baa15bc747468c4ef3ad1f7885627` |
+| Bundle manifest SHA-256 | `b2530aed97cb84a654110a21909b7385275cf9a021279678276ab1fccbc736af` |
+| Design SHA-256 | `c6f950f01f3def9d6aad32e29bb8af9ae1bf7a8dd1bc4ef68c1b0ffe5a780820` |
+| Original plan SHA-256 | `7adda5c7df3b792ba112e3348d64434d6543d867d339d5e301d2b096119ceac5` |
+| Addendum 01 plan SHA-256 | `7363445ea67618e9f5bb378a0b45eaad07ed4c57f9fcce87323d99a1a6d59c5b` |
+| Addendum 02 plan SHA-256 | `98fe5a3a73b1b38e9a061174a2142a0fe8b3e14d24e39d8af1c412b6af04ca36` |
+| Branch-supersession SHA-256 | `fd45c6fb8566a1cf7a34071f20ec06294b3b1855e90108a3e7a97f657a15a4a3` |
+| Bundle specification audit SHA-256 | `7dc0a1414ef11ea30cab9916b37ac5dcdc26c3979b946668e22d3a96f334847d` |
+| Bundle operational audit SHA-256 | `01194716bc72299efac929f4631e88053e44695e6320bc069307468ebe68fa75` |
+| R2 tree / path count | `2e8fe75233bed73c9facb1c66b5d72b6a172487d` / 634 |
+| Admission sheet blob | `5ef073d4d6297639695491c46d20733236bede52` |
+| Bundle branch | `codex/supplemental-r3-amendment-01-execution-bundle-a03r1` |
+| Evidence branch | `cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence` |
+| Origin | `https://github.com/meng004/P3-Semantic-Mutation` |
+
+The supersession document changes only the bundle transport branch from the
+occupied `...-a03` name to `...-a03r1`. It changes no scientific or execution
+semantics and is intentionally not inserted into the exact bootstrap-summary
+`locked_hashes` schema. The launch packet's locked SHA-256 is computed over
+this plan, and this plan quotes the exact supersession SHA-256; therefore the
+locked plan SHA-256 explicitly incorporates that transport-only supersession.
+
+## Permanently excluded state
+
+Do not reopen, resume, retry, repair, inspect, list, hash, delete, clean, copy,
+cherry-pick, or use any state from:
+
+- the failed conversation/commit prefix `743f5552`;
+- terminated session `bc-9bcdda05-3350-49aa-b4c6-c60fbb236f30`;
+- the Addendum 01 journal-collision conversation or its fixed journal path; or
+- terminated session `bc-1368031b-b5fa-43c2-9074-c49b862ca08e`, its runtime
+  root, or its helper files.
+
+The new session ID must not equal or begin with any excluded identifier.
+
+## Global execution constraints
+
+- Cursor commands in this plan never use `rtk`.
+- Do not edit source, tests, manifests, logs, or frozen inputs.
+- Do not install packages or explore the repository.
+- Do not enumerate all refs or objects. Forbidden examples include
+  `git for-each-ref`, `git show-ref`, `git branch -a`, `git log --all`,
+  `git rev-list --all`, and `git fsck`.
+- Load the Batch 3 deny identity only through the frozen SCOPE and contract
+  manifest inside the bundled verifier. Never print, persist, or duplicate it.
+- R2 and the original R3 tree remain byte-, path-, mode-, symlink-, and
+  object-identical to authority.
+- One evidence acquisition process is allowed. No request, page, issue, fix,
+  command, test, decision, failure, or insufficient-yield result may be
+  retried, repaired, resumed, or replaced.
+- GPyTorch, chaospy, and SALib stop independently at 2/3/3. Do not transfer
+  surplus, replace a row, reuse an issue, or reuse a fix.
+- Do not create readiness, r8, canonical/admission freeze, reproducer,
+  mutation, prediction, detection, downstream analysis, manuscript edits,
+  PRs, merges, rebases, or cherry-picks. Never force-push.
+- The first operational failure consumes this one-time authorization.
+
+## Task 1 — Session gate and the only pre-journal controller
+
+Before shell, confirm all of the following in the Cursor UI:
+
+1. this is a brand-new cloud VM and conversation;
+2. the model is exactly `cursor-grok-4.5-high-fast` / Grok 4.5 High Fast;
+3. the packet's first two physical lines are the separate unquoted exact
+   authorization and actual plan-hash control lines described above; and
+4. the new session is not an excluded session.
+
+If any check fails, stop before shell. Do not repair the session.
+
+The first and only pre-journal shell action is one inline Python controller.
+Do not run `pwd`, `env`, `git`, `python --version`, or any other preliminary
+command. Do not redirect or `tee` command output. The controller keeps raw
+streams in memory, executes the following 18 argv arrays serially with
+`shell=False`, asserts each result before starting the next, allocates one
+runtime root as command 18, and then writes only the canonical summary beneath
+that root.
+
+The controller below is also an editorial template. Before the first shell
+action, render it once in Cursor memory: replace `@@PLAN_SHA256@@` with the
+exact hash from top-level packet line 2 and `@@SESSION_ID@@` with the new Cursor
+session ID. Do not make any other change. Do not use assignment, `export`, an
+environment-prefix command, command substitution, or a helper file. Before
+execution, require the fully rendered controller source to contain no `@@`, no
+`__...__`, no `$`, and no word `placeholder`. Execute only that rendered source
+as the single inline Python action.
+
+```python
+import datetime
+import hashlib
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+PLAN_SHA = "@@PLAN_SHA256@@"
+SESSION = "@@SESSION_ID@@"
+MODEL = "cursor-grok-4.5-high-fast"
+AUTHORITY = "31a4a8249f4ba6de12ba92291ab0cd55a65043b4"
+PLATFORM = "3c518b8467f74c9a6efd11f2db267f9f30e1c822"
+RED = "161401559bb47dd765296147e2b0063dbd055c13"
+GREEN = "94bfdd7df68bf3db09e9539cecdb4842cf444817"
+SEAL = "36e949e434c9431597da0dc2a0c83ceff263507b"
+BUNDLE_TREE = "09493c3d5b2baa15bc747468c4ef3ad1f7885627"
+MANIFEST_SHA = "b2530aed97cb84a654110a21909b7385275cf9a021279678276ab1fccbc736af"
+DESIGN_SHA = "c6f950f01f3def9d6aad32e29bb8af9ae1bf7a8dd1bc4ef68c1b0ffe5a780820"
+PARENTS = [
+    "7adda5c7df3b792ba112e3348d64434d6543d867d339d5e301d2b096119ceac5",
+    "7363445ea67618e9f5bb378a0b45eaad07ed4c57f9fcce87323d99a1a6d59c5b",
+    "98fe5a3a73b1b38e9a061174a2142a0fe8b3e14d24e39d8af1c412b6af04ca36",
+]
+AUDITS = [
+    "7dc0a1414ef11ea30cab9916b37ac5dcdc26c3979b946668e22d3a96f334847d",
+    "01194716bc72299efac929f4631e88053e44695e6320bc069307468ebe68fa75",
+]
+BUNDLE_BRANCH = "codex/supplemental-r3-amendment-01-execution-bundle-a03r1"
+REMOTE_REF = "refs/remotes/origin/" + BUNDLE_BRANCH
+EVIDENCE_BRANCH = "cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence"
+MANIFEST = "data/external_slice/supplemental_r3/EXECUTION_BUNDLE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03.json"
+
+if not re.fullmatch(r"[0-9a-f]{64}", PLAN_SHA):
+    raise SystemExit("plan hash substitution missing")
+if not re.fullmatch(
+    r"bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    SESSION,
+) or any(SESSION.startswith(x) for x in (
+    "743f5552",
+    "bc-9bcdda05-3350-49aa-b4c6-c60fbb236f30",
+    "bc-1368031b-b5fa-43c2-9074-c49b862ca08e",
+)):
+    raise SystemExit("session gate")
+
+commands = [
+    ("platform_head", ["git", "rev-parse", "HEAD"]),
+    ("clean_status", ["git", "status", "--porcelain=v1"]),
+    ("origin", ["git", "remote", "get-url", "origin"]),
+    ("fetch_refspec", ["git", "config", "--get-all", "remote.origin.fetch"]),
+    ("authorization_fetch", ["git", "fetch", "--no-tags", "origin", "+refs/heads/" + BUNDLE_BRANCH + ":" + REMOTE_REF]),
+    ("fetched_commit", ["git", "rev-parse", REMOTE_REF]),
+    ("fetched_tree", ["git", "rev-parse", REMOTE_REF + "^{tree}"]),
+    ("red_parent", ["git", "rev-list", "--parents", "-n", "1", RED]),
+    ("green_parent", ["git", "rev-list", "--parents", "-n", "1", GREEN]),
+    ("seal_parent", ["git", "rev-list", "--parents", "-n", "1", SEAL]),
+    ("branch_switch", ["git", "switch", "-c", EVIDENCE_BRANCH, SEAL]),
+    ("branch_head", ["git", "rev-parse", "HEAD"]),
+    ("branch_clean", ["git", "status", "--porcelain=v1"]),
+    ("bundle_manifest", ["shasum", "-a", "256", MANIFEST]),
+    ("authority_tree", ["git", "rev-parse", AUTHORITY + "^{tree}"]),
+    ("r2_tree", ["git", "rev-parse", AUTHORITY + ":data/external_slice/supplemental_r2"]),
+    ("admission_blob", ["git", "rev-parse", AUTHORITY + ":data/external_slice/admission_sheet.csv"]),
+    ("runtime_allocate", ["python3", "scripts/external_slice/supplemental_r3_bootstrap.py", "allocate-runtime"]),
+]
+expected = {
+    "platform_head": PLATFORM + "\n",
+    "clean_status": "",
+    "origin": "https://github.com/meng004/P3-Semantic-Mutation\n",
+    "fetched_commit": SEAL + "\n",
+    "fetched_tree": BUNDLE_TREE + "\n",
+    "red_parent": RED + " " + AUTHORITY + "\n",
+    "green_parent": GREEN + " " + RED + "\n",
+    "seal_parent": SEAL + " " + GREEN + "\n",
+    "branch_head": SEAL + "\n",
+    "branch_clean": "",
+    "bundle_manifest": MANIFEST_SHA + "  " + MANIFEST + "\n",
+    "authority_tree": "a993c5537680358870e1dfaf9614a3c31b9f42d6\n",
+    "r2_tree": "2e8fe75233bed73c9facb1c66b5d72b6a172487d\n",
+    "admission_blob": "5ef073d4d6297639695491c46d20733236bede52\n",
+}
+
+def utc():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+
+rows = []
+runtime_root = None
+for sequence, (kind, argv) in enumerate(commands, 1):
+    started = utc()
+    process = subprocess.run(argv, capture_output=True, shell=False)
+    ended = utc()
+    if process.returncode != 0:
+        raise SystemExit("first failure: " + kind)
+    stdout = process.stdout
+    stderr = process.stderr
+    if kind == "fetch_refspec" and not stdout.strip():
+        raise SystemExit("first failure: empty fetch refspec")
+    if kind in expected and stdout != expected[kind].encode("utf-8"):
+        raise SystemExit("first failure: stdout assertion " + kind)
+    if kind == "runtime_allocate":
+        try:
+            allocation = json.loads(stdout.decode("utf-8"))
+        except Exception:
+            raise SystemExit("first failure: allocator output")
+        if set(allocation) != {"runtime_root"}:
+            raise SystemExit("first failure: allocator schema")
+        runtime_root = allocation["runtime_root"]
+        expected_runtime = json.dumps(
+            {"runtime_root": runtime_root}, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False,
+        ).encode("utf-8") + b"\n"
+        if stdout != expected_runtime:
+            raise SystemExit("first failure: allocator canonical output")
+    rows.append({
+        "sequence": sequence,
+        "trace_kind": kind,
+        "argv": argv,
+        "started_at_utc": started,
+        "ended_at_utc": ended,
+        "exit_code": process.returncode,
+        "stdout_sha256": hashlib.sha256(stdout).hexdigest(),
+        "stderr_sha256": hashlib.sha256(stderr).hexdigest(),
+        "assertion": "PASS",
+    })
+
+root = pathlib.Path(runtime_root)
+if root.parent != pathlib.Path("/tmp") or not root.name.startswith("supplemental-r3-a01-bootstrap-addendum-03-"):
+    raise SystemExit("first failure: runtime root")
+if root.is_symlink() or not root.is_dir() or (root.stat().st_mode & 0o777) != 0o700:
+    raise SystemExit("first failure: runtime root type/mode")
+if any(root.iterdir()):
+    raise SystemExit("first failure: runtime root not empty")
+
+summary = {
+    "schema_version": 1,
+    "protocol": "SUPPLEMENTAL_R3_EVIDENCE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03",
+    "runtime_root": runtime_root,
+    "session": SESSION,
+    "model": MODEL,
+    "evidence_request_count": 0,
+    "locked_hashes": {
+        "authority": AUTHORITY,
+        "platform_head": PLATFORM,
+        "red_commit": RED,
+        "green_commit": GREEN,
+        "design_sha256": DESIGN_SHA,
+        "bundle_commit": SEAL,
+        "bundle_tree": BUNDLE_TREE,
+        "bundle_manifest_sha256": MANIFEST_SHA,
+        "parent_plan_sha256": PARENTS,
+        "execution_plan_sha256": PLAN_SHA,
+        "bundle_audit_sha256": AUDITS,
+    },
+    "commands": rows,
+}
+spool = root / "bootstrap-spool"
+spool.mkdir(mode=0o700)
+summary_path = spool / "task1-command-summary.json"
+raw = json.dumps(summary, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\n"
+fd = os.open(summary_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+try:
+    os.write(fd, raw)
+    os.fsync(fd)
+finally:
+    os.close(fd)
+print(runtime_root)
+```
+
+Execute it as a single inline `python3` action without writing the controller
+source to disk. The only printed value is the new runtime root. The names below
+are **editorial metavariables only**. They are not shell variables and no
+assignment, `export`, environment-prefix command, command substitution, or
+extra shell action may establish them:
+
+```text
+@@RUNTIME_ROOT@@ = the printed absolute /tmp runtime root
+@@JOURNAL_PATH@@ = @@RUNTIME_ROOT@@/command-journal.jsonl
+@@CANDIDATE_ROOT@@ = @@RUNTIME_ROOT@@/candidate
+@@SESSION_ID@@ = the exact new Cursor session ID inserted in the controller
+@@PLAN_SHA256@@ = the actual plan SHA from top-level launch-packet line 2
+```
+
+For every command template below, render one self-contained argv in Cursor
+memory by replacing every `@@...@@` token with its literal value. Before
+execution, require that the rendered command contains no `@@`, no `$`, no
+placeholder, and no unresolved token; every runtime path token must be the
+absolute `/tmp/supplemental-r3-a01-bootstrap-addendum-03-...` path. Execute only
+the rendered literal command. Never execute the templates verbatim and never
+run a shell assignment to preserve values across Cursor actions.
+
+If the controller exits nonzero, report
+`SUPPLEMENTAL_R3_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03_BLOCKED_FIRST_FAILURE`
+and stop. Do not run a second shell command, clean the branch, retry, or inspect
+the runtime root.
+
+## Task 2 — Initialize the frozen runner and verify the bundle
+
+Run each command exactly once, in order. Assert exit 0 before the next command.
+All rendered commands contain literal values and no `rtk`.
+
+```text
+python3 scripts/external_slice/supplemental_r3_bootstrap.py initialize-journal --runtime-root @@RUNTIME_ROOT@@ --summary @@RUNTIME_ROOT@@/bootstrap-spool/task1-command-summary.json
+python3 scripts/external_slice/supplemental_r3_bootstrap.py verify-bundle --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --red-commit 161401559bb47dd765296147e2b0063dbd055c13 --green-commit 94bfdd7df68bf3db09e9539cecdb4842cf444817 --seal-commit 36e949e434c9431597da0dc2a0c83ceff263507b --bundle-tree 09493c3d5b2baa15bc747468c4ef3ad1f7885627 --manifest data/external_slice/supplemental_r3/EXECUTION_BUNDLE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03.json --manifest-sha256 b2530aed97cb84a654110a21909b7385275cf9a021279678276ab1fccbc736af --design-sha256 c6f950f01f3def9d6aad32e29bb8af9ae1bf7a8dd1bc4ef68c1b0ffe5a780820 --parent-plan-sha256 7adda5c7df3b792ba112e3348d64434d6543d867d339d5e301d2b096119ceac5 --parent-plan-sha256 7363445ea67618e9f5bb378a0b45eaad07ed4c57f9fcce87323d99a1a6d59c5b --parent-plan-sha256 98fe5a3a73b1b38e9a061174a2142a0fe8b3e14d24e39d8af1c412b6af04ca36 --root . --journal @@JOURNAL_PATH@@
+python3 scripts/external_slice/supplemental_r3_bootstrap.py run-vm-green --root . --runtime-root @@RUNTIME_ROOT@@ --journal @@JOURNAL_PATH@@ --output @@RUNTIME_ROOT@@/vm-green-report.json
+```
+
+The bundled VM GREEN runner must execute the same 93 nodes and exactly one
+`python -m pytest -q --maxfail=1` full suite in a scrubbed environment. It must
+record 93 PASS, exactly 575 full-suite passes, and both network-spy counts zero.
+The audited 93-node closure explicitly includes the command-runner spy and the
+SCOPE-loaded stale-ref rename invariance test. Do not rerun a failed matrix or
+suite.
+
+## Task 3 — Materialize and commit the environment seal
+
+```text
+python3 scripts/external_slice/supplemental_r3_bootstrap.py materialize-seal --bundle-seal data/external_slice/supplemental_r3/EXECUTION_BUNDLE_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03.json --root . --runtime-root @@RUNTIME_ROOT@@ --journal @@JOURNAL_PATH@@ --session @@SESSION_ID@@ --model cursor-grok-4.5-high-fast --bundle-commit 36e949e434c9431597da0dc2a0c83ceff263507b --bundle-tree 09493c3d5b2baa15bc747468c4ef3ad1f7885627 --bundle-manifest-sha256 b2530aed97cb84a654110a21909b7385275cf9a021279678276ab1fccbc736af --execution-plan-sha256 @@PLAN_SHA256@@ --vm-green-report @@RUNTIME_ROOT@@/vm-green-report.json
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git add data/external_slice/supplemental_r3/PRE_NETWORK_AUTHORITY.json
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git commit -m 'evidence(external): seal Supplemental R3 environment'
+python3 scripts/external_slice/supplemental_r3_bootstrap.py verify-environment-seal --root . --runtime-root @@RUNTIME_ROOT@@ --journal @@JOURNAL_PATH@@
+```
+
+The environment commit must be the sole direct child of the bundle seal and
+change only `PRE_NETWORK_AUTHORITY.json`. Verification must finish with zero
+evidence requests and a clean tree. The next operation is the live collector;
+do not insert another command.
+
+## Task 4 — Single live collection and interactive screening
+
+Run exactly one process:
+
+```text
+python3 scripts/external_slice/mine_supplemental_r3.py execute --root . --candidate-root @@CANDIDATE_ROOT@@ --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@
+```
+
+This is the first and only live evidence process. It uses only the three frozen
+GraphQL documents and the journaled `gh api graphql` endpoint. It independently
+stops repositories at 2/3/3 and emits one `review_envelope` at a time.
+
+Before sending a decision line, complete the judgment. Each envelope accepts
+exactly one JSON object with exactly these eleven string keys:
+
+```text
+neutral_id,fixed_sha,crit_real_public_fix,crit_in_numerical_scope,crit_dual_arm_repro,decision,decision_reason,exclusion_class,mechanism,analysis_id,alias
+```
+
+`crit_dual_arm_repro` is `PENDING`; `analysis_id` and `alias` are empty;
+`decision_reason` and `mechanism` are nonempty. A row is
+`ADMIT_PENDING_REPRO` if and only if both A1 and A3 are `PASS`. Any nonblank
+fix SHA, including an excluded row, must be the unique captured fix and cannot
+be reused. An incorrect line, EOF, operational error, repeated cursor/request,
+partial GraphQL error, Batch 3 input, or insufficient final 2/3/3 yield is the
+first failure. Do not correct or repeat a decision.
+
+## Task 5 — Build, verify, and atomically publish the payload
+
+Run these three commands with identical arguments and exact branch:
+
+```text
+python3 scripts/external_slice/check_supplemental_r3_admission.py build-payload --root . --candidate-root @@CANDIDATE_ROOT@@ --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@ --branch cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence
+python3 scripts/external_slice/check_supplemental_r3_admission.py verify-payload --root . --candidate-root @@CANDIDATE_ROOT@@ --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@ --branch cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence
+python3 scripts/external_slice/check_supplemental_r3_admission.py publish-payload --root . --candidate-root @@CANDIDATE_ROOT@@ --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@ --branch cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence
+```
+
+Then stage the published directory, verify the exact staged set, and create the
+payload commit:
+
+```text
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git add data/external_slice/supplemental_r3/
+python3 scripts/external_slice/check_supplemental_r3_handoff_hashes.py verify-staged-payload --root . --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git commit -m 'evidence(external): publish Supplemental R3 payload'
+```
+
+The payload commit must directly descend from the environment commit and may
+contain only the manifest-declared candidate payload. No partial candidate
+bytes may remain if publication fails.
+
+## Task 6 — Handoff, one push, and immediate stop
+
+```text
+python3 scripts/external_slice/check_supplemental_r3_handoff_hashes.py build-handoff --root . --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@ --output data/external_slice/supplemental_r3/HANDOFF_SUPPLEMENTAL_R3.json
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git add data/external_slice/supplemental_r3/HANDOFF_SUPPLEMENTAL_R3.json
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git commit -m 'evidence(external): add Supplemental R3 handoff'
+python3 scripts/external_slice/supplemental_r3_common.py run-command --journal @@JOURNAL_PATH@@ -- git rev-parse HEAD
+```
+
+In Cursor memory, require the raw stdout of the last command to match exactly
+`[0-9a-f]{40}\n`, remove that one terminal LF, and associate the remaining
+40-character literal with editorial token `@@HANDOFF_COMMIT@@`. Do not
+assign/export a shell variable, use command substitution, query HEAD again, or
+run any other command. Render the next two templates using the literal SHA:
+
+```text
+python3 scripts/external_slice/check_supplemental_r3_handoff_hashes.py verify-handoff --root . --handoff data/external_slice/supplemental_r3/HANDOFF_SUPPLEMENTAL_R3.json --authority 31a4a8249f4ba6de12ba92291ab0cd55a65043b4 --journal @@JOURNAL_PATH@@
+python3 scripts/external_slice/check_supplemental_r3_handoff_hashes.py push-once --root . --journal @@JOURNAL_PATH@@ --handoff data/external_slice/supplemental_r3/HANDOFF_SUPPLEMENTAL_R3.json --handoff-commit @@HANDOFF_COMMIT@@
+```
+
+`push-once` internally performs exactly:
+
+```text
+git push -u origin cursor/grok-phase3-supplemental-r3-amendment-01-bootstrap-addendum-03-evidence
+```
+
+After it returns 0, print only the success verdict in the Cursor response and
+terminate the VM workflow immediately. Do not run `verify-push-journal`,
+status, log, show, a second push, or any other post-push command.
+
+## First-failure shutdown contract
+
+At every step, the first unexpected exit, output, schema, invariant, test,
+request, decision, publication, Git, or push result is terminal.
+
+- Before journal initialization: stop immediately using only the in-memory
+  transcript/permitted summary state. Run no further shell command. Do not
+  clean, diagnose, commit, or push.
+- After journal initialization and before payload publication: the frozen
+  runner records the failure and becomes terminal. At most one predeclared
+  shutdown diagnostic is permitted:
+
+  ```text
+  python3 scripts/external_slice/supplemental_r3_common.py run-shutdown-diagnostic --journal @@JOURNAL_PATH@@
+  ```
+
+  Run it only once and only as the terminal shutdown action; do not investigate
+  or act on its output.
+- After candidate publication, payload commit, handoff commit, or any push
+  side effect: do not run a diagnostic, repair, cleanup, commit, or push.
+- Never resume or retry this authorization in this or another VM.
+
+On failure, report only:
+
+```text
+SUPPLEMENTAL_R3_AMENDMENT_01_BOOTSTRAP_ADDENDUM_03_BLOCKED_FIRST_FAILURE
+```
+
+Include the failing task/command, exit code, generic failure class, whether the
+journal existed, evidence-request count if already recorded, current branch
+and HEAD only if already available from the failed operation, and confirmation
+of no retry/commit/push. Do not expose the Batch 3 deny literal or run commands
+to obtain additional report fields.

@@ -13,16 +13,22 @@
 
 不得新增平行合同、证据机制、hash 链、manifest、schema、gate、baseline、lock、verifier、通用 orchestration framework 或机器可读 handoff 协议。不得重写已经批准的设计和 Plan V2。
 
-后续关键路径只有：
+唯一关键路径固定为：
+
+`完成现有 Attempt-2 → 获得授权后真实运行一次 → 回到正式 profiling`
+
+下面六项只是完成这条路径的顺序步骤，不是可以继续扩张的独立工程目标：
 
 1. 最小修正当前不完整且部分无效的 expected-RED 测试。
 2. 完成现有 Attempt-2 可执行链，不扩张范围。
 3. 让已有 focused tests 和回归测试通过。
 4. 独立复核最终实现。
 5. 在获得新的明确一次性执行授权后，运行一次真实 Attempt-2。
-6. 依据真实结果决定下一步，不在同一授权下修复后重跑。
+6. 将 PASS、FAIL、TIMEOUT 或 infrastructure failure 作为终局事实保留；完成结果判读后，把工作重心移回正式 profiling，不在同一授权下修复后重跑，也不自动开启新的 recovery 循环。
 
 允许修复或履行既有安全合同，但只能使用现有 seam、validator、writer、executor 和普通测试。若某项工作不能直接让 Attempt-2 更接近可执行或产生真实结果，则停止并列入 backlog。
+
+科学关键路径是最高目标。投入产出比必须按“是否更接近正式 profiling 和 RQ1–RQ4 证据”衡量；合同、测试、资格验证和运行治理只保留支撑一次有效执行所需的最小投入，不能再次取代科学执行本身。
 
 ## 2. 分工
 
@@ -175,6 +181,8 @@ WIP 提交原样保存了尚未接受的 Cloud 测试差异：
 
 当前首个任务是“纠正并补齐编排 expected-RED 测试”，不是继续研究方案，也不是真实 Attempt-2 execution。
 
+第 1–10 项完成只代表 Attempt-2 执行前提闭合，不代表 Phase 2 科学进度完成。真实 Attempt-2 结束并完成结果判读后，下一目标必须是正式 profiling；不得继续把 pilot recovery、qualification 或治理工作包装成新的长期主线。
+
 ## 8. Cloud 任务指令原则
 
 每个 Cloud 任务必须封闭且可执行，至少明确：
@@ -208,11 +216,17 @@ WIP 提交原样保存了尚未接受的 Cloud 测试差异：
 - 不在同一授权下修复环境或代码后再运行；
 - 不据此自动升级 claims 或 denominator membership。
 
+真实 Attempt-2 完成后，默认回到正式 profiling。若终局结果证明 profiling 仍被实质阻断，只向用户呈现该阻断及最小决策选项；未经新的战略判断，不开启 Attempt-3、通用 recovery framework 或新的验证基础设施。
+
 ## 10. 进度判断与停止扩张
 
 交接时 Attempt-2 recovery 实现约完成 70%。source/V5/contracts 基础已完成，剩余关键工作是 orchestration、CLI、final verdict 和一次真实执行。
 
 技术主题没有偏移，但流程性偏移风险已经出现：合同、证据和 gate 的投入曾经超过可执行链本身。今后的判断标准不是增加多少验证文件，而是是否直接完成 Boost.Math Attempt-2。
+
+必须分开报告工程进度与科学进度：测试、合同、qualification、implementation verdict 或 Attempt-2 可执行性只能计入工程准备；只有正式 profiling 原子记录、阶段关闭产物和后续 RQ 证据才能计入科学进度。不得用前者抬高后者的完成百分比。
+
+每项新投入都必须先回答：“它是否是进入正式 profiling 的最小必要步骤？”若答案是否定的，或存在更直接的现有 seam，则拒绝或放入 backlog。评审深度以足以保护科学有效性为限，不以增加审查轮数、合同数量或证据包装体积为目标。
 
 任何提议若属于以下情况，应立即拒绝或放入 backlog：
 

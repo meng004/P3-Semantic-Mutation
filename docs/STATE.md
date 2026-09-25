@@ -4,9 +4,9 @@
 >
 > P2 时代的状态文件已归档至 `archive/process_summaries/P2_STATE_2026-05-03.md`，不再作为入口。
 
-**Last synced:** 2026-09-07
-**Stage:** **理论重构期（v4 立项）** — 无可投稿件；旧稿件线全部冻结
-**当前论文身份:** v4 = ESPR / SPTM / SLRMA，目标 ACM TOSEM
+**Last synced:** 2026-09-25
+**Stage:** **R-v4 确认性实验 NO-GO** — 理论定义保留；无可投稿件；旧稿件线全部冻结
+**当前研究身份:** v4 = ESPR / SPTM / SLRMA；原定 ACM TOSEM 实证路线暂停
 **方案文档:** `research/p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md`
 **Claim 权威:** `research/evidence/p3_claim_ledger_v1.3.0.yml`（冻结于 2026-08-12，C1–C8 **全部 `blocked`**）
 
@@ -14,7 +14,7 @@
 
 ## 0. 一句话现状
 
-三份 2026-08-29 的独立评估一致认定现有稿件存在 claim–evidence 缺口：实证证据只到「单项目 4 配对 pilot」，而论文主张需要跨项目构念效度。2026-09-07 决策：**放弃在旧证据上重写主张，改走 v4 理论重构路线**，旧 60-cell 数据降级为 development/pilot set。
+三份 2026-08-29 的独立评估一致认定现有稿件存在 claim–evidence 缺口：实证证据只到「单项目 4 配对 pilot」，而论文主张需要跨项目构念效度。2026-09-07 改走 v4 理论重构路线；2026-09-25 的最小理论定义确认：E1–E7 尚缺，尤其缺至少两个不同程序的可执行语义要求与独立认证方法。**在现有硬约束下暂停 v4 确认性实验与结果写作**；旧 60-cell 数据和 PocketFFT 均为开发材料。
 
 ---
 
@@ -24,7 +24,7 @@
 |---|---|---|---|
 | **A. SMS / 12-PUT / 60-cell** | `source/main.tex`（2978 行，7-29）+ `submission/TOSEM_regular_20260729_m1m8/` | 5.14% AST 重叠、δ=0.314、bootstrap CI [0.045, 0.594] | **冻结**。数据可复用为 development set，稿件不再推进 |
 | **B. Evidence-aligned v0.1** | 分支 `codex/p3-evidence-aligned-manuscript-v0.1`，316 行 md | 1 NumPy subject / 4 pair / semantic 4-4 kill / syntactic 3-4 / exact overlap 0-4 | **已由其自身审阅关闭**（`P3_C3_CLAIM_SCOPE_PATH_CLOSED=true`） |
-| **C. v4 ESPR/SPTM/SLRMA** | `research/p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md` | 评价对象改为「MR 集合对方程保结构要求谱系的覆盖能力」 | **当前唯一活跃路线** |
+| **C. v4 ESPR/SPTM/SLRMA** | `research/p3-equation-structure-preservation-mr-adequacy-plan-v4-zh.md` | 评价对象改为「MR 集合对方程保结构要求谱系的覆盖能力」 | 理论定义保留；确认性实证路线暂停（§1.6） |
 
 线 A 的投稿包（`main.pdf` / `supplementary.pdf` / `main.tex`）此前一直是未跟踪文件，2026-09-07 已入库保存，仅作历史 lineage 凭证。
 
@@ -80,7 +80,7 @@ Phase 3 synthesis（`research/stage1_deep_research/phase3_gap_synthesis.md`）�
 
 **后果**：去循环后仅存的两个干净认证器**没有可演示的载体**。第三个幸存者（全局平衡诊断）受 Haworth (1993) 限制——对格式按构造精确守恒的量，不平衡量恒为零，因此恰恰对主守恒 ESPR 失明，而 Conservation Erosion 正是 SMS 五算子之一。**O 分量在当前证据下不可作为承重贡献。**
 
-### 1.5 放宽 R1 的路线（2026-09-07 用户选择，成本评估进行中）
+### 1.5 放宽 R1 的路线（2026-09-07 用户选择，成本评估已完成）
 
 用户选择**放宽 R1**：放弃 Python 变异框架，改用 C++ 变异工具（Mull / Dextool）对成熟 C++ 求解器（MFEM / DOLFINx / deal.II / PETSc）施加变异，以换取真实暴露的离散算子与伴随。
 
@@ -100,7 +100,18 @@ Phase 3 synthesis（`research/stage1_deep_research/phase3_gap_synthesis.md`）�
 
 **决定性事实（评估之外的推论）**：即便全额投入 8–15 周并成功，结果仍是 `n_projects=1`——这恰是 §5 claim ledger 中 C3 已被记录的阻塞原因（「`n_projects=1`，项目聚类不确定性不可识别」）。**这条路线用 4–8 倍于第一次失败的成本，落回同一个已记录的阻塞点。**
 
-**在新的战略判断作出前，不启动任何 C++ 工程工作。**
+**§1.6 的战略裁决已作出：不启动该 C++ 工程路线。**
+
+### 1.6 2026-09-25 路线裁决
+
+**裁决：暂停现有 R-v4 的 TOSEM 确认性实证路线，保留 `research/p3-minimal-theory-v1-zh.md` 作为开发阶段的理论定义，不将其单独包装成已获实证支持的完整论文。** 这不是断言任何数学结构程序总体在客观上不存在，而是基于 §1.4 的既有普查和 §1.5 的成本评估，判定当前五项硬约束与所需项目规模没有可执行路径。
+
+- 只放宽 R1（Python 工具链）并转向串行 MFEM，预计仍为 `n_projects=1`，不能解除跨项目阻断，故不启动 C++ 工程。
+- 只放宽 R4（独立真实缺陷）可增加结构程序候选，却会使 RQ3 的准则效度证据缺位，不能维持原三项 RQ 的完整主张。
+- 不放宽独立认证、参考 MR 排除或项目级统计单位；这些条件直接约束构念循环和伪重复。
+- **另立候选路线**：较广语义范围已在 NetworkX / SymPy 两个独立项目上完成开发性认证演算；NetworkX 两臂区分，SymPy v1 修复后臂为 `EXEC_FAIL`，独立的 v2 数值读取修正后两臂区分（见 `experiments/dev/e1-broad-pair/VERDICT-v2.md`）。这两条公开缺陷只作开发材料。随后按每项目最近 30 条触及目标文件的提交筛查独立缺陷：NetworkX 纳入 0，SymPy 纳入 1、未决 2；这对程序的确认样本路线因此结束（见 `experiments/dev/e1-broad-pair/sample-source-receipt.md`）。该窗口结果不外推为仓库全史无候选。若形成新研究路线，须重新定义总体、分母和 RQ，不能沿用 R-v4 的确认性名义或把 PocketFFT 开发结果转正；仍非新论文已立项。
+
+P12 当前中立快照的参考正控在 macOS arm64 双版本重建中失败，继续标为执行阻断；没有新发布或 P3 换锁。E1–E7 未齐备前不启动确认性评价，不复活 C1–C8。
 
 ## 2. v4 方案要点
 
@@ -160,21 +171,13 @@ v4 会引入新的构念（ESPR/SPTM/SLRMA），需要一份新的 claim ledger�
 | EMSE | 3%–8% | 15%–30% |
 | IST / JSS | 5%–12% | 25%–40% |
 
-目标：TOSEM。分区口径存在版本差异（2025 中科院升级版为大类 1 区；2026 新锐分区为大类 2 区），投稿前须确认单位采用哪一版。
+原定目标为 TOSEM；2026-09-25 起该投稿路线暂停。分区口径存在版本差异（2025 中科院升级版为大类 1 区；2026 新锐分区为大类 2 区），若未来恢复投稿再确认单位采用哪一版。
 
 ## 7. 下一步
 
-按依赖顺序：
+较广范围的 NetworkX / SymPy **开发载体已可执行**，但其指定的确认样本筛查在预定 30 提交窗口内未得到双项目候选，故该配对路线停止。不向更老提交补数，也不把 SymPy 单项目的 1 条候选转为跨项目证据。现有 R-v4 与较广范围的确认性评价均保持 NO-GO。2026-09-25 论文去向已定为停止 P3 新论文投入，见 `research/p3-paper-direction-decision-20260925-zh.md`。不再为不同程序总体开新的确认样本筛查，也不继续 v4 工程准备或预印本更新。
 
-1. **建立结构谱系 \(G\)** — 关闭 §3 问题 1。这是 SLRMA 分母的定义，先于任何实现。
-2. **设计正交认证器** — 关闭 §3 问题 2。至少 3 个可执行认证器（建议先做守恒、对称、可逆）。
-3. **选定确认集** — 新方程 + 独立求解器，outcome-blind 选择规则须在任何运行前写死。
-4. **预注册 RQ2 的 MR 质量梯度** — 完整/删族/弱化/冗余/错配五档，偏序在数据收集前固定。
-5. **新建 claim ledger v2.0.0** — 承载 ESPR/SPTM/SLRMA 的主张与上限。
-
-步骤 1–2 属理论工作，无需实验授权。步骤 3 起须走 `superpowers:writing-plans` 出阶段化计划。
-
-## 8. 仓库卫生
+## 8. 仓库卫生（2026-09-07 历史记录）
 
 - 本地 `main` 落后 `origin/main` 2 个 commit（`.cursor/install.sh` 自包含环境），**尚未同步**。下次会话可 `git merge --ff-only origin/main`。
 - 2026-09-07 已将 52 个未跟踪文件入库：v4 方案谱系（research/ 5 份）、8 月评审文档（docs/review_2026080{6,7,8}、docs/review_20260829 共 8 份）、19 份 superpowers 计划与规格、TOSEM 投稿包（14 项）、P12 staging zip（2 项）。`.codegraph/` 已加入 `.gitignore`。工作区当前 0 个未跟踪文件。

@@ -1,0 +1,4 @@
+members=2501 regular=2501 hashed=2501 prefixes=29
+p3_formula_raw=0bb05eddbaaf341deb2e678328357ee1bceb80ace06c5daa7eb789d5e66f4ef5 match=True
+p3_formula_strip=NO_SINGLE_PREFIX match=False
+p12_tar_manifest=f5553b88d40d3633fe72801c720262d322db8b21cfc34e339c6e8f4dad9e4018 match=False entries=2501

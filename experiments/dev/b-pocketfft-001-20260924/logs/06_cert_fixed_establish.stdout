@@ -1,0 +1,39 @@
+input: x_n=n+1 for n=0..N-1; no PRNG; no seed
+tol_abs=1.0e-08 min_last_dev=1.0e-03
+N= 4 dst2 ortho=0 fct=1           max_abs=3.552714e-15  PASS
+N= 4 dst3 ortho=0 fct=1           max_abs=3.330669e-15  PASS
+N= 4 dst2 ortho=1 fct=1           max_abs=3.552714e-15  PASS
+N= 4 dst3 ortho=1 fct=1           max_abs=3.996803e-15  PASS
+N= 4 dst2 ortho=1 fct=2           max_abs=7.105427e-15  PASS
+N= 4 dst2-ortho last_ref=-2.828427e+00 last_impl=-2.828427e+00
+N= 5 dst2 ortho=0 fct=1           max_abs=3.552714e-15  PASS
+N= 5 dst3 ortho=0 fct=1           max_abs=3.552714e-15  PASS
+N= 5 dst2 ortho=1 fct=1           max_abs=3.552714e-15  PASS
+N= 5 dst3 ortho=1 fct=1           max_abs=2.220446e-15  PASS
+N= 5 dst2 ortho=1 fct=2           max_abs=7.105427e-15  PASS
+N= 5 dst2-ortho last_ref=4.242641e+00 last_impl=4.242641e+00
+N= 8 dst2 ortho=0 fct=1           max_abs=5.861978e-14  PASS
+N= 8 dst3 ortho=0 fct=1           max_abs=1.343370e-14  PASS
+N= 8 dst2 ortho=1 fct=1           max_abs=5.861978e-14  PASS
+N= 8 dst3 ortho=1 fct=1           max_abs=1.287859e-14  PASS
+N= 8 dst2 ortho=1 fct=2           max_abs=1.172396e-13  PASS
+N= 8 dst2-ortho last_ref=-5.656854e+00 last_impl=-5.656854e+00
+N= 9 dst2 ortho=0 fct=1           max_abs=9.769963e-14  PASS
+N= 9 dst3 ortho=0 fct=1           max_abs=4.662937e-14  PASS
+N= 9 dst2 ortho=1 fct=1           max_abs=9.769963e-14  PASS
+N= 9 dst3 ortho=1 fct=1           max_abs=5.062617e-14  PASS
+N= 9 dst2 ortho=1 fct=2           max_abs=1.953993e-13  PASS
+N= 9 dst2-ortho last_ref=7.071068e+00 last_impl=7.071068e+00
+N=16 dst2 ortho=0 fct=1           max_abs=2.771117e-13  PASS
+N=16 dst3 ortho=0 fct=1           max_abs=1.898481e-13  PASS
+N=16 dst2 ortho=1 fct=1           max_abs=2.771117e-13  PASS
+N=16 dst3 ortho=1 fct=1           max_abs=1.794120e-13  PASS
+N=16 dst2 ortho=1 fct=2           max_abs=5.542233e-13  PASS
+N=16 dst2-ortho last_ref=-1.131371e+01 last_impl=-1.131371e+01
+N=17 dst2 ortho=0 fct=1           max_abs=2.735590e-13  PASS
+N=17 dst3 ortho=0 fct=1           max_abs=2.273737e-13  PASS
+N=17 dst2 ortho=1 fct=1           max_abs=2.735590e-13  PASS
+N=17 dst3 ortho=1 fct=1           max_abs=2.380318e-13  PASS
+N=17 dst2 ortho=1 fct=2           max_abs=5.471179e-13  PASS
+N=17 dst2-ortho last_ref=1.272792e+01 last_impl=1.272792e+01
+ESTABLISH: PASS

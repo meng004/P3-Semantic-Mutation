@@ -1,0 +1,16 @@
+commit_expected b3b1f28efdc16d7643f536a08b26eaa174723e36
+python 3.14.5 (main, May 10 2026, 10:21:34) [Clang 17.0.0 (clang-1700.6.4.2)]
+sympy_file /Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/sy-pre/lib/python3.14/site-packages/sympy/__init__.py
+sympy_version 1.15.0.dev
+mpmath_file /Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/sy-pre/lib/python3.14/site-packages/mpmath/__init__.py
+mpmath_version 1.4.1
+quad_0_1 0.78539816339744830961566084581987572104929234984377645524373614807695410157155225
+pi_over_4 0.78539816339744830961566084581987572104929234984377645524373614807695410157155225
+self_check_abs 0.0
+F_before_subs 0
+F_after_subs 0
+F1_minus_F0_real 0.0
+F1_minus_F0_imag 0.0
+abs_diff_complex 0.78539816339744830961566084581987572104929234984377645524373614807695410157155225
+tolerance 0.000000010000000000000000209225608301284726753266340892878361046314239501953125
+verdict CERT_BREAK

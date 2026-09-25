@@ -1,0 +1,9 @@
+input: x_n=n+1 for n=0..N-1; no PRNG; no seed
+tol_abs=1.0e-08 min_last_dev=1.0e-03
+N= 4 prefix_max=3.826834e+00 last_vs_2ref=1.656854e+00 last_gap=1.171573e+00 dst3_max=2.422221e+00 last_ref=-2.828427e+00 last_impl=-4.000000e+00  FAIL
+N= 5 prefix_max=5.686934e+00 last_vs_2ref=2.485281e+00 last_gap=1.757359e+00 dst3_max=2.741279e+00 last_ref=4.242641e+00 last_impl=6.000000e+00  FAIL
+N= 8 prefix_max=1.351189e+01 last_vs_2ref=3.313708e+00 last_gap=2.343146e+00 dst3_max=4.126218e+00 last_ref=-5.656854e+00 last_impl=-8.000000e+00  FAIL
+N= 9 prefix_max=1.686705e+01 last_vs_2ref=4.142136e+00 last_gap=2.928932e+00 dst3_max=4.506389e+00 last_ref=7.071068e+00 last_impl=1.000000e+01  FAIL
+N=16 prefix_max=5.079912e+01 last_vs_2ref=6.627417e+00 last_gap=4.686292e+00 dst3_max=7.451855e+00 last_ref=-1.131371e+01 last_impl=-1.600000e+01  FAIL
+N=17 prefix_max=5.713852e+01 last_vs_2ref=7.455844e+00 last_gap=5.272078e+00 dst3_max=7.855952e+00 last_ref=1.272792e+01 last_impl=1.800000e+01  FAIL
+EXPECT_DST2_LAST_X2: FAIL

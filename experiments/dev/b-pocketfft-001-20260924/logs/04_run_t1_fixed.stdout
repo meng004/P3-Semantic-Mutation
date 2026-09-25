@@ -1,0 +1,7 @@
+N= 4 max|D3 - D2^T| = 0.000000e+00  PASS
+N= 5 max|D3 - D2^T| = 2.220446e-16  PASS
+N= 8 max|D3 - D2^T| = 4.440892e-16  PASS
+N= 9 max|D3 - D2^T| = 4.440892e-16  PASS
+N=16 max|D3 - D2^T| = 4.440892e-16  PASS
+N=17 max|D3 - D2^T| = 4.440892e-16  PASS
+OVERALL: PASS

@@ -1,0 +1,10 @@
+commit_expected dba6e0fade37fc8a649ae31a9ec4f27a78773482
+python 3.14.5 (main, May 10 2026, 10:21:34) [Clang 17.0.0 (clang-1700.6.4.2)]
+networkx_file /Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/nx-pre/lib/python3.14/site-packages/networkx/__init__.py
+networkx_version 3.7rc0.dev0
+control_dist00 0
+target_weights [5]
+expected_dist00 0
+observed_dist00 5
+abs_diff 5
+verdict CERT_BREAK

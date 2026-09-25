@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/cert_sympy.py", line 42, in main
+    observed = mpmath.mpf(str(endpoint.evalf(80)))
+  File "/Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/sy-post/lib/python3.14/site-packages/mpmath/ctx_mp_python.py", line 69, in __new__
+    val = from_str(val, prec, rounding, base)
+  File "/Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/sy-post/lib/python3.14/site-packages/mpmath/libmp/libmpf.py", line 1364, in from_str
+    man, exp = str_to_man_exp(x, base)
+               ~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/limeng/Papers/P3-SemanticMutation/experiments/dev/e1-broad-pair/venvs/sy-post/lib/python3.14/site-packages/mpmath/libmp/libmpf.py", line 1310, in str_to_man_exp
+    exp = int(parts[1])
+ValueError: invalid literal for int() with base 10: '-86*i'

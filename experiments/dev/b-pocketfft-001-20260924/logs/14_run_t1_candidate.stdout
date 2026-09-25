@@ -1,0 +1,7 @@
+N= 4 max|D3 - D2^T| = 1.414214e+00  FAIL
+N= 5 max|D3 - D2^T| = 1.414214e+00  FAIL
+N= 8 max|D3 - D2^T| = 1.414214e+00  FAIL
+N= 9 max|D3 - D2^T| = 1.414214e+00  FAIL
+N=16 max|D3 - D2^T| = 1.414214e+00  FAIL
+N=17 max|D3 - D2^T| = 1.414214e+00  FAIL
+OVERALL: FAIL

@@ -1,0 +1,11 @@
+--- /Users/limeng/Papers/P3-SemanticMutation/experiments/dev/b-pocketfft-001-20260924/src/pocketfft_hdronly.fixed.h	2026-09-24 22:44:44
++++ /Users/limeng/Papers/P3-SemanticMutation/experiments/dev/b-pocketfft-001-20260924/src/pocketfft_hdronly.candidate.h	2026-09-24 22:48:21
+@@ -2634,7 +2634,7 @@
+           for (size_t k=0, kc=N-1; k<kc; ++k, --kc)
+             std::swap(c[k], c[kc]);
+         if (ortho)
+-          cosine ? c[0]*=sqrt2*T0(0.5) : c[N-1]*=sqrt2*T0(0.5);
++          cosine ? c[0]*=sqrt2*T0(0.5) : c[N-1]*=sqrt2;
+         }
+       else
+         {

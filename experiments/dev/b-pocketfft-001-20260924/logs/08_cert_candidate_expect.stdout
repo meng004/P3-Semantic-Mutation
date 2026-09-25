@@ -1,0 +1,9 @@
+input: x_n=n+1 for n=0..N-1; no PRNG; no seed
+tol_abs=1.0e-08 min_last_dev=1.0e-03
+N= 4 prefix_max=3.552714e-15 last_vs_2ref=8.881784e-16 last_gap=2.828427e+00 dst3_max=3.996803e-15 last_ref=-2.828427e+00 last_impl=-5.656854e+00  PASS
+N= 5 prefix_max=3.552714e-15 last_vs_2ref=1.776357e-15 last_gap=4.242641e+00 dst3_max=2.220446e-15 last_ref=4.242641e+00 last_impl=8.485281e+00  PASS
+N= 8 prefix_max=5.861978e-14 last_vs_2ref=1.776357e-15 last_gap=5.656854e+00 dst3_max=1.287859e-14 last_ref=-5.656854e+00 last_impl=-1.131371e+01  PASS
+N= 9 prefix_max=9.769963e-14 last_vs_2ref=1.776357e-15 last_gap=7.071068e+00 dst3_max=5.062617e-14 last_ref=7.071068e+00 last_impl=1.414214e+01  PASS
+N=16 prefix_max=2.771117e-13 last_vs_2ref=3.552714e-15 last_gap=1.131371e+01 dst3_max=1.794120e-13 last_ref=-1.131371e+01 last_impl=-2.262742e+01  PASS
+N=17 prefix_max=2.735590e-13 last_vs_2ref=3.552714e-15 last_gap=1.272792e+01 dst3_max=2.380318e-13 last_ref=1.272792e+01 last_impl=2.545584e+01  PASS
+EXPECT_DST2_LAST_X2: PASS

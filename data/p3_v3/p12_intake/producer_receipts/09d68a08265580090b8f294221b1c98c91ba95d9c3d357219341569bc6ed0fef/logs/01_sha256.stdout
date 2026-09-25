@@ -1,0 +1,3 @@
+CMD: shasum -a 256 <archive> <descriptor>
+dd8155d1f7e94b17e467cfb7b797e5d188285cc68b9c6ad003eaf2e0d2b1d482  /Users/limeng/Papers/P3-SemanticMutation/data/p3_v3/p12_intake/archives/09d68a08265580090b8f294221b1c98c91ba95d9c3d357219341569bc6ed0fef.tar
+9323b307ebf944e6056e7ea404f63297d2b5e41a3ce039cf002786c7e4fa721d  /Users/limeng/Papers/P3-SemanticMutation/data/p3_v3/p12_intake/descriptors/09d68a08265580090b8f294221b1c98c91ba95d9c3d357219341569bc6ed0fef.json

@@ -1,0 +1,10 @@
+date: Thu Sep 24 22:48:00 CST 2026
+uname: Darwin MacBook-Pro.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64
+clang++: Apple clang version 17.0.0 (clang-1700.0.13.3) Target: arm64-apple-darwin27.0.0 Thread model: posix 
+git: git version 2.54.0
+P3_HEAD: e883e5ca20969d6cf23f3a23c4ff4ea3df299c5b
+P3_STATUS_EMPTY: 1
+P12_COMMIT: fc3bb70e11b93ca207296a1101c35973d96128f0
+POCKETFFT_FIXED: fb21e4016b96f50a83c516fc0acabe8def4b3bb5
+POCKETFFT_BUGGY: 076cb3d2536b7c5d0629093ad886e10ac05f3623
+CXX: Apple clang 17.0.0
